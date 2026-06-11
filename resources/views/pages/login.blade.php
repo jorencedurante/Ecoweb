@@ -21,29 +21,38 @@
             <div class="login-card">
                 <h3>Login to Your Account</h3>
                 <p class="subtitle">Enter your credentials to continue</p>
-                <form onsubmit="event.preventDefault(); alert('Login placeholder - no authentication yet'); window.location.href='{{ route('admin.dashboard') }}';">
+                @if(session('success'))
+                    <div class="alert-success show" style="margin-bottom:16px;">{{ session('success') }}</div>
+                @endif
+                @if($errors->any())
+                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
+                        @foreach($errors->all() as $error)
+                            <div>{{ $error }}</div>
+                        @endforeach
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('login.submit') }}">
+                    @csrf
                     <div class="form-group">
                         <label>Email</label>
                         <div class="input-wrapper">
                             <span class="input-icon">✉</span>
-                            <input type="email" placeholder="Enter your email" value="admin@ecocollect.edu">
+                            <input type="email" name="email" placeholder="Enter your email" value="{{ old('email', 'admin@ecocollect.com') }}" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Password</label>
                         <div class="input-wrapper">
                             <span class="input-icon">🔒</span>
-                            <input type="password" placeholder="Enter your password" value="password123">
+                            <input type="password" name="password" placeholder="Enter your password" required>
                             <button type="button" class="toggle-pw">👁</button>
                         </div>
                     </div>
                     <div class="checkbox-row">
-                        <label><input type="checkbox" checked> Remember me</label>
-                        <a href="#">Forgot password?</a>
+                        <label><input type="checkbox" name="remember" checked> Remember me</label>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Login</button>
                 </form>
-                <p class="signup-link">Don't have an account? <a href="#">Create Account</a></p>
             </div>
         </div>
     </div>

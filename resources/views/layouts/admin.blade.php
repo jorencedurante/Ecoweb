@@ -32,6 +32,10 @@
                 <span class="nav-icon">🏆</span>
                 <span>Certificate Award</span>
             </a>
+            <a href="{{ route('claims.index') }}" class="nav-item {{ request()->routeIs('claims.*') ? 'active' : '' }}">
+                <span class="nav-icon">🎁</span>
+                <span>Claim Items</span>
+            </a>
             <a href="{{ route('admin.reports') }}" class="nav-item {{ request()->routeIs('admin.reports') ? 'active' : '' }}">
                 <span class="nav-icon">📈</span>
                 <span>Reports</span>
@@ -42,7 +46,7 @@
             </a>
             <a href="{{ route('admin.teachers') }}" class="nav-item {{ request()->routeIs('admin.teachers') ? 'active' : '' }}">
                 <span class="nav-icon">👨‍🏫</span>
-                <span>Teachers</span>
+                <span>Accounts</span>
             </a>
             <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
                 <span class="nav-icon">⚙️</span>
@@ -54,10 +58,11 @@
             </a>
         </nav>
         <div class="sidebar-logout">
-            <a href="{{ route('login') }}" class="nav-item">
+            <a href="#" class="nav-item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                 <span class="nav-icon">🚪</span>
                 <span>Logout</span>
             </a>
+            <form id="logout-form" method="POST" action="{{ route('logout') }}" style="display:none;">@csrf</form>
         </div>
     </aside>
 
@@ -70,18 +75,28 @@
             </div>
             <div class="admin-profile">
                 <div class="admin-info">
-                    <div class="admin-name">Admin User</div>
-                    <div class="admin-role">Administrator</div>
+                    <div class="admin-name">{{ Auth::user()->name ?? 'Admin User' }}</div>
+                    <div class="admin-role">{{ ucfirst(Auth::user()->role ?? 'Administrator') }}</div>
                 </div>
-                <div class="admin-avatar">AU</div>
+                <div class="admin-avatar">{{ substr(Auth::user()->name ?? 'AU', 0, 2) }}</div>
             </div>
         </header>
 
         <div class="page-content">
+            @if(session('success'))
+                <div class="alert-success show" style="margin-bottom:16px;">✅ {{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+                <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
+            @endif
+            @if(session('info'))
+                <div style="background:rgba(0,174,239,0.1);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">ℹ️ {{ session('info') }}</div>
+            @endif
             @yield('content')
         </div>
     </div>
 
     <script src="{{ asset('js/app.js') }}"></script>
+    @stack('scripts')
 </body>
 </html>

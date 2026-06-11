@@ -78,27 +78,7 @@ function initModals() {
         });
     });
 
-    // Add Student form submission (placeholder)
-    const addForm = document.querySelector('#addStudentModal form');
-    if (addForm) {
-        addForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            // TODO: Connect form submission to backend
-            alert('Student added successfully! (Placeholder - no database connected)');
-            document.getElementById('addStudentModal').classList.remove('show');
-        });
-    }
 
-    // Edit Student form submission (placeholder)
-    const editForm = document.querySelector('#editStudentModal form');
-    if (editForm) {
-        editForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            // TODO: Connect form submission to backend
-            alert('Student updated successfully! (Placeholder - no database connected)');
-            document.getElementById('editStudentModal').classList.remove('show');
-        });
-    }
 }
 
 function populateEditModal(studentId) {

@@ -2,39 +2,42 @@
 
 @section('title', 'EcoCollect - QR Code Generation')
 @section('page-title', 'QR Code Generation')
-@section('page-subtitle', 'Generates QR codes for students, bottles, locations.')
+@section('page-subtitle', 'Generate QR codes for student information.')
 
 @section('content')
-    <div class="alert-success" id="qrSuccessAlert">
-        ✅ QR Code created successfully!
-    </div>
+    @if(session('success'))
+    <div class="alert-success show">✅ {{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
+    @endif
+    @if(session('info'))
+    <div style="background:rgba(0,174,239,0.1);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">ℹ️ {{ session('info') }}</div>
+    @endif
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
         <div class="card">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Generate QR Code</h4>
-                <div class="form-group">
-                    <label>QR Type</label>
-                    <select style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                        <option selected>LRN</option>
-                        <option>Student ID</option>
-                        <option>Bottle Batch</option>
-                        <option>Location</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Select Student</label>
-                    <select style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                        <option>Kathleen E. Tabadero</option>
-                        <option>Joy O. Tabadero</option>
-                        <option>Jerence C. Tabadero</option>
-                        <option>Patricia R. Tabadero</option>
-                        <option selected>Denver P. Tabadero</option>
-                        <option>Karen N. Tabadero</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary btn-block" id="generateQrBtn">Generate QR Code</button>
-                <!-- TODO: Generate QR code from real student LRN -->
+                <form method="POST" action="{{ route('admin.qrcode.generate') }}">
+                    @csrf
+                    <div class="form-group">
+                        <label>QR Type</label>
+                        <select name="qr_type" id="qr_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                            <option value="lrn">LRN</option>
+                            <option value="student_id">Student ID</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Student Name</label>
+                        <input type="text" name="student_name" id="student_name" placeholder="Enter student name" value="{{ old('student_name') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    </div>
+                    <div class="form-group">
+                        <label>QR Value</label>
+                        <input type="text" name="qr_value" id="qr_value" placeholder="Enter student LRN" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Generate QR Code</button>
+                </form>
             </div>
         </div>
 
@@ -44,16 +47,70 @@
                 <div class="qr-inner">
                     <div style="font-size:48px;margin-bottom:8px;">📱</div>
                     <div>QR Code Placeholder</div>
-                    <div style="font-size:11px;color:#999;">Real QR will appear here</div>
+                    <div style="font-size:11px;color:#999;">Generate a QR code to preview</div>
                 </div>
             </div>
-            <div class="qr-number">123456789016</div>
+            @if($latestQrStudentName)
+                <div class="qr-number" style="font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:4px;">{{ $latestQrStudentName }}</div>
+                <div class="qr-number" style="font-size:13px;color:var(--text-muted);">{{ $latestQrValue }}</div>
+            @else
+                <div class="qr-number">{{ $latestQrValue ?? '—' }}</div>
+            @endif
             <div class="qr-actions">
-                <button class="btn btn-primary btn-sm">⬇ Download QR Code</button>
-                <button class="btn btn-outline btn-sm" onclick="alert('Print placeholder')">🖨 Print QR Code</button>
+                <a href="{{ $latestQrId ? route('admin.qrcode.download', $latestQrId) : '#' }}" class="btn btn-primary btn-sm {{ $latestQrId ? '' : 'disabled' }}" style="{{ $latestQrId ? '' : 'pointer-events:none;opacity:0.5;' }}">⬇ Download QR Code</a>
+                <a href="{{ $latestQrId ? route('admin.qrcode.print', $latestQrId) : '#' }}" class="btn btn-outline btn-sm {{ $latestQrId ? '' : 'disabled' }}" style="{{ $latestQrId ? '' : 'pointer-events:none;opacity:0.5;' }}">🖨 Print QR Code</a>
             </div>
         </div>
     </div>
 
-    <!-- TODO: Integrate QR code library (e.g., qrcode.js) for real generation -->
+    @if($qrCodes->count() > 0)
+    <div class="table-container" style="margin-top:24px;">
+        <div class="table-header">
+            <h4 style="font-size:14px;font-weight:600;">Generated QR Codes</h4>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student</th>
+                    <th>QR Type</th>
+                    <th>QR Value</th>
+                    <th>Generated By</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($qrCodes as $i => $qr)
+                <tr>
+                    <td>{{ $qrCodes->firstItem() + $i }}</td>
+                    <td>{{ $qr->student_name ?? optional($qr->student)->full_name ?? '—' }}</td>
+                    <td>{{ ucfirst(str_replace('_', ' ', $qr->qr_type)) }}</td>
+                    <td>{{ $qr->qr_value }}</td>
+                    <td>{{ $qr->generator->name ?? 'System' }}</td>
+                    <td>{{ $qr->created_at->format('Y-m-d') }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var qrType = document.getElementById('qr_type');
+    var qrValue = document.getElementById('qr_value');
+
+    if (qrType && qrValue) {
+        qrType.addEventListener('change', function () {
+            if (this.value === 'lrn') {
+                qrValue.placeholder = 'Enter student LRN';
+            } else if (this.value === 'student_id') {
+                qrValue.placeholder = 'Enter student ID';
+
+        });
+    }
+});
+</script>
+@endpush
