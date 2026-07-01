@@ -17,43 +17,86 @@
     </div>
 
     @if($latestAward)
+    @php
+        $templateExt = $latestAward->template_file_path ? strtolower(pathinfo($latestAward->template_file_path, PATHINFO_EXTENSION)) : null;
+        $isImage = $templateExt && in_array($templateExt, ['jpg','jpeg','png']);
+    @endphp
     <div class="certificate-card" style="margin-bottom:24px;">
-        <div class="cert-border" style="position:relative;overflow:hidden;
-            @if($latestAward->template_file_path && in_array(pathinfo($latestAward->template_file_path, PATHINFO_EXTENSION), ['jpg','jpeg','png']))
-                background-image:url('{{ asset('storage/'.$latestAward->template_file_path) }}');background-size:cover;background-position:center;
-            @endif">
-            @if($latestAward->template_file_path && in_array(pathinfo($latestAward->template_file_path, PATHINFO_EXTENSION), ['jpg','jpeg','png']))
-            <div style="position:absolute;inset:0;background:rgba(255,255,255,0.85);z-index:0;"></div>
-            @endif
-            <div style="position:relative;z-index:1;">
-                <div class="cert-logo">EC</div>
-                <h2>{{ $latestAward->certificate_title ?? $latestAward->award_title }}</h2>
-                <p class="cert-subtitle">Presented to</p>
-                <div class="cert-student">{{ $latestAward->student->full_name }}</div>
-                <p class="cert-desc">{{ $latestAward->award_description ?? 'For outstanding achievement.' }}</p>
-                <div style="display:flex;justify-content:space-between;margin-top:30px;padding:0 20px;font-size:12px;color:var(--text-medium);">
-                    <div>{{ $latestAward->school_principal_name ?? '___________________' }}<br>School Principal</div>
-                    <div>{{ $latestAward->program_coordinator_name ?? '___________________' }}<br>Program Coordinator</div>
-                </div>
-                <div style="margin-top:16px;font-size:12px;color:var(--text-light);">
-                    Awarded on {{ $latestAward->awarded_date->format('F d, Y') }}
-                    @if($latestAward->awarded_by) by {{ $latestAward->awarded_by }} @endif
+        <div class="cert-border">
+            @if($isImage)
+            <div class="uploaded-template-preview certificate-print-area"
+                style="background-image: url('{{ asset('storage/'.$latestAward->template_file_path) }}');">
+                @if($latestAward->show_logo)
+                    <div class="overlay-logo">EC</div>
+                @endif
+                @if($latestAward->show_certificate_title)
+                    <div class="overlay-title">{{ $latestAward->certificate_title ?? $latestAward->award_title }}</div>
+                @endif
+                @if($latestAward->show_student_name)
+                    <div class="overlay-student-name">{{ $latestAward->student->full_name }}</div>
+                @endif
+                @if($latestAward->show_award_description)
+                    <div class="overlay-description">{{ $latestAward->award_description ?? 'For outstanding achievement.' }}</div>
+                @endif
+                @if($latestAward->show_principal_name || $latestAward->show_program_coordinator_name)
+                    <div class="overlay-signatures">
+                        @if($latestAward->show_principal_name)
+                        <div>{{ $latestAward->school_principal_name ?? '___________________' }}<br>School Principal</div>
+                        @endif
+                        @if($latestAward->show_program_coordinator_name)
+                        <div>{{ $latestAward->program_coordinator_name ?? '___________________' }}<br>Program Coordinator</div>
+                        @endif
+                    </div>
+                @endif
+                @if($latestAward->show_award_date)
+                    <div class="overlay-date">
+                        Awarded on {{ $latestAward->awarded_date->format('F d, Y') }}
+                        @if($latestAward->awarded_by) by {{ $latestAward->awarded_by }} @endif
+                    </div>
+                @endif
+            </div>
+            @else
+            <div class="certificate-preview default-template">
+                <div class="certificate-content">
+                    <div class="cert-logo">EC</div>
+                    <h2>{{ $latestAward->certificate_title ?? $latestAward->award_title }}</h2>
+                    <p class="cert-subtitle">Presented to</p>
+                    <div class="cert-student">{{ $latestAward->student->full_name }}</div>
+                    <p class="cert-desc">{{ $latestAward->award_description ?? 'For outstanding achievement.' }}</p>
+                    <div class="cert-signatures">
+                        <div>{{ $latestAward->school_principal_name ?? '___________________' }}<br>School Principal</div>
+                        <div>{{ $latestAward->program_coordinator_name ?? '___________________' }}<br>Program Coordinator</div>
+                    </div>
+                    <div class="cert-date">
+                        Awarded on {{ $latestAward->awarded_date->format('F d, Y') }}
+                        @if($latestAward->awarded_by) by {{ $latestAward->awarded_by }} @endif
+                    </div>
                 </div>
             </div>
+            @if($latestAward->template_file_path && !$isImage)
+            <div style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-medium);">
+                PDF certificate template uploaded.
+                <a href="{{ asset('storage/'.$latestAward->template_file_path) }}" target="_blank" style="color:var(--blue);font-weight:600;">View PDF Template</a>
+            </div>
+            @endif
+            @endif
         </div>
-        <a href="{{ route('admin.certificate.print', $latestAward->id) }}" class="btn btn-outline cert-print-btn" target="_blank">🖨 Print</a>
     </div>
     @else
     <div class="certificate-card" style="margin-bottom:24px;">
         <div class="cert-border">
-            <div class="cert-logo">EC</div>
-            <h2>Certificate of Award</h2>
-            <p class="cert-subtitle">Presented to</p>
-            <div class="cert-student">[Student Name]</div>
-            <p class="cert-desc">No awards yet. Click "Add Award" to create one.</p>
-            <div style="display:flex;justify-content:space-between;margin-top:30px;padding:0 20px;font-size:12px;color:var(--text-medium);">
-                <div>___________________<br>School Principal</div>
-                <div>___________________<br>Program Coordinator</div>
+            <div class="certificate-preview default-template">
+                <div class="certificate-content">
+                    <div class="cert-logo">EC</div>
+                    <h2>Certificate of Award</h2>
+                    <p class="cert-subtitle">Presented to</p>
+                    <div class="cert-student">[Student Name]</div>
+                    <p class="cert-desc">No awards yet. Click "Add Award" to create one.</p>
+                    <div class="cert-signatures">
+                        <div>___________________<br>School Principal</div>
+                        <div>___________________<br>Program Coordinator</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -100,12 +143,12 @@
 
     <!-- Add Award Modal -->
     <div class="modal-overlay" id="addAwardModal">
-        <div class="modal-content" style="max-width:560px;">
+        <div class="modal-content award-modal">
             <div class="modal-header">
                 <h3>Add award</h3>
                 <p class="subtitle">Create a new certificate or award for a student</p>
             </div>
-            <form method="POST" action="{{ route('admin.certificate.store') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.certificate.store') }}" enctype="multipart/form-data" class="modal-form">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group">
@@ -157,6 +200,49 @@
                         <label>Template File (optional)</label>
                         <input type="file" name="template_file" accept=".jpg,.jpeg,.png,.pdf" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
                         <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Accepted: JPG, PNG, PDF (max 5MB)</div>
+                    </div>
+                    <div class="overlay-options-section">
+                        <h3 class="overlay-options-heading">Template Overlay Options</h3>
+                        <p class="overlay-help-text">
+                            If your uploaded certificate template already contains text, keep only "Show Student Name" enabled to avoid overlapping.
+                        </p>
+                        <div class="overlay-options-grid">
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_logo" value="0">
+                                <input type="checkbox" name="show_logo" value="1">
+                                <span>Show EcoCollect Logo</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_certificate_title" value="0">
+                                <input type="checkbox" name="show_certificate_title" value="1">
+                                <span>Show Certificate Title</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_student_name" value="0">
+                                <input type="checkbox" name="show_student_name" value="1" checked>
+                                <span>Show Student Name</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_award_description" value="0">
+                                <input type="checkbox" name="show_award_description" value="1">
+                                <span>Show Award Description</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_award_date" value="0">
+                                <input type="checkbox" name="show_award_date" value="1">
+                                <span>Show Award Date</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_principal_name" value="0">
+                                <input type="checkbox" name="show_principal_name" value="1">
+                                <span>Show Principal Name</span>
+                            </label>
+                            <label class="overlay-option">
+                                <input type="hidden" name="show_program_coordinator_name" value="0">
+                                <input type="checkbox" name="show_program_coordinator_name" value="1">
+                                <span>Show Program Coordinator Name</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

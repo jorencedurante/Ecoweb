@@ -32,6 +32,13 @@ class CertificateController extends Controller
             'awarded_by' => 'nullable|string|max:255',
             'awarded_date' => 'required|date',
             'template_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'show_logo' => 'nullable|boolean',
+            'show_certificate_title' => 'nullable|boolean',
+            'show_student_name' => 'nullable|boolean',
+            'show_award_description' => 'nullable|boolean',
+            'show_award_date' => 'nullable|boolean',
+            'show_principal_name' => 'nullable|boolean',
+            'show_program_coordinator_name' => 'nullable|boolean',
         ]);
 
         $templatePath = null;
@@ -54,6 +61,13 @@ class CertificateController extends Controller
             'template_file_path' => $templatePath,
             'status' => 'Active',
             'issued_by' => Auth::id(),
+            'show_logo' => $request->boolean('show_logo'),
+            'show_certificate_title' => $request->boolean('show_certificate_title'),
+            'show_student_name' => $request->boolean('show_student_name', true),
+            'show_award_description' => $request->boolean('show_award_description'),
+            'show_award_date' => $request->boolean('show_award_date'),
+            'show_principal_name' => $request->boolean('show_principal_name'),
+            'show_program_coordinator_name' => $request->boolean('show_program_coordinator_name'),
         ]);
 
         AdminActivity::create([

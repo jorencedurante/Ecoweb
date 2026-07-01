@@ -27,7 +27,10 @@
                     <button class="filter-btn" type="button" onclick="document.getElementById('filterForm').reset(); window.location='{{ route('admin.students') }}';">Clear</button>
                 </form>
             </div>
-            <button class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
+            <div style="display:flex;gap:8px;">
+                <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm" style="font-size:13px;">📦 Archived</a>
+                <button class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
+            </div>
         </div>
         <table>
             <thead>
@@ -63,10 +66,12 @@
                                 data-last="{{ $student->last_name }}"
                                 data-grade="{{ $student->grade_level }}"
                                 data-gender="{{ $student->gender }}">Edit</button>
+                            @if($student->status !== 'Archived')
                             <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" style="display:inline;" onsubmit="return confirm('Archive this student?')">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="btn btn-archive btn-xs">Archive</button>
                             </form>
+                            @endif
                         </div>
                     </td>
                 </tr>

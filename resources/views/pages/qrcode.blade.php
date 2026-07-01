@@ -11,9 +11,6 @@
     @if(session('error'))
     <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
     @endif
-    @if(session('info'))
-    <div style="background:rgba(0,174,239,0.1);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">ℹ️ {{ session('info') }}</div>
-    @endif
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
         <div class="card">
@@ -26,11 +23,8 @@
                         <select name="qr_type" id="qr_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                             <option value="lrn">LRN</option>
                             <option value="student_id">Student ID</option>
+                            <option value="student_name">Student Name</option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Student Name</label>
-                        <input type="text" name="student_name" id="student_name" placeholder="Enter student name" value="{{ old('student_name') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                     </div>
                     <div class="form-group">
                         <label>QR Value</label>
@@ -43,22 +37,30 @@
 
         <div class="qr-preview">
             <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">QR Code Preview</h4>
-            <div class="qr-placeholder">
-                <div class="qr-inner">
-                    <div style="font-size:48px;margin-bottom:8px;">📱</div>
-                    <div>QR Code Placeholder</div>
-                    <div style="font-size:11px;color:#999;">Generate a QR code to preview</div>
+            @if(isset($latestQrCode) && $latestQrCode->qr_image_path)
+                <div style="text-align:center;margin-bottom:12px;">
+                    <img src="{{ asset('storage/' . $latestQrCode->qr_image_path) }}" alt="Generated QR Code" style="max-width:220px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;background:#fff;">
                 </div>
-            </div>
-            @if($latestQrStudentName)
-                <div class="qr-number" style="font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:4px;">{{ $latestQrStudentName }}</div>
-                <div class="qr-number" style="font-size:13px;color:var(--text-muted);">{{ $latestQrValue }}</div>
+                <div style="text-align:center;">
+                    <p style="font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:4px;">
+                        Student: {{ $latestQrCode->student->full_name ?? $latestQrCode->student_name ?? 'Student not found' }}
+                    </p>
+                    <p style="font-size:13px;color:var(--text-muted);">
+                        QR Value: {{ $latestQrCode->qr_value }}
+                    </p>
+                </div>
             @else
-                <div class="qr-number">{{ $latestQrValue ?? '—' }}</div>
+                <div class="qr-placeholder">
+                    <div class="qr-inner">
+                        <div style="font-size:48px;margin-bottom:8px;">📱</div>
+                        <div>QR Code Placeholder</div>
+                        <div style="font-size:11px;color:#999;">Generate a QR code to preview</div>
+                    </div>
+                </div>
             @endif
             <div class="qr-actions">
-                <a href="{{ $latestQrId ? route('admin.qrcode.download', $latestQrId) : '#' }}" class="btn btn-primary btn-sm {{ $latestQrId ? '' : 'disabled' }}" style="{{ $latestQrId ? '' : 'pointer-events:none;opacity:0.5;' }}">⬇ Download QR Code</a>
-                <a href="{{ $latestQrId ? route('admin.qrcode.print', $latestQrId) : '#' }}" class="btn btn-outline btn-sm {{ $latestQrId ? '' : 'disabled' }}" style="{{ $latestQrId ? '' : 'pointer-events:none;opacity:0.5;' }}">🖨 Print QR Code</a>
+                <a href="{{ $latestQrCode ? route('admin.qrcode.download', $latestQrCode->id) : '#' }}" class="btn btn-primary btn-sm {{ $latestQrCode ? '' : 'disabled' }}" style="{{ $latestQrCode ? '' : 'pointer-events:none;opacity:0.5;' }}">⬇ Download QR Code</a>
+                <a href="{{ $latestQrCode ? route('admin.qrcode.print', $latestQrCode->id) : '#' }}" class="btn btn-outline btn-sm {{ $latestQrCode ? '' : 'disabled' }}" style="{{ $latestQrCode ? '' : 'pointer-events:none;opacity:0.5;' }}">🖨 Print QR Code</a>
             </div>
         </div>
     </div>
@@ -77,17 +79,24 @@
                     <th>QR Value</th>
                     <th>Generated By</th>
                     <th>Date</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($qrCodes as $i => $qr)
                 <tr>
                     <td>{{ $qrCodes->firstItem() + $i }}</td>
-                    <td>{{ $qr->student_name ?? optional($qr->student)->full_name ?? '—' }}</td>
+                    <td>{{ $qr->student->full_name ?? $qr->student_name ?? 'Student not found' }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $qr->qr_type)) }}</td>
                     <td>{{ $qr->qr_value }}</td>
-                    <td>{{ $qr->generator->name ?? 'System' }}</td>
+                    <td>{{ $qr->creator->name ?? $qr->generator->name ?? 'Unknown' }}</td>
                     <td>{{ $qr->created_at->format('Y-m-d') }}</td>
+                    <td>
+                        <div class="action-btns">
+                            <a href="{{ route('admin.qrcode.download', $qr->id) }}" class="btn btn-view btn-xs">⬇ Download</a>
+                            <a href="{{ route('admin.qrcode.print', $qr->id) }}" class="btn btn-achievement btn-xs" target="_blank">🖨 Print</a>
+                        </div>
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -108,7 +117,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 qrValue.placeholder = 'Enter student LRN';
             } else if (this.value === 'student_id') {
                 qrValue.placeholder = 'Enter student ID';
-
+            } else if (this.value === 'student_name') {
+                qrValue.placeholder = 'Enter student name';
+            }
         });
     }
 });

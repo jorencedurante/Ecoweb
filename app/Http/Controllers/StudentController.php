@@ -15,7 +15,7 @@ class StudentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Student::query();
+        $query = Student::query()->where('status', '!=', 'Archived');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -37,9 +37,37 @@ class StudentController extends Controller
         }
 
         $students = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
-        $gradeLevels = Student::select('grade_level')->distinct()->pluck('grade_level');
+        $gradeLevels = Student::where('status', '!=', 'Archived')->select('grade_level')->distinct()->pluck('grade_level');
 
         return view('pages.students', compact('students', 'gradeLevels'));
+    }
+
+    public function archived(Request $request)
+    {
+        $query = Student::query()->where('status', 'Archived');
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('middle_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('lrn', 'like', "%{$search}%")
+                  ->orWhere('grade_level', 'like', "%{$search}%")
+                  ->orWhere('qr_code', 'like', "%{$search}%");
+            });
+        }
+
+        if ($gradeLevel = $request->get('grade_level')) {
+            $query->where('grade_level', $gradeLevel);
+        }
+
+        if ($gender = $request->get('gender')) {
+            $query->where('gender', $gender);
+        }
+
+        $students = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+
+        return view('pages.students-archived', compact('students'));
     }
 
     public function store(Request $request)
@@ -120,6 +148,20 @@ class StudentController extends Controller
         ]);
 
         return redirect()->route('admin.students')->with('success', 'Student archived successfully!');
+    }
+
+    public function restore(Student $student)
+    {
+        $student->update(['status' => 'Active']);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Restored Student',
+            'description' => "Restored {$student->full_name} to active students.",
+            'module' => 'Students',
+        ]);
+
+        return redirect()->route('admin.students.archived')->with('success', 'Student restored successfully!');
     }
 
     public function info(Student $student)

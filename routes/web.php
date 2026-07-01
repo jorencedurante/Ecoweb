@@ -54,6 +54,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/students', [StudentController::class, 'store'])->name('admin.students.store');
         Route::put('/students/{student}', [StudentController::class, 'update'])->name('admin.students.update');
         Route::patch('/students/{student}/archive', [StudentController::class, 'archive'])->name('admin.students.archive');
+        Route::get('/students/archived', [StudentController::class, 'archived'])->name('admin.students.archived');
+        Route::patch('/students/{student}/restore', [StudentController::class, 'restore'])->name('students.restore');
         Route::get('/students/{student}/info', [StudentController::class, 'info'])->name('students.info');
         Route::get('/students/{student}/achievements', [StudentController::class, 'achievements'])->name('students.achievements');
         Route::patch('/students/{student}/achievements/progress', [StudentController::class, 'updateAchievementProgress'])->name('students.achievements.progress.update');

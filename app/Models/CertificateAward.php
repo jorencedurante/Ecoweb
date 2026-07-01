@@ -24,10 +24,24 @@ class CertificateAward extends Model
         'pdf_file_path',
         'status',
         'issued_by',
+        'show_logo',
+        'show_certificate_title',
+        'show_student_name',
+        'show_award_description',
+        'show_award_date',
+        'show_principal_name',
+        'show_program_coordinator_name',
     ];
 
     protected $casts = [
         'awarded_date' => 'date',
+        'show_logo' => 'boolean',
+        'show_certificate_title' => 'boolean',
+        'show_student_name' => 'boolean',
+        'show_award_description' => 'boolean',
+        'show_award_date' => 'boolean',
+        'show_principal_name' => 'boolean',
+        'show_program_coordinator_name' => 'boolean',
     ];
 
     public function student(): BelongsTo

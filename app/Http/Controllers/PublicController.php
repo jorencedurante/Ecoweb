@@ -9,8 +9,12 @@ class PublicController extends Controller
 {
     public function landing()
     {
-        $data = $this->getRankingData();
-        return view('public.landing', $data);
+        [$currentQuarterTopStudents, $previousQuarterTopStudents] = $this->getLandingRankings();
+
+        return view('public.landing', compact(
+            'currentQuarterTopStudents',
+            'previousQuarterTopStudents'
+        ));
     }
 
     public function studentLookup(Request $request)
@@ -34,10 +38,13 @@ class PublicController extends Controller
             ])->withInput();
         }
 
-        $data = $this->getRankingData();
-        $data['student'] = $student;
+        [$currentQuarterTopStudents, $previousQuarterTopStudents] = $this->getLandingRankings();
 
-        return view('public.landing', $data);
+        return view('public.landing', compact(
+            'student',
+            'currentQuarterTopStudents',
+            'previousQuarterTopStudents'
+        ));
     }
 
     public function studentDetails($lrn)
@@ -54,49 +61,64 @@ class PublicController extends Controller
         return view('landing-student-details', compact('student'));
     }
 
-    private function getRankingData(): array
+    private function getLandingRankings(): array
     {
-        // Use hardcoded placeholder data; replace with DB queries when live data is populated.
-        $currentQuarterRankings = [];
-        $previousQuarterRankings = [];
-        $monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        $now = now();
 
-        $fakes = [
-            ['name' => 'Juan Dela Cruz',         'points' => 1250, 'bottles' => 86],
-            ['name' => 'Maria Santos',           'points' => 1120, 'bottles' => 79],
-            ['name' => 'Jose Rizal',             'points' => 1080, 'bottles' => 74],
-            ['name' => 'Ana Gonzales',           'points' => 975,  'bottles' => 68],
-            ['name' => 'Pedro Reyes',            'points' => 910,  'bottles' => 63],
-            ['name' => 'Sofia Lopez',            'points' => 865,  'bottles' => 60],
-            ['name' => 'Miguel Fernandez',       'points' => 790,  'bottles' => 55],
-            ['name' => 'Isabella Torres',        'points' => 740,  'bottles' => 51],
-            ['name' => 'Luis Garcia',            'points' => 680,  'bottles' => 47],
-            ['name' => 'Carmen Villanueva',      'points' => 620,  'bottles' => 43],
-        ];
+        $currentQuarterStart = $now->copy()->firstOfQuarter()->startOfDay();
+        $currentQuarterEnd = $now->copy()->lastOfQuarter()->endOfDay();
 
-        shuffle($fakes);
-        foreach ($fakes as $i => $f) {
-            $currentQuarterRankings[] = ['rank' => $i + 1] + $f;
+        $previousQuarterDate = $now->copy()->subQuarter();
+        $previousQuarterStart = $previousQuarterDate->copy()->firstOfQuarter()->startOfDay();
+        $previousQuarterEnd = $previousQuarterDate->copy()->lastOfQuarter()->endOfDay();
+
+        $currentQuarterTopStudents = Student::query()
+            ->withSum(['bottleCollections as quarter_points' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
+                $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
+            }], 'points_earned')
+            ->withSum(['bottleCollections as quarter_bottles' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
+                $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
+            }], 'bottle_count')
+            ->where('status', '!=', 'Archived')
+            ->orderByDesc('quarter_points')
+            ->orderByDesc('quarter_bottles')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(10)
+            ->get();
+
+        $previousQuarterTopStudents = Student::query()
+            ->withSum(['bottleCollections as prev_points' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
+                $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
+            }], 'points_earned')
+            ->withSum(['bottleCollections as prev_bottles' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
+                $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
+            }], 'bottle_count')
+            ->where('status', '!=', 'Archived')
+            ->orderByDesc('prev_points')
+            ->orderByDesc('prev_bottles')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(10)
+            ->get();
+
+        if ($currentQuarterTopStudents->isEmpty()) {
+            $currentQuarterTopStudents = Student::query()
+                ->withSum('bottleCollections as total_bottles_collected', 'bottle_count')
+                ->where('status', '!=', 'Archived')
+                ->orderByDesc('total_points')
+                ->orderByDesc('total_bottles_collected')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->limit(10)
+                ->get()
+                ->map(function ($student) {
+                    $student->quarter_points = $student->total_points ?? 0;
+                    $student->quarter_bottles = $student->total_bottles_collected ?? 0;
+                    return $student;
+                });
         }
 
-        $fakesPrev = [
-            ['name' => 'Diego Ramos',            'points' => 980,  'bottles' => 70],
-            ['name' => 'Elena Cruz',             'points' => 940,  'bottles' => 66],
-            ['name' => 'Rafael Mendoza',         'points' => 890,  'bottles' => 62],
-            ['name' => 'Lara Dizon',             'points' => 850,  'bottles' => 59],
-            ['name' => 'Carlos Bautista',        'points' => 800,  'bottles' => 56],
-            ['name' => 'Mia Villanueva',         'points' => 750,  'bottles' => 52],
-            ['name' => 'Andres Castillo',        'points' => 710,  'bottles' => 49],
-            ['name' => 'Tessa Manaloto',         'points' => 660,  'bottles' => 46],
-            ['name' => 'Gabriel Navarro',        'points' => 610,  'bottles' => 42],
-            ['name' => 'Paula Gomez',            'points' => 570,  'bottles' => 39],
-        ];
-
-        shuffle($fakesPrev);
-        foreach ($fakesPrev as $i => $f) {
-            $previousQuarterRankings[] = ['rank' => $i + 1] + $f;
-        }
-
-        return compact('currentQuarterRankings', 'previousQuarterRankings');
+        return [$currentQuarterTopStudents, $previousQuarterTopStudents];
     }
 }

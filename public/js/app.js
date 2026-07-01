@@ -57,6 +57,7 @@ function initModals() {
             const modal = document.getElementById(target);
             if (modal) {
                 modal.classList.add('show');
+                document.body.classList.add('modal-open');
                 // If edit modal, populate with data
                 if (target === 'editStudentModal') {
                     populateEditModal(btn.dataset.studentId);
@@ -68,13 +69,19 @@ function initModals() {
     closeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const modal = btn.closest('.modal-overlay');
-            if (modal) modal.classList.remove('show');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.classList.remove('modal-open');
+            }
         });
     });
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.classList.remove('show');
+            if (e.target === overlay) {
+                overlay.classList.remove('show');
+                document.body.classList.remove('modal-open');
+            }
         });
     });
 

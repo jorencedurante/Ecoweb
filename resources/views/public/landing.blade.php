@@ -118,25 +118,8 @@
         </section>
     @else
         <section class="preview-section">
-            <div class="preview-card">
-                <div class="preview-avatar">JD</div>
-                <div class="preview-info">
-                    <div class="preview-name">Juan Dela Cruz</div>
-                    <span class="preview-badge">Sample Record</span>
-                    <div class="preview-details">
-                        <span><strong>LRN:</strong> 123456789012</span>
-                        <span><strong>Grade Level:</strong> Grade 7</span>
-                    </div>
-                </div>
-                <div class="preview-stats">
-                    <div class="preview-stat"><div class="ps-value">1,250</div><div class="ps-label">Total Points</div></div>
-                    <div class="ps-divider"></div>
-                    <div class="preview-stat"><div class="ps-value">86</div><div class="ps-label">Bottle Collections</div></div>
-                    <div class="ps-divider"></div>
-                    <div class="preview-stat"><div class="ps-value">12</div><div class="ps-label">Achievements</div></div>
-                    <div class="ps-divider"></div>
-                    <div class="preview-stat"><div class="ps-value">5</div><div class="ps-label">Awards / Certificates</div></div>
-                </div>
+            <div class="preview-card" style="text-align:center;padding:30px;color:#9CA3AF;">
+                <p style="font-size:15px;">Enter your LRN above to view your record.</p>
             </div>
         </section>
     @endif
@@ -152,12 +135,12 @@
                 <table class="ts-table">
                     <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
                     <tbody>
-                        @forelse($currentQuarterRankings as $r)
+                        @forelse($currentQuarterTopStudents as $index => $student)
                             <tr>
-                                <td><span class="rank-badge {{ $r['rank'] <= 3 ? 'rank-top' : '' }}">{{ $r['rank'] }}</span></td>
-                                <td class="ts-name">{{ $r['name'] }}</td>
-                                <td>{{ number_format($r['points']) }}</td>
-                                <td>{{ $r['bottles'] }}</td>
+                                <td><span class="rank-badge {{ $index < 3 ? 'rank-top' : '' }}">{{ $index + 1 }}</span></td>
+                                <td class="ts-name">{{ $student->full_name }}</td>
+                                <td>{{ number_format($student->quarter_points ?? $student->quarter_bottles ?? 0) }}</td>
+                                <td>{{ number_format($student->quarter_bottles ?? 0) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:20px;">No ranking data available yet.</td></tr>
@@ -170,12 +153,12 @@
                 <table class="ts-table">
                     <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
                     <tbody>
-                        @forelse($previousQuarterRankings as $r)
+                        @forelse($previousQuarterTopStudents as $index => $student)
                             <tr>
-                                <td><span class="rank-badge {{ $r['rank'] <= 3 ? 'rank-top' : '' }}">{{ $r['rank'] }}</span></td>
-                                <td class="ts-name">{{ $r['name'] }}</td>
-                                <td>{{ number_format($r['points']) }}</td>
-                                <td>{{ $r['bottles'] }}</td>
+                                <td><span class="rank-badge {{ $index < 3 ? 'rank-top' : '' }}">{{ $index + 1 }}</span></td>
+                                <td class="ts-name">{{ $student->full_name }}</td>
+                                <td>{{ number_format($student->prev_points ?? $student->prev_bottles ?? 0) }}</td>
+                                <td>{{ number_format($student->prev_bottles ?? 0) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:20px;">No ranking data available yet.</td></tr>
