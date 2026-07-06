@@ -4,7 +4,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>EcoCollect - Smart Waste Management</title>
+        <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+        <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+        <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

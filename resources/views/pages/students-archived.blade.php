@@ -9,28 +9,44 @@
     <div class="alert-success show">✅ {{ session('success') }}</div>
     @endif
 
-    <div class="table-container">
-        <div class="table-header">
-            <div class="table-header-left">
-                <div class="search-box">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" placeholder="Search archived students..." id="studentSearch" name="search" value="{{ request('search') }}" onkeyup="filterStudents()">
+    <div class="filter-card">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.students.archived') }}" id="filterForm" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search archived students..." value="{{ request('search') }}">
                 </div>
-                <form method="GET" action="{{ route('admin.students.archived') }}" id="filterForm" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <select name="grade_level" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;">
+                <div class="filter-search">
+                    <label>Grade Level</label>
+                    <select name="grade_level">
                         <option value="">All Grades</option>
-                        @foreach($students->pluck('grade_level')->unique() as $gl)
+                        @foreach($gradeLevels ?? [] as $gl)
                             <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
                         @endforeach
                     </select>
-                    <select name="gender" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;">
+                </div>
+                <div class="filter-search">
+                    <label>Gender</label>
+                    <select name="gender">
                         <option value="">All Genders</option>
                         <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
                         <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
                     </select>
-                    <button class="filter-btn" type="button" onclick="window.location='{{ route('admin.students.archived') }}';">Clear</button>
-                </form>
-            </div>
+                </div>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.students.archived') }}" class="btn btn-reset">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-header">
+            <div class="table-header-left"></div>
             <a href="{{ route('admin.students') }}" class="btn btn-outline btn-sm" style="font-size:13px;">← Back to Active Students</a>
         </div>
         <table>
@@ -82,12 +98,5 @@
 
 @push('scripts')
 <script>
-function filterStudents() {
-    const val = document.getElementById('studentSearch').value;
-    const url = new URL(window.location);
-    if (val) url.searchParams.set('search', val);
-    else url.searchParams.delete('search');
-    window.location = url.toString();
-}
 </script>
 @endpush

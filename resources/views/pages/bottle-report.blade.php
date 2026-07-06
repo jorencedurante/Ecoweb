@@ -7,22 +7,36 @@
 @section('content')
     <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
 
-    <div class="table-header" style="background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:20px;padding:16px 20px;">
-        <div class="table-header-left">
-            <form method="GET" action="{{ route('admin.bottle-report') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <div class="dropdown-group">
+    <div class="filter-card">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.bottle-report') }}" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Day</label>
                     <select name="day">
                         <option value="">Day</option>
                         @for($i = 1; $i <= 31; $i++)
                             <option value="{{ $i }}" {{ request('day') == $i ? 'selected' : '' }}>{{ $i }}</option>
                         @endfor
                     </select>
+                </div>
+                <div class="filter-search">
+                    <label>Month</label>
                     <select name="month">
                         <option value="">Month</option>
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
                             <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="filter-search">
+                    <label>Year</label>
                     <select name="year">
                         <option value="">Year</option>
                         @foreach(['2023','2024','2025','2026'] as $y)
@@ -30,12 +44,22 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="search-box">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}">
+                <div class="filter-search">
+                    <label>Quarter</label>
+                    <select name="quarter">
+                        <option value="">Quarter</option>
+                        <option value="q1" {{ request('quarter') == 'q1' ? 'selected' : '' }}>Q1 (Jan–Mar)</option>
+                        <option value="q2" {{ request('quarter') == 'q2' ? 'selected' : '' }}>Q2 (Apr–Jun)</option>
+                        <option value="q3" {{ request('quarter') == 'q3' ? 'selected' : '' }}>Q3 (Jul–Sep)</option>
+                        <option value="q4" {{ request('quarter') == 'q4' ? 'selected' : '' }}>Q4 (Oct–Dec)</option>
+                        <option value="current" {{ request('quarter') == 'current' ? 'selected' : '' }}>Current</option>
+                        <option value="previous" {{ request('quarter') == 'previous' ? 'selected' : '' }}>Previous</option>
+                    </select>
                 </div>
-                <button class="filter-btn" type="submit">🔽 Filter</button>
-                <button class="filter-btn" type="button" onclick="window.location='{{ route('admin.bottle-report') }}'">Clear</button>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.bottle-report') }}" class="btn btn-reset">Clear</a>
+                </div>
             </form>
         </div>
     </div>
@@ -45,39 +69,48 @@
             <div class="stat-icon blue">📅</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $dailyTotal }}</div>
-                <div class="stat-label">Daily</div>
+                <div class="stat-label">Today</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon green">📆</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $weeklyTotal }}</div>
-                <div class="stat-label">Weekly</div>
+                <div class="stat-label">This Week</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon yellow">📊</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $monthlyTotal }}</div>
-                <div class="stat-label">Monthly</div>
+                <div class="stat-label">This Month</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">📦</div>
+            <div class="stat-info">
+                <div class="stat-value">{{ $totalBottles ?? 0 }}</div>
+                <div class="stat-label">Total Collected</div>
             </div>
         </div>
     </div>
 
     <div class="chart-card" style="margin-bottom:24px;">
-        <h4>Collection Trend</h4>
+        <h4>Bottles Collected — Last 7 Days</h4>
         <div style="display:flex;align-items:flex-end;justify-content:space-between;height:160px;padding:0 10px;gap:4px;">
             @php
-                $trendData = \App\Models\BottleCollection::selectRaw('DAYNAME(collection_date) as day, SUM(bottle_count) as total')
-                    ->where('collection_date', '>=', now()->subDays(6))
-                    ->groupBy('day', 'collection_date')
-                    ->orderBy('collection_date')
-                    ->get()->keyBy('day');
-                $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+                $chartDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+                $maxVal = max(1, max($chartData));
             @endphp
-            @foreach($days as $day)
-                @php $h = max(20, ($trendData[$day]->total ?? 0) * 3); @endphp
-                <div style="flex:1;background:var(--blue);height:{{ min($h, 160) }}px;border-radius:4px 4px 0 0;"></div>
+            @foreach($chartDays as $day)
+                @php
+                    $val = $chartData[$day] ?? 0;
+                    $h = max(4, ($val / $maxVal) * 150);
+                @endphp
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
+                    <span style="font-size:11px;font-weight:700;color:var(--text-dark);margin-bottom:4px;">{{ $val }}</span>
+                    <div style="width:100%;background:var(--blue);height:{{ $h }}px;border-radius:4px 4px 0 0;min-height:4px;"></div>
+                </div>
             @endforeach
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 10px 0;font-size:11px;color:var(--text-medium);">

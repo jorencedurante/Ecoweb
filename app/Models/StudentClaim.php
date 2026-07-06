@@ -19,10 +19,15 @@ class StudentClaim extends Model
         'claim_date',
         'claimed_by',
         'remarks',
+        'status',
+        'approved_by',
+        'approved_at',
+        'rejected_reason',
     ];
 
     protected $casts = [
         'claim_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     public function student(): BelongsTo
@@ -38,5 +43,10 @@ class StudentClaim extends Model
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'claimed_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

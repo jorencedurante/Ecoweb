@@ -12,95 +12,122 @@
     <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
     @endif
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div class="card">
-            <div class="card-body">
-                <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Generate QR Code</h4>
-                <form method="POST" action="{{ route('admin.qrcode.generate') }}">
-                    @csrf
-                    <div class="form-group">
-                        <label>QR Type</label>
-                        <select name="qr_type" id="qr_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                            <option value="lrn">LRN</option>
-                            <option value="student_id">Student ID</option>
-                            <option value="student_name">Student Name</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>QR Value</label>
-                        <input type="text" name="qr_value" id="qr_value" placeholder="Enter student LRN" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">Generate QR Code</button>
-                </form>
-            </div>
+    <div class="qr-page-grid">
+        <div class="qr-card">
+            <h3>Generate QR Code</h3>
+            <p class="qr-card-subtitle">Select a student to generate their QR code.</p>
+            <form method="POST" action="{{ route('admin.qrcode.generate') }}" style="overflow: visible;">
+                @csrf
+                <input type="hidden" name="qr_type" value="lrn">
+                <div class="qr-form-group">
+                    <label>QR Type</label>
+                    <div class="readonly-field">LRN</div>
+                </div>
+                <div class="student-search-wrapper">
+                    <label>Select Student</label>
+                    <input type="text" id="qrStudentSearch" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off">
+                    <input type="hidden" name="student_id" id="selectedQrStudentId">
+                    <div id="qrStudentSearchResults" class="student-search-results"></div>
+                    @error('student_id')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
+                </div>
+                <button type="submit" class="btn-generate-qr">Generate QR Code</button>
+            </form>
         </div>
 
-        <div class="qr-preview">
-            <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">QR Code Preview</h4>
-            @if(isset($latestQrCode) && $latestQrCode->qr_image_path)
-                <div style="text-align:center;margin-bottom:12px;">
-                    <img src="{{ asset('storage/' . $latestQrCode->qr_image_path) }}" alt="Generated QR Code" style="max-width:220px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;background:#fff;">
+        <div class="qr-card qr-preview-card">
+            <h3>QR Code Preview</h3>
+            @if(isset($qrCode) && $qrCode)
+                <div class="qr-preview-box">
+                    <img src="{{ asset('storage/' . $qrCode->qr_image_path) }}" alt="Generated QR Code">
                 </div>
-                <div style="text-align:center;">
-                    <p style="font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:4px;">
-                        Student: {{ $latestQrCode->student->full_name ?? $latestQrCode->student_name ?? 'Student not found' }}
-                    </p>
-                    <p style="font-size:13px;color:var(--text-muted);">
-                        QR Value: {{ $latestQrCode->qr_value }}
-                    </p>
+                <p class="qr-student-name">Student: {{ $qrCode->student->full_name ?? $qrCode->student_name ?? 'Student not found' }}</p>
+                <p class="qr-value-text">QR Value: {!! nl2br(e($qrCode->qr_value)) !!}</p>
+                <div class="qr-actions">
+                    <a href="{{ route('admin.qrcode.download', $qrCode->id) }}" class="btn-download-qr">⬇ Download QR Code</a>
+                    <a href="{{ route('admin.qrcode.print', $qrCode->id) }}" class="btn-print-qr" target="_blank">🖨 Print QR Code</a>
                 </div>
             @else
-                <div class="qr-placeholder">
-                    <div class="qr-inner">
-                        <div style="font-size:48px;margin-bottom:8px;">📱</div>
-                        <div>QR Code Placeholder</div>
-                        <div style="font-size:11px;color:#999;">Generate a QR code to preview</div>
-                    </div>
+                <div class="empty-qr-preview">
+                    <div class="empty-icon">▦</div>
+                    <h3>No QR code generated yet</h3>
+                    <p>Select a student and click Generate QR Code to preview it here.</p>
                 </div>
             @endif
-            <div class="qr-actions">
-                <a href="{{ $latestQrCode ? route('admin.qrcode.download', $latestQrCode->id) : '#' }}" class="btn btn-primary btn-sm {{ $latestQrCode ? '' : 'disabled' }}" style="{{ $latestQrCode ? '' : 'pointer-events:none;opacity:0.5;' }}">⬇ Download QR Code</a>
-                <a href="{{ $latestQrCode ? route('admin.qrcode.print', $latestQrCode->id) : '#' }}" class="btn btn-outline btn-sm {{ $latestQrCode ? '' : 'disabled' }}" style="{{ $latestQrCode ? '' : 'pointer-events:none;opacity:0.5;' }}">🖨 Print QR Code</a>
-            </div>
         </div>
     </div>
 
     @if($qrCodes->count() > 0)
-    <div class="table-container" style="margin-top:24px;">
-        <div class="table-header">
-            <h4 style="font-size:14px;font-weight:600;">Generated QR Codes</h4>
+    <div class="filter-card">
+        <div class="filter-card-header">
+            <i class="fas fa-filter"></i> Filters
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Student</th>
-                    <th>QR Type</th>
-                    <th>QR Value</th>
-                    <th>Generated By</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($qrCodes as $i => $qr)
-                <tr>
-                    <td>{{ $qrCodes->firstItem() + $i }}</td>
-                    <td>{{ $qr->student->full_name ?? $qr->student_name ?? 'Student not found' }}</td>
-                    <td>{{ ucfirst(str_replace('_', ' ', $qr->qr_type)) }}</td>
-                    <td>{{ $qr->qr_value }}</td>
-                    <td>{{ $qr->creator->name ?? $qr->generator->name ?? 'Unknown' }}</td>
-                    <td>{{ $qr->created_at->format('Y-m-d') }}</td>
-                    <td>
-                        <div class="action-btns">
-                            <a href="{{ route('admin.qrcode.download', $qr->id) }}" class="btn btn-view btn-xs">⬇ Download</a>
-                            <a href="{{ route('admin.qrcode.print', $qr->id) }}" class="btn btn-achievement btn-xs" target="_blank">🖨 Print</a>
-                        </div>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+        <div class="filter-card-body">
+            <form method="GET" action="{{ route('admin.qrcode') }}" class="qr-filter-form">
+                <div class="qr-filter-field">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search student, QR value..." value="{{ request('search') }}">
+                </div>
+                <div class="qr-filter-field">
+                    <label>Date</label>
+                    <input type="date" name="date" value="{{ request('date') }}">
+                </div>
+                <div class="qr-filter-actions">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.qrcode') }}" class="btn btn-reset">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-card-header">
+            <h4>Generated QR Codes</h4>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>QR Type</th>
+                        <th>QR Value</th>
+                        <th>Generated By</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($qrCodes as $i => $qr)
+                    <tr>
+                        <td>{{ $qrCodes->firstItem() + $i }}</td>
+                        <td><strong>{{ $qr->student->full_name ?? $qr->student_name ?? 'Student not found' }}</strong></td>
+                        <td>{{ ucfirst(str_replace('_', ' ', $qr->qr_type)) }}</td>
+                        <td>{!! nl2br(e($qr->qr_value)) !!}</td>
+                        <td>{{ $qr->creator->name ?? $qr->generator->name ?? 'Unknown' }}</td>
+                        <td>{{ $qr->created_at->format('Y-m-d') }}</td>
+                        <td>
+                            <div class="table-action-btns">
+                                <a href="{{ route('admin.qrcode.download', $qr->id) }}" class="action-icon-btn view" title="Download">⬇</a>
+                                <a href="{{ route('admin.qrcode.print', $qr->id) }}" class="action-icon-btn achievements" title="Print" target="_blank">🖨</a>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @if($qrCodes->hasPages())
+        <div class="pagination">
+            <span class="page-info">Showing {{ $qrCodes->firstItem() ?? 0 }} to {{ $qrCodes->lastItem() ?? 0 }} of {{ $qrCodes->total() }} entries</span>
+            <div class="page-btns">
+                @for ($i = 1; $i <= $qrCodes->lastPage(); $i++)
+                    <a href="{{ $qrCodes->url($i) }}" class="page-btn {{ $qrCodes->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
+                @endfor
+            </div>
+        </div>
+        @endif
     </div>
     @endif
 @endsection
@@ -108,20 +135,95 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var qrType = document.getElementById('qr_type');
-    var qrValue = document.getElementById('qr_value');
+    const searchInput = document.getElementById('qrStudentSearch');
+    const hiddenId = document.getElementById('selectedQrStudentId');
+    const resultsBox = document.getElementById('qrStudentSearchResults');
+    if (!searchInput || !hiddenId || !resultsBox) return;
+    let searchTimeout = null;
 
-    if (qrType && qrValue) {
-        qrType.addEventListener('change', function () {
-            if (this.value === 'lrn') {
-                qrValue.placeholder = 'Enter student LRN';
-            } else if (this.value === 'student_id') {
-                qrValue.placeholder = 'Enter student ID';
-            } else if (this.value === 'student_name') {
-                qrValue.placeholder = 'Enter student name';
-            }
-        });
-    }
+    searchInput.addEventListener('input', function () {
+        const query = this.value.trim();
+        hiddenId.value = '';
+        clearTimeout(searchTimeout);
+        if (query.length < 1) {
+            resultsBox.innerHTML = '';
+            resultsBox.style.display = 'none';
+            return;
+        }
+        searchTimeout = setTimeout(function () {
+            fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
+                .then(r => r.json())
+                .then(students => {
+                    resultsBox.innerHTML = '';
+                    if (!students.length) {
+                        resultsBox.innerHTML = '<div class="student-search-empty">No student found.</div>';
+                        resultsBox.style.display = 'block';
+                        return;
+                    }
+                    students.forEach(s => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'student-search-item';
+                        btn.innerHTML = '<strong>' + s.name + '</strong> — LRN: ' + (s.lrn ?? 'N/A');
+                        btn.addEventListener('click', function () {
+                            searchInput.value = s.name + ' — LRN: ' + (s.lrn ?? 'N/A');
+                            hiddenId.value = s.id;
+                            resultsBox.innerHTML = '';
+                            resultsBox.style.display = 'none';
+                            const err = document.querySelector('.student-search-wrapper .field-error');
+                            if (err) err.style.display = 'none';
+                        });
+                        resultsBox.appendChild(btn);
+                    });
+                    resultsBox.style.display = 'block';
+                })
+                .catch(function () {
+                    resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
+                    resultsBox.style.display = 'block';
+                });
+        }, 300);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+            resultsBox.style.display = 'none';
+        }
+    });
 });
 </script>
 @endpush
+
+<style>
+    .readonly-field {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: #f9fafb;
+        color: #111827;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .empty-qr-preview {
+        min-height: 320px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #6b7280;
+        border: 1px dashed #d1d5db;
+        border-radius: 14px;
+        padding: 30px;
+        background: #ffffff;
+    }
+    .empty-qr-preview h3 {
+        color: #111827;
+        margin-top: 12px;
+        margin-bottom: 8px;
+    }
+    .empty-icon {
+        font-size: 42px;
+        color: #9ca3af;
+    }
+</style>

@@ -7,11 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     <div class="login-wrapper">
         <div class="login-left">
-            <div class="login-logo">EC</div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="auth-logo-img">
             <h1>ECOCOLLECT</h1>
             <h2>Forgot Password?</h2>
             <p>No worries. Enter your email and we'll send you a reset link.</p>
@@ -36,7 +39,6 @@
                     <div class="form-group">
                         <label>Email Address</label>
                         <div class="input-wrapper">
-                            <span class="input-icon">✉</span>
                             <input type="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required autofocus>
                         </div>
                     </div>

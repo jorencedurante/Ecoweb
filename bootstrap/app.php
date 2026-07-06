@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(function () {
             return route('admin.dashboard');
         });
+
+        $middleware->alias([
+            'admin.only' => \App\Http\Middleware\AdminOnly::class,
+            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

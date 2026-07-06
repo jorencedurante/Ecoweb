@@ -40,6 +40,11 @@ class StudentSeeder extends Seeder
                 'last_name' => 'Tabadero', 'gender' => 'Female', 'grade_level' => 'Grade 6',
                 'qr_code' => 'Q006', 'total_points' => 40, 'status' => 'active',
             ],
+            [
+                'lrn' => '123456789018', 'first_name' => 'Sophia', 'middle_name' => 'M.',
+                'last_name' => 'Cruz', 'gender' => 'Female', 'grade_level' => 'Kindergarten',
+                'qr_code' => 'Q007', 'total_points' => 15, 'status' => 'active',
+            ],
         ];
 
         foreach ($students as $student) {

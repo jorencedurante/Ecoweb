@@ -11,12 +11,72 @@ use Illuminate\Support\Str;
 
 class CertificateController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $awards = CertificateAward::with('student', 'issuer')->latest()->get();
-        $students = Student::where('status', '!=', 'Archived')->get();
+        $query = CertificateAward::with(['student', 'issuer']);
+
+        if (Auth::user()->isTeacher()) {
+            $query->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('certificate_title', 'like', "%{$search}%")
+                  ->orWhere('award_title', 'like', "%{$search}%")
+                  ->orWhere('award_description', 'like', "%{$search}%")
+                  ->orWhere('awarded_by', 'like', "%{$search}%")
+                  ->orWhere('school_principal_name', 'like', "%{$search}%")
+                  ->orWhere('program_coordinator_name', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($search) {
+                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                                   ->orWhere('lrn', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('student_id')) {
+            $query->where('student_id', $request->student_id);
+        }
+
+        if ($request->filled('certificate_type')) {
+            $query->where('certificate_type', $request->certificate_type);
+        }
+
+        if ($request->filled('award_date')) {
+            $query->whereDate('awarded_date', $request->award_date);
+        }
+
+        if ($request->filled('month')) {
+            $monthNames = [
+                'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
+                'May' => 5, 'June' => 6, 'July' => 7, 'August' => 8,
+                'September' => 9, 'October' => 10, 'November' => 11, 'December' => 12
+            ];
+            $monthNum = is_numeric($request->month) ? $request->month : ($monthNames[$request->month] ?? null);
+            if ($monthNum) {
+                $query->whereMonth('awarded_date', $monthNum);
+            }
+        }
+
+        if ($request->filled('year')) {
+            $query->whereYear('awarded_date', $request->year);
+        }
+
+        $awards = $query->latest()->paginate(10)->withQueryString();
+        $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $students->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $students = $students->get();
         $latestAward = CertificateAward::with('student', 'issuer')->latest()->first();
-        return view('pages.certificate', compact('awards', 'students', 'latestAward'));
+        $certificateTypes = CertificateAward::select('certificate_type')->distinct()->whereNotNull('certificate_type')->pluck('certificate_type');
+
+        return view('pages.certificate', compact('awards', 'students', 'latestAward', 'certificateTypes'));
     }
 
     public function store(Request $request)
@@ -40,6 +100,11 @@ class CertificateController extends Controller
             'show_principal_name' => 'nullable|boolean',
             'show_program_coordinator_name' => 'nullable|boolean',
         ]);
+
+        $student = Student::findOrFail($validated['student_id']);
+        if (Auth::user()->isTeacher() && $student->teacher_id !== Auth::id()) {
+            abort(403, 'You cannot create awards for students assigned to another teacher.');
+        }
 
         $templatePath = null;
 

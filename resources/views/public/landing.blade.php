@@ -7,6 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body class="public-landing-page">
 
@@ -15,12 +18,12 @@
 <nav class="public-nav">
     <div class="public-nav-inner">
         <a href="{{ route('landing') }}" class="public-nav-brand">
-            <span class="public-nav-logo">EC</span>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="public-nav-logo-img">
             <span style="font-size:18px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span>
         </a>
         <ul class="public-nav-links">
-            <li><a href="{{ route('landing') }}">Home</a></li>
-            <li><a href="{{ route('student.lookup') }}">Student Record</a></li>
+            <li><a href="{{ route('landing') }}" class="{{ request()->is('/') ? 'active' : '' }}">Home</a></li>
+            <li><a href="{{ route('public.items') }}" class="{{ request()->is('items') ? 'active' : '' }}">Items</a></li>
             <li><a href="#top-students">Leaderboard</a></li>
         </ul>
     </div>
@@ -29,9 +32,7 @@
 <section class="hero-section">
     <div class="hero-inner">
         <div class="hero-left">
-            <div class="hero-logo-circle">
-                <span style="font-size:32px;font-weight:800;">EC</span>
-            </div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="hero-ecocollect-logo">
             <div class="hero-brand-text">
                 <span style="color:#22C55E;font-size:28px;font-weight:800;letter-spacing:2px;">ECO</span><span style="color:#fff;font-size:28px;font-weight:700;letter-spacing:2px;">COLLECT</span>
             </div>
@@ -124,6 +125,18 @@
         </section>
     @endif
 
+    @if(session('success'))
+        <section class="preview-section">
+            <div class="public-alert success">{{ session('success') }}</div>
+        </section>
+    @endif
+
+    @if($errors->any())
+        <section class="preview-section">
+            <div class="public-alert error">{{ $errors->first() }}</div>
+        </section>
+    @endif
+
     <section class="top-students-section" id="top-students">
         <div class="ts-header">
             <div class="ts-trophy">🏆</div>
@@ -196,22 +209,15 @@
 </div>
 
 <footer class="public-footer">
-    <div class="footer-inner">
-        <div class="footer-left">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#22C55E,#00AEEF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">EC</span>
-                <div><span style="font-size:16px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span><br><span style="font-size:11px;color:rgba(255,255,255,0.5);">Smart Waste Management for a Cleaner Tomorrow</span></div>
+    <div class="footer-container">
+        <div class="footer-brand">
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="footer-logo-img">
+            <div>
+                <h3><span>ECO</span>COLLECT</h3>
+                <p>Smart Waste Management for a Cleaner Tomorrow</p>
             </div>
         </div>
-        <div class="footer-center">
-            &copy; {{ date('Y') }} EcoCollect. All rights reserved.
-        </div>
-        <div class="footer-right">
-            <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.8);margin-bottom:8px;">Quick Links</div>
-            <a href="{{ route('landing') }}">Home</a>
-            <a href="{{ route('student.lookup') }}">Student Record</a>
-            <a href="#top-students">Leaderboard</a>
-        </div>
+        <p class="footer-copy">&copy; {{ date('Y') }} EcoCollect. All rights reserved.</p>
     </div>
 </footer>
 

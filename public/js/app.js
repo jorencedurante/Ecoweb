@@ -11,6 +11,7 @@ const mockStudents = [
     { id: 'STU004', lrn: '123456789015', firstName: 'Patricia', middleName: 'R.', lastName: 'Tabadero', fullName: 'Patricia R. Tabadero', gradeLevel: 'Grade 3', gender: 'Female', qrCode: 'Q004', totalPoints: 32, bottlesCollected: 30, status: 'Active' },
     { id: 'STU005', lrn: '123456789016', firstName: 'Denver', middleName: 'P.', lastName: 'Tabadero', fullName: 'Denver P. Tabadero', gradeLevel: 'Grade 2', gender: 'Male', qrCode: 'Q005', totalPoints: 45, bottlesCollected: 42, status: 'Active' },
     { id: 'STU006', lrn: '123456789017', firstName: 'Karen', middleName: 'N.', lastName: 'Tabadero', fullName: 'Karen N. Tabadero', gradeLevel: 'Grade 6', gender: 'Female', qrCode: 'Q006', totalPoints: 40, bottlesCollected: 38, status: 'Active' },
+    { id: 'STU007', lrn: '123456789018', firstName: 'Sophia', middleName: 'M.', lastName: 'Cruz', fullName: 'Sophia M. Cruz', gradeLevel: 'Kindergarten', gender: 'Female', qrCode: 'Q007', totalPoints: 15, bottlesCollected: 12, status: 'Active' },
 ];
 
 const mockTeachers = [
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initQrGeneration();
     initSidebarActive();
     initTableSearch();
-    initFilters();
+    // initFilters() removed — filtering is handled by GET forms
     initPagination();
 });
 
@@ -192,16 +193,6 @@ function initTableSearch() {
                 const showing = totalRows - hiddenCount;
                 pageInfo.textContent = `Showing 1 to ${showing} of ${showing} entries`;
             }
-        });
-    });
-}
-
-// ---------- Filter Buttons ----------
-function initFilters() {
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // TODO: Implement advanced filtering
-            alert('Filter functionality placeholder - connect to database later');
         });
     });
 }

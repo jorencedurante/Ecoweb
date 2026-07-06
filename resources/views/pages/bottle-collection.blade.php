@@ -5,37 +5,66 @@
 @section('page-subtitle', 'Manage bottle collection records')
 
 @section('content')
+    <div class="filter-card">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.bottle-collection') }}" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search by LRN, student, bottle count, date..." value="{{ request('search') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Day</label>
+                    <select name="day">
+                        <option value="">Day</option>
+                        @for($i = 1; $i <= 31; $i++)
+                            <option value="{{ $i }}" {{ request('day') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                        @endfor
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Month</label>
+                    <select name="month">
+                        <option value="">Month</option>
+                        @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
+                            <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Year</label>
+                    <select name="year">
+                        <option value="">Year</option>
+                        @foreach(['2023','2024','2025','2026'] as $y)
+                            <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Quarter</label>
+                    <select name="quarter">
+                        <option value="">Quarter</option>
+                        <option value="q1" {{ request('quarter') == 'q1' ? 'selected' : '' }}>Q1 (Jan–Mar)</option>
+                        <option value="q2" {{ request('quarter') == 'q2' ? 'selected' : '' }}>Q2 (Apr–Jun)</option>
+                        <option value="q3" {{ request('quarter') == 'q3' ? 'selected' : '' }}>Q3 (Jul–Sep)</option>
+                        <option value="q4" {{ request('quarter') == 'q4' ? 'selected' : '' }}>Q4 (Oct–Dec)</option>
+                        <option value="current" {{ request('quarter') == 'current' ? 'selected' : '' }}>Current</option>
+                        <option value="previous" {{ request('quarter') == 'previous' ? 'selected' : '' }}>Previous</option>
+                    </select>
+                </div>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.bottle-collection') }}" class="btn btn-reset">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="table-container">
         <div class="table-header">
             <div class="table-header-left">
-                <form method="GET" action="{{ route('admin.bottle-collection') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <div class="dropdown-group">
-                        <select name="day">
-                            <option value="">Day</option>
-                            @for($i = 1; $i <= 31; $i++)
-                                <option value="{{ $i }}" {{ request('day') == $i ? 'selected' : '' }}>{{ $i }}</option>
-                            @endfor
-                        </select>
-                        <select name="month">
-                            <option value="">Month</option>
-                            @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
-                                <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
-                            @endforeach
-                        </select>
-                        <select name="year">
-                            <option value="">Year</option>
-                            @foreach(['2023','2024','2025','2026'] as $y)
-                                <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="search-box">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" name="search" placeholder="Search by LRN..." value="{{ request('search') }}">
-                    </div>
-                    <button class="filter-btn" type="submit">🔽 Filter</button>
-                    <button class="filter-btn" type="button" onclick="window.location='{{ route('admin.bottle-collection') }}'">Clear</button>
-                </form>
             </div>
             <button class="btn btn-primary" data-modal-target="addCollectionModal">+ Add Collection</button>
         </div>
@@ -85,14 +114,27 @@
             <form method="POST" action="{{ route('admin.bottle-collection.store') }}">
                 @csrf
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label>Student</label>
-                        <select name="student_id" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
-                            <option value="">Select student</option>
-                            @foreach(\App\Models\Student::where('status', '!=', 'Archived')->get() as $s)
-                                <option value="{{ $s->id }}">{{ $s->full_name }} ({{ $s->lrn }})</option>
-                            @endforeach
-                        </select>
+                    <div class="form-group student-search-wrapper">
+                        <label for="bottleStudentSearchInput">Student</label>
+                        <input
+                            type="text"
+                            id="bottleStudentSearchInput"
+                            name="student_display"
+                            class="student-search-input"
+                            placeholder="Search student by name, LRN, or Student ID..."
+                            autocomplete="off"
+                            value="{{ old('student_display') }}"
+                        >
+                        <input
+                            type="hidden"
+                            name="student_id"
+                            id="bottleSelectedStudentId"
+                            value="{{ old('student_id') }}"
+                        >
+                        <div id="bottleStudentSearchResults" class="student-search-results"></div>
+                        @error('student_id')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -116,4 +158,65 @@
             </form>
         </div>
     </div>
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('bottleStudentSearchInput');
+    const hiddenId = document.getElementById('bottleSelectedStudentId');
+    const results = document.getElementById('bottleStudentSearchResults');
+    let searchTimeout = null;
+
+    if (searchInput && hiddenId && results) {
+        searchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            hiddenId.value = '';
+            clearTimeout(searchTimeout);
+            if (query.length < 2) {
+                results.innerHTML = '';
+                results.style.display = 'none';
+                return;
+            }
+            searchTimeout = setTimeout(function () {
+                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
+                    .then(response => response.json())
+                    .then(students => {
+                        results.innerHTML = '';
+                        if (!students.length) {
+                            results.innerHTML = '<div class="student-search-empty">No student found.</div>';
+                            results.style.display = 'block';
+                            return;
+                        }
+                        students.forEach(student => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'student-search-result-item';
+                            btn.innerHTML = '<strong>' + student.name + '</strong><span>LRN: ' + (student.lrn ?? 'N/A') + ' | ID: ' + (student.student_id ?? 'N/A') + ' | ' + (student.grade_level ?? 'No grade') + '</span>';
+                            btn.addEventListener('click', function () {
+                                searchInput.value = student.name + ' - LRN: ' + (student.lrn ?? 'N/A');
+                                hiddenId.value = student.id;
+                                results.innerHTML = '';
+                                results.style.display = 'none';
+                                const err = document.querySelector('.student-search-wrapper .field-error');
+                                if (err) err.style.display = 'none';
+                            });
+                            results.appendChild(btn);
+                        });
+                        results.style.display = 'block';
+                    })
+                    .catch(function () {
+                        results.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
+                        results.style.display = 'block';
+                    });
+            }, 300);
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.student-search-wrapper')) {
+                results.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+@endpush
 @endsection

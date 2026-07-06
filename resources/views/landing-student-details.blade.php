@@ -7,6 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body class="public-landing-page">
 
@@ -15,7 +18,7 @@
 <nav class="public-nav">
     <div class="public-nav-inner">
         <a href="{{ route('landing') }}" class="public-nav-brand">
-            <span class="public-nav-logo">EC</span>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="public-nav-logo-img">
             <span style="font-size:18px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span>
         </a>
         <ul class="public-nav-links">
@@ -193,7 +196,7 @@
     <div class="footer-inner">
         <div class="footer-left">
             <div style="display:flex;align-items:center;gap:10px;">
-                <span style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#22C55E,#00AEEF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">EC</span>
+                <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="footer-logo-img">
                 <div><span style="font-size:16px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span><br><span style="font-size:11px;color:rgba(255,255,255,0.5);">Smart Waste Management for a Cleaner Tomorrow</span></div>
             </div>
         </div>
