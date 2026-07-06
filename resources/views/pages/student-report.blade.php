@@ -7,26 +7,49 @@
 @section('content')
     <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
 
-    <div class="table-header" style="background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:20px;padding:16px 20px;">
-        <div class="table-header-left">
-            <form method="GET" action="{{ route('admin.student-report') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <select name="grade_level" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;">
-                    <option value="">Grade Level</option>
-                    @foreach($gradeLevels ?? [] as $gl)
-                        <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
-                    @endforeach
-                </select>
-                <select name="gender" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;">
-                    <option value="">Gender</option>
-                    <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                    <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                </select>
-                <div class="search-box">
-                    <span class="search-icon">🔍</span>
+    <div class="filter-card">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.student-report') }}" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
                     <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}">
                 </div>
-                <button class="filter-btn" type="submit">🔽 Filter</button>
-                <button class="filter-btn" type="button" onclick="window.location='{{ route('admin.student-report') }}'">Clear</button>
+                <div class="filter-search">
+                    <label>Grade Level</label>
+                    <select name="grade_level">
+                        <option value="">Grade Level</option>
+                        @foreach($gradeLevels ?? [] as $gl)
+                            <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Gender</label>
+                    <select name="gender">
+                        <option value="">Gender</option>
+                        <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
+                        <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Quarter</label>
+                    <select name="quarter">
+                        <option value="">Quarter</option>
+                        <option value="q1" {{ request('quarter') == 'q1' ? 'selected' : '' }}>Q1 (Jan–Mar)</option>
+                        <option value="q2" {{ request('quarter') == 'q2' ? 'selected' : '' }}>Q2 (Apr–Jun)</option>
+                        <option value="q3" {{ request('quarter') == 'q3' ? 'selected' : '' }}>Q3 (Jul–Sep)</option>
+                        <option value="q4" {{ request('quarter') == 'q4' ? 'selected' : '' }}>Q4 (Oct–Dec)</option>
+                        <option value="current" {{ request('quarter') == 'current' ? 'selected' : '' }}>Current</option>
+                        <option value="previous" {{ request('quarter') == 'previous' ? 'selected' : '' }}>Previous</option>
+                    </select>
+                </div>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.student-report') }}" class="btn btn-reset">Clear</a>
+                </div>
             </form>
         </div>
     </div>
@@ -75,10 +98,10 @@
                     <td>{{ $s->full_name }}</td>
                     <td>{{ $s->gender }}</td>
                     <td>{{ $s->grade_level }}</td>
-                    <td>{{ $s->bottle_collections_sum_bottle_count ?? $s->total_points }}</td>
+                    <td>{{ number_format($s->bottles_collected ?? 0) }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">No students found.</td></tr>
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">No student records found for the selected filters.</td></tr>
                 @endforelse
             </tbody>
         </table>

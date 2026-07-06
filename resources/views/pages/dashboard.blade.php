@@ -20,6 +20,7 @@
                 <div class="stat-label">Total Bottles Collected</div>
             </div>
         </div>
+        @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
         <div class="stat-card">
             <div class="stat-icon yellow">👨‍🏫</div>
             <div class="stat-info">
@@ -27,6 +28,7 @@
                 <div class="stat-label">Total Teachers</div>
             </div>
         </div>
+        @endif
         <div class="stat-card">
             <div class="stat-icon purple">🏆</div>
             <div class="stat-info">

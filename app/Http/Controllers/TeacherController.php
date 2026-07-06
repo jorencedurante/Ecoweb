@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Teacher;
 use App\Models\AdminActivity;
+use App\Mail\SendOtpMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
@@ -29,6 +32,10 @@ class TeacherController extends Controller
             $query->where('role', $request->role);
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         $accounts = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         return view('pages.teachers', compact('accounts'));
@@ -47,7 +54,35 @@ class TeacherController extends Controller
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
+        $validated['email_verified_at'] = null;
+
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $validated['email_verification_code'] = Hash::make($otp);
+        $validated['email_verification_expires_at'] = now()->addMinutes(10);
+
         $user = User::create($validated);
+
+        if ($user->role === 'teacher') {
+            Teacher::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'admin_id' => 'ADM' . str_pad($user->id, 3, '0', STR_PAD_LEFT),
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'position' => $validated['position'] ?? 'Teacher',
+                    'status' => $validated['status'] ?? 'active',
+                ]
+            );
+        }
+
+        try {
+            Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
+            \Log::info('OTP email sent successfully to: ' . $user->email);
+        } catch (\Exception $e) {
+            \Log::error('OTP email failed on account creation: ' . $e->getMessage());
+            $user->delete();
+            return redirect()->back()->withInput()->withErrors(['email' => 'Unable to send verification email. Please check the mail server settings or try again later.']);
+        }
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -56,7 +91,7 @@ class TeacherController extends Controller
             'module' => 'Accounts',
         ]);
 
-        return redirect()->route('admin.teachers')->with('success', ucfirst($user->role) . ' account added successfully!');
+        return redirect()->route('admin.teachers')->with('success', ucfirst($user->role) . ' account added successfully! A verification code has been sent to their email.');
     }
 
     public function update(Request $request, $id)
@@ -67,14 +102,20 @@ class TeacherController extends Controller
             'name' => 'required|string|max:255',
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'current_password' => 'nullable|required_with:password|string',
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'required|in:admin,teacher,super_admin',
             'position' => 'nullable|string|max:100',
             'status' => 'required|in:active,inactive,archived',
         ]);
 
-        if (!empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
+        if ($request->filled('password')) {
+            if (!Hash::check($request->current_password, $user->password)) {
+                return back()
+                    ->withErrors(['current_password' => 'The current password is incorrect.'])
+                    ->withInput();
+            }
+            $validated['password'] = Hash::make($request->password);
         } else {
             unset($validated['password']);
         }

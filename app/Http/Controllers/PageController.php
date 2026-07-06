@@ -114,6 +114,12 @@ class PageController extends Controller
                 'gradeLevel' => 'Grade 6', 'gender' => 'Female', 'qrCode' => 'Q006',
                 'totalPoints' => 40, 'bottlesCollected' => 38, 'status' => 'Active'
             ],
+            [
+                'id' => 'STU007', 'lrn' => '123456789018', 'firstName' => 'Sophia',
+                'middleName' => 'M.', 'lastName' => 'Cruz', 'fullName' => 'Sophia M. Cruz',
+                'gradeLevel' => 'Kindergarten', 'gender' => 'Female', 'qrCode' => 'Q007',
+                'totalPoints' => 15, 'bottlesCollected' => 12, 'status' => 'Active'
+            ],
         ];
     }
 

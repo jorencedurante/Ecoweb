@@ -27,7 +27,7 @@
             <div class="uploaded-template-preview certificate-print-area"
                 style="background-image: url('{{ asset('storage/'.$latestAward->template_file_path) }}');">
                 @if($latestAward->show_logo)
-                    <div class="overlay-logo">EC</div>
+                    <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="overlay-logo">
                 @endif
                 @if($latestAward->show_certificate_title)
                     <div class="overlay-title">{{ $latestAward->certificate_title ?? $latestAward->award_title }}</div>
@@ -58,7 +58,7 @@
             @else
             <div class="certificate-preview default-template">
                 <div class="certificate-content">
-                    <div class="cert-logo">EC</div>
+                    <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="cert-logo">
                     <h2>{{ $latestAward->certificate_title ?? $latestAward->award_title }}</h2>
                     <p class="cert-subtitle">Presented to</p>
                     <div class="cert-student">{{ $latestAward->student->full_name }}</div>
@@ -87,7 +87,7 @@
         <div class="cert-border">
             <div class="certificate-preview default-template">
                 <div class="certificate-content">
-                    <div class="cert-logo">EC</div>
+                    <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="cert-logo">
                     <h2>Certificate of Award</h2>
                     <p class="cert-subtitle">Presented to</p>
                     <div class="cert-student">[Student Name]</div>
@@ -103,9 +103,69 @@
     @endif
 
     @if($awards->count() > 0)
+    <div class="filter-card" style="margin-top:24px;">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.certificate') }}" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search certificate, student..." value="{{ request('search') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Certificate Type</label>
+                    <select name="certificate_type">
+                        <option value="">All Types</option>
+                        @foreach($certificateTypes ?? [] as $ct)
+                            <option value="{{ $ct }}" {{ request('certificate_type') == $ct ? 'selected' : '' }}>{{ $ct }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Student</label>
+                    <select name="student_id">
+                        <option value="">All Students</option>
+                        @foreach($students as $s)
+                            <option value="{{ $s->id }}" {{ request('student_id') == $s->id ? 'selected' : '' }}>{{ $s->full_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Award Date</label>
+                    <input type="date" name="award_date" value="{{ request('award_date') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Month</label>
+                    <select name="month">
+                        <option value="">Month</option>
+                        @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
+                            <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Year</label>
+                    <select name="year">
+                        <option value="">Year</option>
+                        @foreach(['2023','2024','2025','2026'] as $y)
+                            <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.certificate') }}" class="btn btn-reset">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="table-container" style="margin-top:24px;">
         <div class="table-header">
-            <h4 style="font-size:14px;font-weight:600;">Certificate Records</h4>
+            <div class="table-header-left">
+                <h4 style="font-size:14px;font-weight:600;">Certificate Records</h4>
+            </div>
         </div>
         <table>
             <thead>
@@ -122,7 +182,7 @@
             <tbody>
                 @foreach($awards as $i => $award)
                 <tr>
-                    <td>{{ $i + 1 }}</td>
+                    <td>{{ $awards->firstItem() + $loop->index }}</td>
                     <td>{{ $award->student->full_name ?? 'N/A' }}</td>
                     <td>{{ $award->certificate_title ?? $award->award_title }}</td>
                     <td>{{ $award->award_title }}</td>
@@ -138,6 +198,16 @@
                 @endforeach
             </tbody>
         </table>
+        @if($awards->hasPages())
+        <div class="pagination">
+            <span class="page-info">Showing {{ $awards->firstItem() ?? 0 }} to {{ $awards->lastItem() ?? 0 }} of {{ $awards->total() }} entries</span>
+            <div class="page-btns">
+                @for ($p = 1; $p <= $awards->lastPage(); $p++)
+                    <a href="{{ $awards->url($p) }}" class="page-btn {{ $awards->currentPage() == $p ? 'active' : '' }}">{{ $p }}</a>
+                @endfor
+            </div>
+        </div>
+        @endif
     </div>
     @endif
 

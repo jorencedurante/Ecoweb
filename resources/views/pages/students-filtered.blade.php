@@ -105,7 +105,7 @@
                         <div class="form-group">
                             <label>Grade Level</label>
                             <select name="grade_level">
-                                @foreach(['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
+                                @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
                                     <option value="{{ $g }}">{{ $g }}</option>
                                 @endforeach
                             </select>
@@ -161,7 +161,7 @@
                         <div class="form-group">
                             <label>Grade Level</label>
                             <select name="grade_level" id="editGradeLevel">
-                                @foreach(['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
+                                @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
                                     <option value="{{ $g }}">{{ $g }}</option>
                                 @endforeach
                             </select>

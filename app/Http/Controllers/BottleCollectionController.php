@@ -16,9 +16,22 @@ class BottleCollectionController extends Controller
     {
         $query = BottleCollection::with('student');
 
+        if (Auth::user()->isTeacher()) {
+            $query->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%");
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('bottle_count', 'like', "%{$search}%")
+                  ->orWhereDate('collection_date', $search)
+                  ->orWhereHas('student', function ($studentQuery) use ($search) {
+                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                                   ->orWhere('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -42,6 +55,13 @@ class BottleCollectionController extends Controller
             $query->whereYear('collection_date', $year);
         }
 
+        if ($quarter = $request->get('quarter')) {
+            [$startDate, $endDate] = $this->getQuarterDateRange($quarter);
+            if ($startDate && $endDate) {
+                $query->whereBetween('collection_date', [$startDate, $endDate]);
+            }
+        }
+
         $collections = $query->orderBy('collection_date', 'desc')
             ->orderBy('collection_time', 'desc')
             ->paginate(10)
@@ -60,6 +80,16 @@ class BottleCollectionController extends Controller
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
+
+        if (Auth::user()->isTeacher()) {
+            $hasAccess = $student->enrollments()
+                ->where('teacher_id', Auth::id())
+                ->where('status', 'active')
+                ->exists();
+            if (!$hasAccess) {
+                abort(403, 'You cannot add bottle collections for students assigned to another teacher.');
+            }
+        }
 
         $validated['lrn'] = $student->lrn;
         $validated['points_earned'] = $validated['bottle_count'];

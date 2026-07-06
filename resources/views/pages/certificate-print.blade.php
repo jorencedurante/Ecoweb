@@ -96,12 +96,15 @@
             }
         }
     </style>
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     @if($printIsImage)
     <div class="certificate-print-area" style="aspect-ratio:11/8.5;padding:0;">
         @if($award->show_logo)
-            <div class="overlay-logo">EC</div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="overlay-logo">
         @endif
         @if($award->show_certificate_title)
             <div class="overlay-title">{{ $award->certificate_title ?? $award->award_title }}</div>
@@ -133,7 +136,7 @@
     @else
     <div class="certificate-print-area">
         <div class="print-content">
-            <div class="cert-logo">EC</div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="cert-logo">
             <div class="badge">{{ $award->certificate_type ?? 'Certificate' }}</div>
             <h1>{{ $award->certificate_title ?? $award->award_title }}</h1>
             <div class="subtitle">Presented to</div>

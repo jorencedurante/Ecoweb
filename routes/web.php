@@ -16,15 +16,19 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\SetupController;
+use App\Http\Controllers\AccountSettingsController;
 
 // First-time setup (only works when no Super Admin exists)
 Route::get('/setup', [SetupController::class, 'show'])->name('setup.show');
 Route::post('/setup', [SetupController::class, 'store'])->name('setup.store');
 
+
 // Public landing routes (no auth required)
 Route::get('/', [PublicController::class, 'landing'])->name('landing');
+Route::get('/items', [PublicController::class, 'items'])->name('public.items');
 Route::get('/student-lookup', [PublicController::class, 'studentLookup'])->name('student.lookup');
 Route::get('/student/{lrn}/details', [PublicController::class, 'studentDetails'])->name('landing.student.details');
+Route::post('/items/request-claim', [PublicController::class, 'requestItemClaim'])->name('public.items.request');
 
 // Guest routes (redirect authenticated users to dashboard)
 Route::middleware('guest')->group(function () {
@@ -41,22 +45,38 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 
+// Email verification routes (guest and authenticated users)
+Route::get('/email/verify', [AuthController::class, 'showVerify'])->name('verification.notice');
+Route::post('/email/verify', [AuthController::class, 'verifyOtp'])->name('verification.verify');
+Route::post('/email/verify/resend', [AuthController::class, 'resendOtp'])->name('verification.resend');
+
 // Protected admin routes
 Route::middleware(['auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::prefix('admin')->group(function () {
+    Route::middleware('verified')->prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
-        // Claims / Rewards
-        Route::get('/claims', [ClaimController::class, 'index'])->name('claims.index');
-        Route::post('/claim-items', [ClaimController::class, 'storeItem'])->name('claim-items.store');
-        Route::post('/claims', [ClaimController::class, 'claimItem'])->name('claims.store');
-        Route::get('/claims/history', [ClaimController::class, 'history'])->name('claims.history');
+        // Claims / Rewards (admin & super admin only)
+        Route::middleware('admin.only')->group(function () {
+            Route::get('/claims', [ClaimController::class, 'index'])->name('claims.index');
+            Route::post('/claim-items', [ClaimController::class, 'storeItem'])->name('claim-items.store');
+            Route::put('/claim-items/{claimItem}', [ClaimController::class, 'updateItem'])->name('claim-items.update');
+            Route::post('/claims', [ClaimController::class, 'claimItem'])->name('claims.store');
+            Route::get('/claims/history', [ClaimController::class, 'history'])->name('claims.history');
+            Route::get('/claims/items/filter', [ClaimController::class, 'filterItems'])->name('claims.items.filter');
+            Route::get('/claims/history/filter', [ClaimController::class, 'filterHistory'])->name('claims.history.filter');
+            Route::get('/claims/pending', fn() => redirect()->route('claims.index'))->name('claims.pending');
+            Route::patch('/claims/{claim}/approve', [ClaimController::class, 'approve'])->name('claims.approve');
+            Route::patch('/claims/{claim}/reject', [ClaimController::class, 'reject'])->name('claims.reject');
+        });
 
         // Students
+        Route::get('/students/search', [StudentController::class, 'search'])->name('admin.students.search');
         Route::get('/students', [StudentController::class, 'index'])->name('admin.students');
         Route::post('/students', [StudentController::class, 'store'])->name('admin.students.store');
+        Route::post('/students/import', [StudentController::class, 'import'])->name('admin.students.import');
+        Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('admin.students.import.template');
         Route::put('/students/{student}', [StudentController::class, 'update'])->name('admin.students.update');
         Route::patch('/students/{student}/archive', [StudentController::class, 'archive'])->name('admin.students.archive');
         Route::get('/students/archived', [StudentController::class, 'archived'])->name('admin.students.archived');
@@ -81,17 +101,24 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/bottle-report', [ReportController::class, 'bottleReport'])->name('admin.bottle-report');
         Route::get('/admin-activities', [ReportController::class, 'adminActivities'])->name('admin.admin-activities');
 
-        // Teachers
-        Route::get('/teachers', [TeacherController::class, 'index'])->name('admin.teachers');
-        Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
-        Route::put('/teachers/{teacher}', [TeacherController::class, 'update'])->name('admin.teachers.update');
-        Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroy'])->name('admin.teachers.destroy');
+        // Account Settings (all authenticated users)
+        Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
+        Route::put('/settings/password', [AccountSettingsController::class, 'updatePassword'])->name('settings.password.update');
 
-        // Settings
-        Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings');
-        Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
-        Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
-        Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
+        // Teachers / Accounts (admin only)
+        Route::middleware('admin.only')->group(function () {
+            Route::get('/teachers', [TeacherController::class, 'index'])->name('admin.teachers');
+            Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
+            Route::put('/teachers/{teacher}', [TeacherController::class, 'update'])->name('admin.teachers.update');
+            Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroy'])->name('admin.teachers.destroy');
+
+            // System Settings
+            Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.settings');
+            Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
+            Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
+            Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
+        });
 
         // QR Code
         Route::get('/qrcode', [QrCodeController::class, 'index'])->name('admin.qrcode');

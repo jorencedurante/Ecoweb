@@ -7,12 +7,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="logo-circle">EC</div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="admin-sidebar-logo-img">
             <span class="brand-text">ECOCOLLECT</span>
         </div>
         <nav class="sidebar-nav">
@@ -32,25 +35,29 @@
                 <span class="nav-icon">🏆</span>
                 <span>Certificate Award</span>
             </a>
+            @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
             <a href="{{ route('claims.index') }}" class="nav-item {{ request()->routeIs('claims.*') ? 'active' : '' }}">
                 <span class="nav-icon">🎁</span>
                 <span>Claim Items</span>
             </a>
-            <a href="{{ route('admin.reports') }}" class="nav-item {{ request()->routeIs('admin.reports') ? 'active' : '' }}">
+            @endif
+            <a href="{{ route('admin.reports') }}" class="nav-item {{ request()->routeIs('admin.reports') || request()->routeIs('admin.*-report') || request()->routeIs('admin.admin-activities') ? 'active' : '' }}">
                 <span class="nav-icon">📈</span>
                 <span>Reports</span>
             </a>
-            <a href="{{ route('admin.teachers') }}" class="nav-item {{ request()->routeIs('admin.teachers') ? 'active' : '' }}">
-                <span class="nav-icon">🔐</span>
-                <span>Admin</span>
-            </a>
-            <a href="{{ route('admin.teachers') }}" class="nav-item {{ request()->routeIs('admin.teachers') ? 'active' : '' }}">
+            @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
+            <a href="{{ route('admin.teachers') }}" class="nav-item {{ request()->is('admin/teachers*') || request()->is('admin/accounts*') ? 'active' : '' }}">
                 <span class="nav-icon">👨‍🏫</span>
                 <span>Accounts</span>
             </a>
             <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
                 <span class="nav-icon">⚙️</span>
-                <span>Settings</span>
+                <span>System Settings</span>
+            </a>
+            @endif
+            <a href="{{ route('settings.edit') }}" class="nav-item {{ request()->routeIs('settings.edit') || request()->routeIs('settings.profile.update') || request()->routeIs('settings.password.update') ? 'active' : '' }}">
+                <span class="nav-icon">👤</span>
+                <span>Account Settings</span>
             </a>
             <a href="{{ route('admin.qrcode') }}" class="nav-item {{ request()->routeIs('admin.qrcode') ? 'active' : '' }}">
                 <span class="nav-icon">📱</span>
@@ -96,7 +103,7 @@
         </div>
     </div>
 
-    <script src="{{ asset('js/app.js') }}"></script>
+    <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
     @stack('scripts')
 </body>
 </html>

@@ -7,17 +7,53 @@
 @section('content')
     <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
 
+    <div class="filter-card">
+        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <i class="fas fa-filter"></i> Filters
+        </div>
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.admin-activities') }}" class="filter-form">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" placeholder="Search activities..." value="{{ request('search') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Action</label>
+                    <select name="action">
+                        <option value="">All Actions</option>
+                        @foreach($actions ?? [] as $a)
+                            <option value="{{ $a }}" {{ request('action') == $a ? 'selected' : '' }}>{{ $a }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>User</label>
+                    <select name="user_id">
+                        <option value="">All Users</option>
+                        @foreach($users ?? [] as $u)
+                            <option value="{{ $u->id }}" {{ request('user_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-search">
+                    <label>Date From</label>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}">
+                </div>
+                <div class="filter-search">
+                    <label>Date To</label>
+                    <input type="date" name="date_to" value="{{ request('date_to') }}">
+                </div>
+                <div class="filter-controls">
+                    <button class="btn btn-filter" type="submit">Filter</button>
+                    <a href="{{ route('admin.admin-activities') }}" class="btn btn-reset">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="table-container">
         <div class="table-header">
             <div class="table-header-left">
-                <form method="GET" action="{{ route('admin.admin-activities') }}" style="display:flex;gap:8px;align-items:center;">
-                    <div class="search-box">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" name="search" placeholder="Search activities..." value="{{ request('search') }}">
-                    </div>
-                    <button class="filter-btn" type="submit">🔽 Filter</button>
-                    <button class="filter-btn" type="button" onclick="window.location='{{ route('admin.admin-activities') }}'">Clear</button>
-                </form>
             </div>
         </div>
         <table>

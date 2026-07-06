@@ -16,62 +16,73 @@
             min-height: 100vh;
             background: #f5f5f5;
         }
-        .qr-print-area {
-            background: #fff;
-            padding: 40px;
-            text-align: center;
+        .qr-print-card {
+            width: 380px;
+            margin: 40px auto;
+            padding: 25px;
+            background: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
         }
-        .qr-print-area img {
-            max-width: 260px;
-            margin-bottom: 20px;
+        .qr-code {
+            margin-bottom: 15px;
         }
-        .qr-print-area h2 {
-            font-size: 20px;
+        .qr-code svg {
+            width: 250px;
+            height: 250px;
+            display: inline-block;
+        }
+        .student-name {
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 4px;
-            color: #1F2937;
+            color: #1f2937;
+            margin-bottom: 8px;
         }
-        .qr-print-area .label {
+        .qr-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin: 0;
+        }
+        .qr-value {
             font-size: 13px;
-            color: #6B7280;
-            margin-bottom: 2px;
+            color: #374151;
+            margin-top: 10px;
+            white-space: pre-line;
         }
-        .qr-print-area .value {
-            font-size: 15px;
-            font-weight: 600;
-            color: #1F2937;
-            margin-bottom: 12px;
+        .print-actions {
+            margin-top: 18px;
         }
-        .no-print { margin-top: 24px; }
         @media print {
-            body { background: #fff; }
-            .qr-print-area {
-                box-shadow: none;
-                border-radius: 0;
-                padding: 20px;
+            .print-actions {
+                display: none !important;
             }
-            .no-print { display: none !important; }
+            body {
+                background: #ffffff !important;
+            }
+            .qr-print-card {
+                box-shadow: none;
+                margin: 0 auto;
+            }
         }
     </style>
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
-    <div class="qr-print-area">
-        @if($qrCode->qr_image_path)
-            <img src="{{ asset('storage/' . $qrCode->qr_image_path) }}" alt="QR Code">
-        @else
-            <p>QR code image not available.</p>
-        @endif
-        <h2>{{ $qrCode->student->full_name ?? $qrCode->student_name }}</h2>
-        <div class="label">QR Type</div>
-        <div class="value">{{ ucfirst(str_replace('_', ' ', $qrCode->qr_type)) }}</div>
-        <div class="label">QR Value</div>
-        <div class="value">{{ $qrCode->qr_value }}</div>
-        <div class="no-print">
-            <button onclick="window.print()" style="padding:10px 24px;background:#22C55E;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">🖨 Print</button>
-            <button onclick="window.close()" style="padding:10px 24px;background:#EF4444;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin-left:8px;">Close</button>
+    <div class="qr-print-card">
+        <div class="qr-code">
+            {!! $qrSvg !!}
+        </div>
+        <h2 class="student-name">{{ $qrCode->student->full_name ?? $qrCode->student_name }}</h2>
+        <p class="qr-label">QR Type</p>
+        <p style="font-size:14px;font-weight:600;color:#1f2937;margin-bottom:10px;">{{ ucfirst(str_replace('_', ' ', $qrCode->qr_type)) }}</p>
+        <p class="qr-label">QR Value</p>
+        <div class="qr-value">{{ $qrValue }}</div>
+        <div class="print-actions">
+            <button onclick="window.print()" style="padding:10px 24px;background:#22C55E;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin-right:6px;">🖨 Print</button>
+            <button onclick="window.close()" style="padding:10px 24px;background:#EF4444;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>
         </div>
     </div>
 </body>

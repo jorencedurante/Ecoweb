@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Student;
+use App\Models\ClaimItem;
+use App\Models\StudentClaim;
+use Illuminate\Support\Facades\DB;
 
 class PublicController extends Controller
 {
@@ -17,24 +20,42 @@ class PublicController extends Controller
         ));
     }
 
+    public function items()
+    {
+        $availableItems = ClaimItem::where('status', 'Available')
+            ->where('quantity', '>', 0)
+            ->orderBy('item_name')
+            ->get();
+
+        return view('public.items', compact('availableItems'));
+    }
+
     public function studentLookup(Request $request)
     {
         $request->validate([
-            'lrn' => 'required|string|max:50',
+            'lrn' => 'required|string|max:200',
         ]);
+
+        $lrn = $this->extractLrnFromQrValue($request->lrn);
+
+        if (!$lrn) {
+            return back()->withErrors([
+                'lrn' => 'No student record found for this LRN.',
+            ])->withInput();
+        }
 
         $student = Student::with([
             'earnedAchievements.quest',
             'certificateAwards',
             'bottleCollections',
         ])
-        ->where('lrn', $request->lrn)
+        ->where('lrn', $lrn)
         ->where('status', '!=', 'Archived')
         ->first();
 
         if (!$student) {
             return back()->withErrors([
-                'lrn' => 'No student record found for this LRN.',
+                'lrn' => 'No student record found for LRN: ' . $lrn,
             ])->withInput();
         }
 
@@ -47,8 +68,74 @@ class PublicController extends Controller
         ));
     }
 
+    public function requestItemClaim(Request $request)
+    {
+        $validated = $request->validate([
+            'lrn' => 'required|string',
+            'claim_item_id' => 'required|exists:claim_items,id',
+        ]);
+
+        $student = Student::where('lrn', $validated['lrn'])
+            ->whereNotIn('status', ['Archived', 'archived'])
+            ->first();
+
+        if (!$student) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['lrn' => 'Student record not found.'])
+                ->withInput();
+        }
+
+        $item = ClaimItem::findOrFail($validated['claim_item_id']);
+
+        if ($item->status !== 'Available' || $item->quantity <= 0) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['claim_item_id' => 'This item is currently unavailable.'])
+                ->withInput();
+        }
+
+        if (($student->total_points ?? 0) < $item->points_required) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['claim_item_id' => 'You do not have enough points to request this item.'])
+                ->withInput();
+        }
+
+        $existingPending = StudentClaim::where('student_id', $student->id)
+            ->where('claim_item_id', $item->id)
+            ->where('status', 'Pending')
+            ->exists();
+
+        if ($existingPending) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['claim_item_id' => 'You already have a pending request for this item.'])
+                ->withInput();
+        }
+
+        StudentClaim::create([
+            'student_id' => $student->id,
+            'claim_item_id' => $item->id,
+            'item_name' => $item->item_name,
+            'points_deducted' => $item->points_required,
+            'points_before' => $student->total_points ?? 0,
+            'points_after' => ($student->total_points ?? 0) - $item->points_required,
+            'claim_date' => now()->toDateString(),
+            'claimed_by' => null,
+            'remarks' => 'Requested from public Items page',
+            'status' => 'Pending',
+        ]);
+
+        return redirect()
+            ->route('public.items')
+            ->with('success', 'Your item claim request has been submitted and is pending approval.');
+    }
+
     public function studentDetails($lrn)
     {
+        $lrn = $this->extractLrnFromQrValue($lrn) ?? $lrn;
+
         $student = Student::where('lrn', $lrn)
             ->with([
                 'earnedAchievements.quest',
@@ -120,5 +207,24 @@ class PublicController extends Controller
         }
 
         return [$currentQuarterTopStudents, $previousQuarterTopStudents];
+    }
+
+    private function extractLrnFromQrValue(?string $qrValue): ?string
+    {
+        $qrValue = trim((string) $qrValue);
+
+        if ($qrValue === '') {
+            return null;
+        }
+
+        if (preg_match('/LRN:\s*([0-9]+)/i', $qrValue, $matches)) {
+            return $matches[1];
+        }
+
+        if (preg_match('/([0-9]{10,20})/', $qrValue, $matches)) {
+            return $matches[1];
+        }
+
+        return preg_replace('/[^0-9]/', '', $qrValue);
     }
 }

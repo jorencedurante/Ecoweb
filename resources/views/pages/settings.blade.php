@@ -8,7 +8,6 @@
     <div class="settings-tabs">
         <button class="settings-tab active" data-section="generalSettings">General Settings</button>
         <button class="settings-tab" data-section="notificationSettings">Notification Settings</button>
-        <button class="settings-tab" data-section="securitySettings">Security</button>
     </div>
 
     <!-- General Settings -->
@@ -63,40 +62,6 @@
                         </label>
                     </div>
                     <button type="submit" class="btn btn-success" style="margin-top:16px;">Save Notification Settings</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Security Settings -->
-    <div class="settings-section" id="securitySettings">
-        <div class="card">
-            <div class="card-body" style="max-width:500px;">
-                <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Account Security</h4>
-                <form method="POST" action="{{ route('admin.settings.security') }}">
-                    @csrf
-                    <div class="form-group">
-                        <label>Account Name</label>
-                        <input type="text" name="name" value="{{ old('name', $user->name ?? '') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group">
-                        <label>Gmail</label>
-                        <input type="email" name="email" value="{{ old('email', $user->email ?? '') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group">
-                        <label>New Password</label>
-                        <div class="input-wrapper">
-                            <input type="password" name="password" placeholder="Leave blank to keep current" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Confirm Password</label>
-                        <div class="input-wrapper">
-                            <input type="password" name="password_confirmation" placeholder="Confirm new password" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                            <button type="button" class="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);">👁</button>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-success">Update Security</button>
                 </form>
             </div>
         </div>

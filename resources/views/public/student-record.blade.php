@@ -149,11 +149,14 @@
             .record-card .rc-body { padding: 16px; }
         }
     </style>
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     <nav class="record-nav">
         <a href="{{ route('landing') }}" class="nav-brand">
-            <span class="nav-logo">EC</span>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" style="height:32px;width:auto;object-fit:contain;">
             ECOCOLLECT
         </a>
         <ul class="nav-links">

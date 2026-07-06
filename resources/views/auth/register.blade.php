@@ -7,11 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     <div class="login-wrapper">
         <div class="login-left">
-            <div class="login-logo">EC</div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="auth-logo-img">
             <h1>ECOCOLLECT</h1>
             <h2>Create Account</h2>
             <p>Join the EcoCollect community and help make waste management smarter.</p>
@@ -43,10 +46,13 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Email</label>
+                        <label for="email">Email</label>
                         <div class="input-wrapper">
-                            <input type="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required>
+                            <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required>
                         </div>
+                        @error('email')
+                            <small style="color:var(--red);font-size:12px;margin-top:4px;display:block;">{{ $message }}</small>
+                        @enderror
                     </div>
                     <div class="form-group">
                         <label>Password</label>
@@ -62,19 +68,9 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Account Type</label>
-                        <div class="input-wrapper">
-                            <select name="role" required>
-                                <option value="" disabled {{ old('role') ? '' : 'selected' }}>Select account type</option>
-                                <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
-                                <option value="teacher" {{ old('role') === 'teacher' ? 'selected' : '' }}>Teacher</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
                         <label>Position</label>
                         <div class="input-wrapper">
-                            <input type="text" name="position" placeholder="Example: Teacher 1 or Admin" value="{{ old('position') }}">
+                            <input type="text" name="position" placeholder="Example: Teacher 1 or Teacher 2" value="{{ old('position') }}">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-success btn-block">Create Account</button>
