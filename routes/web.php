@@ -15,6 +15,11 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\AchievementController;
+use App\Http\Controllers\SetupController;
+
+// First-time setup (only works when no Super Admin exists)
+Route::get('/setup', [SetupController::class, 'show'])->name('setup.show');
+Route::post('/setup', [SetupController::class, 'store'])->name('setup.store');
 
 // Public landing routes (no auth required)
 Route::get('/', [PublicController::class, 'landing'])->name('landing');
