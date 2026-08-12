@@ -7,9 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
-    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}?v=10">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}?v=10">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}?v=10">
 </head>
 <body>
     <!-- Sidebar -->
@@ -90,20 +90,34 @@
         </header>
 
         <div class="page-content">
-            @if(session('success'))
-                <div class="alert-success show" style="margin-bottom:16px;">✅ {{ session('success') }}</div>
-            @endif
-            @if(session('error'))
-                <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
-            @endif
-            @if(session('info'))
-                <div style="background:rgba(0,174,239,0.1);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">ℹ️ {{ session('info') }}</div>
-            @endif
+            @include('partials.alerts')
             @yield('content')
         </div>
     </div>
 
+    <style>
+    .auto-dismiss-alert {
+        transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .auto-dismiss-alert.fade-out {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    </style>
     <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var alerts = document.querySelectorAll('.auto-dismiss-alert');
+        alerts.forEach(function (alert) {
+            setTimeout(function () {
+                alert.classList.add('fade-out');
+                setTimeout(function () {
+                    alert.remove();
+                }, 500);
+            }, 4000);
+        });
+    });
+    </script>
     @stack('scripts')
 </body>
 </html>

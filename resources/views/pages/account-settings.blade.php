@@ -5,12 +5,27 @@
 @section('page-subtitle', 'Manage your personal account information')
 
 @section('content')
-    @if($errors->any())
-        <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
-            @foreach($errors->all() as $error)
-                <div>{{ $error }}</div>
-            @endforeach
+    @if($user->pending_email)
+    <div class="card" style="max-width:600px;margin-bottom:16px;border-color:var(--blue);">
+        <div class="card-body">
+            <h4 style="font-size:15px;font-weight:600;margin-bottom:12px;color:var(--blue);">Pending Email Change</h4>
+            <div style="background:rgba(0,174,239,0.06);border:1px solid var(--blue);padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:12px;">
+                <div style="font-size:13px;color:var(--text-light);">New email:</div>
+                <div style="font-size:15px;font-weight:600;">{{ $user->pending_email }}</div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="{{ route('account.email-change.verify') }}" class="btn btn-primary" style="padding:8px 20px;font-size:13px;">Verify Email Change</a>
+                <form method="POST" action="{{ route('account.email-change.resend') }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-sm" style="padding:8px 20px;font-size:13px;border:1px solid var(--border);">Resend Code</button>
+                </form>
+                <form method="POST" action="{{ route('account.email-change.cancel') }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-sm" style="padding:8px 20px;font-size:13px;background:var(--red);color:#fff;" onclick="return confirm('Cancel email change?')">Cancel</button>
+                </form>
+            </div>
         </div>
+    </div>
     @endif
 
     <div class="card" style="max-width:600px;">
@@ -60,7 +75,7 @@
         document.getElementById('profileSettingsForm').addEventListener('submit', function(e) {
             const emailInput = this.querySelector('input[name="email"]');
             if (emailInput.value !== emailInput.dataset.originalEmail) {
-                if (!confirm('Are you sure you want to change your email address? You will use this new email the next time you login.')) {
+                if (!confirm('Are you sure you want to change your email address? A verification code will be sent to your current email address.')) {
                     e.preventDefault();
                 }
             }
@@ -76,24 +91,27 @@
                 @method('PUT')
                 <div class="form-group">
                     <label>Current Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" name="current_password" placeholder="Enter current password" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
-                        <button type="button" class="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);">👁</button>
+                    <div class="password-field-wrapper">
+                        <input type="password" name="current_password" id="current_password" placeholder="Enter current password" required>
+                        <button type="button" class="password-toggle" data-target="current_password" aria-label="Show or hide current password">👁</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>New Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" name="password" placeholder="Enter new password (min. 8 characters)" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
-                        <button type="button" class="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);">👁</button>
+                    <div class="password-field-wrapper">
+                        <input type="password" name="password" id="password" placeholder="Enter new password (min. 8 characters)" required>
+                        <button type="button" class="password-toggle" data-target="password" aria-label="Show or hide new password">👁</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Confirm New Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" name="password_confirmation" placeholder="Confirm new password" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
-                        <button type="button" class="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);">👁</button>
+                    <div class="password-field-wrapper">
+                        <input type="password" name="password_confirmation" id="password_confirmation" placeholder="Confirm new password" required>
+                        <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show or hide confirm password">👁</button>
                     </div>
+                </div>
+                <div class="password-confirm-alert" style="display: none;">
+                    Password didn't match. Try again.
                 </div>
                 <button type="submit" class="btn btn-success">Update Password</button>
             </form>

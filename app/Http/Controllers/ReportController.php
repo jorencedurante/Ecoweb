@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Models\BottleCollection;
-use App\Models\AdminActivity;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +47,10 @@ class ReportController extends Controller
 
     public function studentReport(Request $request)
     {
+        if (Auth::user()->isTeacher()) {
+            return $this->teacherStudentRanking($request);
+        }
+
         $baseQuery = Student::whereNotIn('status', ['Archived', 'archived']);
         $baseQuery->visibleTo(Auth::user());
 
@@ -91,6 +94,36 @@ class ReportController extends Controller
         return view('pages.student-report', compact(
             'students', 'totalStudents', 'femaleCount', 'maleCount', 'gradeLevels'
         ));
+    }
+
+    private function teacherStudentRanking(Request $request)
+    {
+        $query = Student::whereNotIn('status', ['Archived', 'archived'])
+            ->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query
+            ->with('enrollments')
+            ->withSum('bottleCollections as total_bottles', 'bottle_count')
+            ->withCount('claims as total_claims')
+            ->withMax('bottleCollections as latest_collection_date', 'collection_date')
+            ->orderByDesc('total_points')
+            ->orderByDesc('total_bottles')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('pages.student-report', compact('students'));
     }
 
     public function bottleReport(Request $request)
@@ -224,40 +257,116 @@ class ReportController extends Controller
 
     public function adminActivities(Request $request)
     {
-        $query = AdminActivity::with('user');
+        if (Auth::user()->isTeacher()) {
+            return $this->teacherItemClaims($request);
+        }
 
-        if ($request->filled('search')) {
-            $search = $request->search;
+        return $this->adminStudentActivities($request);
+    }
+
+    private function teacherItemClaims(Request $request)
+    {
+        $query = Student::whereNotIn('status', ['Archived', 'archived'])
+            ->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+
+        if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('action', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%");
-                  });
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
             });
         }
 
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
+        $students = $query
+            ->with('enrollments')
+            ->with('claims')
+            ->withCount('claims as total_claims')
+            ->withSum('claims as total_points_used', 'points_deducted')
+            ->withMax('claims as latest_claim_date', 'claim_date')
+            ->orderByDesc('total_claims')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('pages.admin-activities', compact('students'));
+    }
+
+    private function adminStudentActivities(Request $request)
+    {
+        $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+
+        $teacherFilter = $request->get('teacher_id');
+        $gradeLevel = $request->get('grade_level');
+        $search = $request->get('search');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $teachers = User::where('role', 'teacher')
+            ->where('status', 'active')
+            ->when($teacherFilter, function ($q) use ($teacherFilter) {
+                $q->where('id', $teacherFilter);
+            })
+            ->orderBy('name')
+            ->get();
+
+        $teacherGroups = [];
+        foreach ($teachers as $teacher) {
+            $students = Student::whereNotIn('status', ['Archived', 'archived'])
+                ->whereTeacher($teacher->id)
+                ->when($gradeLevel, function ($q) use ($gradeLevel) {
+                    $q->where('grade_level', $gradeLevel);
+                })
+                ->when($search, function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('lrn', 'like', "%{$search}%")
+                           ->orWhere('student_id', 'like', "%{$search}%")
+                           ->orWhere('full_name', 'like', "%{$search}%")
+                           ->orWhere('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%");
+                    });
+                })
+                ->with('enrollments')
+                ->withSum(['bottleCollections as total_bottles' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('collection_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('collection_date', '<=', $dateTo);
+                    });
+                }], 'bottle_count')
+                ->withCount(['claims as total_claims' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
+                }])
+                ->withMax(['bottleCollections as latest_collection_date' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('collection_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('collection_date', '<=', $dateTo);
+                    });
+                }], 'collection_date')
+                ->withMax(['claims as latest_claim_date' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
+                }], 'claim_date')
+                ->orderByDesc('total_points')
+                ->orderByDesc('total_bottles')
+                ->get();
+
+            $teacherGroups[] = [
+                'teacher' => $teacher,
+                'students' => $students,
+            ];
         }
 
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        $activities = $query->latest()->paginate(15)->withQueryString();
-        $users = User::whereIn('role', ['admin', 'teacher', 'super_admin'])->orderBy('name')->get();
-        $actions = AdminActivity::select('action')->distinct()->pluck('action');
-
-        return view('pages.admin-activities', compact('activities', 'users', 'actions'));
+        return view('pages.admin-activities', compact('teacherGroups', 'teachers', 'gradeLevels'));
     }
 }

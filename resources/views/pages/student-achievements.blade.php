@@ -7,13 +7,6 @@
 @section('content')
     <a href="{{ route('admin.students') }}" class="back-link">← Back to Students</a>
 
-    @if(session('success'))
-    <div class="alert-success show">{{ session('success') }}</div>
-    @endif
-    @if($errors->any())
-    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">Please check the form fields and try again.</div>
-    @endif
-
     <div class="card" style="margin-bottom:24px;">
         <div class="card-body">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">

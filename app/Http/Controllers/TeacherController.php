@@ -43,6 +43,10 @@ class TeacherController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Only Super Admin can create accounts.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:50|unique:users,username',
@@ -98,6 +102,10 @@ class TeacherController extends Controller
     {
         $user = User::findOrFail($id);
 
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Only Super Admin can edit or change user roles.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
@@ -120,6 +128,16 @@ class TeacherController extends Controller
             unset($validated['password']);
         }
 
+        if ($user->isSuperAdmin() && $validated['role'] !== 'super_admin') {
+            $superAdminCount = User::where('role', 'super_admin')->count();
+
+            if ($superAdminCount <= 1) {
+                return back()
+                    ->withErrors(['role' => 'You cannot remove the last Super Admin account.'])
+                    ->withInput();
+            }
+        }
+
         $user->update($validated);
 
         AdminActivity::create([
@@ -135,6 +153,21 @@ class TeacherController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403, 'Only Super Admin can archive accounts.');
+        }
+
+        if ($user->isSuperAdmin()) {
+            $superAdminCount = User::where('role', 'super_admin')->count();
+
+            if ($superAdminCount <= 1) {
+                return back()
+                    ->withErrors(['role' => 'You cannot archive the last Super Admin account.'])
+                    ->withInput();
+            }
+        }
+
         $user->update(['status' => 'archived']);
 
         AdminActivity::create([

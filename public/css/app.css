@@ -3601,11 +3601,6 @@ body.public-landing-page {
     background: #d97706;
 }
 
-/* === Pending Claims Card === */
-.pending-claims-card {
-    border: 2px solid #fbbf24 !important;
-}
-
 /* === Public Items Page === */
 .items-page {
     min-height: 100vh;
@@ -3876,5 +3871,63 @@ body.public-landing-page {
         padding: 20px;
         border-radius: 20px;
     }
+}
+
+/* ---------- Password Field Show/Hide + Match Feedback ---------- */
+.password-field-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-field-wrapper input {
+    width: 100%;
+    padding: 10px 48px 10px 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #FAFAFA;
+}
+
+.password-field-wrapper input:focus {
+    border-color: var(--blue);
+    background: #fff;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 16px;
+    line-height: 1;
+    padding: 4px;
+}
+
+.password-toggle:hover {
+    color: #111827;
+}
+
+.password-confirm-alert {
+    margin: 16px 0;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.password-invalid {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 

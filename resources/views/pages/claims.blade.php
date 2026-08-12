@@ -6,7 +6,7 @@
 
 @section('content')
     {{-- Pending Claims Card --}}
-    <div class="data-card pending-claims-card" style="margin-bottom:24px;border-color:#FBBF24;">
+    <div class="data-card pending-claims-card" style="margin-bottom:24px;">
         <div class="data-card-header">
             <h3>Pending Item Claims</h3>
             <p>Review student item requests before approval.</p>

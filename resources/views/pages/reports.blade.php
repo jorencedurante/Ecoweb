@@ -32,8 +32,13 @@
     <div class="report-cards">
         <div class="report-card">
             <div class="report-icon" style="background:rgba(0,200,83,0.12);color:var(--green);">👥</div>
+            @if(auth()->user()->isTeacher())
+            <h4>Student Ranking</h4>
+            <p>Ranking of students in your assigned class based on points and bottle collections.</p>
+            @else
             <h4>Student's Report</h4>
             <p>View detailed student performance and collection activity reports.</p>
+            @endif
             <a href="{{ route('admin.student-report') }}" class="btn btn-primary btn-sm">View</a>
         </div>
         <div class="report-card">
@@ -44,8 +49,13 @@
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(255,193,7,0.12);color:var(--yellow);">🔐</div>
-            <h4>Admin Activities</h4>
-            <p>Monitor admin and teacher account activities and system changes.</p>
+            @if(auth()->user()->isTeacher())
+            <h4>Item Claims</h4>
+            <p>Summary of item claims made by students in your assigned class.</p>
+            @else
+            <h4>Student Activities</h4>
+            <p>Summary of student activity and ranking grouped by teacher.</p>
+            @endif
             <a href="{{ route('admin.admin-activities') }}" class="btn btn-primary btn-sm">View</a>
         </div>
     </div>

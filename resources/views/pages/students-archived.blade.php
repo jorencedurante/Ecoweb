@@ -5,10 +5,6 @@
 @section('page-subtitle', 'View archived student records')
 
 @section('content')
-    @if(session('success'))
-    <div class="alert-success show">✅ {{ session('success') }}</div>
-    @endif
-
     <div class="filter-card">
         <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
             <i class="fas fa-filter"></i> Filters
@@ -19,6 +15,12 @@
                     <label>Search</label>
                     <input type="text" name="search" placeholder="Search archived students..." value="{{ request('search') }}">
                 </div>
+                @if(auth()->user()->isTeacher())
+                <div class="filter-search">
+                    <label>&nbsp;</label>
+                    <small class="text-muted" style="color:var(--text-light);font-size:12px;padding-top:10px;">Showing students from your assigned class.</small>
+                </div>
+                @else
                 <div class="filter-search">
                     <label>Grade Level</label>
                     <select name="grade_level">
@@ -28,6 +30,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div class="filter-search">
                     <label>Gender</label>
                     <select name="gender">
@@ -73,10 +76,12 @@
                     <td>
                         <div class="action-btns">
                             <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs">View Info</a>
+                            @if(Auth::user()->role !== 'admin')
                             <form method="POST" action="{{ route('students.restore', $student->id) }}" style="display:inline;" onsubmit="return confirm('Restore this student to active students?');">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="btn btn-restore btn-xs">Restore</button>
                             </form>
+                            @endif
                         </div>
                     </td>
                 </tr>

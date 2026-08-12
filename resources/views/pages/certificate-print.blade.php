@@ -3,96 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print - {{ $award->award_title }}</title>
+    <title>Print - {{ $award->award_title ?: 'Certificate' }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @php
-        $printExt = $award->template_file_path ? strtolower(pathinfo($award->template_file_path, PATHINFO_EXTENSION)) : null;
-        $printIsImage = $printExt && in_array($printExt, ['jpg','jpeg','png']);
+        $filePath = $award->template_file ?? $award->certificate_file ?? $award->template_file_path;
+        $fileExt = $filePath ? strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) : null;
+        $isImage = $fileExt && in_array($fileExt, ['jpg','jpeg','png']);
+        $fileUrl = $filePath ? asset('storage/'.$filePath) : null;
+        $rawCanvas = $award->canvas_data;
+        $canvasData = is_string($rawCanvas) ? json_decode($rawCanvas, true) : $rawCanvas;
     @endphp
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
-        body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#fff; padding:40px; }
-        @if($printIsImage)
-        .certificate-print-area {
-            max-width:800px;
-            width:100%;
-            position:relative;
-            overflow:hidden;
-            border:3px solid #00C853;
-            border-radius:12px;
-            background-image:url('{{ asset('storage/'.$award->template_file_path) }}');
-            background-size:contain;
-            background-position:center;
-            background-repeat:no-repeat;
-            -webkit-print-color-adjust:exact;
-            print-color-adjust:exact;
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
         }
-        .overlay-student-name {
-            position:absolute; top:48%; left:50%; transform:translate(-50%,-50%);
-            font-size:34px; font-weight:700; color:#111827; text-align:center; white-space:nowrap;
+
+        * {
+            box-sizing: border-box;
         }
-        .overlay-logo {
-            position:absolute; top:6%; left:50%; transform:translateX(-50%);
-            width:70px;height:70px;border-radius:50%;
-            background:linear-gradient(135deg,#00C853,#00AEEF);
-            display:flex;align-items:center;justify-content:center;
-            font-size:24px;font-weight:800;color:#fff;
+
+        .print-toolbar {
+            text-align: center;
+            padding: 20px;
         }
-        .overlay-title {
-            position:absolute; top:35%; left:50%; transform:translateX(-50%);
-            font-size:22px; font-weight:600; color:#111827; text-align:center;
+
+        .print-btn {
+            background: #22c55e;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
         }
-        .overlay-description {
-            position:absolute; top:55%; left:50%; transform:translateX(-50%);
-            font-size:14px; color:#6B7280; text-align:center; max-width:500px; line-height:1.6;
+
+        .print-btn:hover {
+            opacity: 0.9;
         }
-        .overlay-signatures {
-            position:absolute; bottom:16%; left:10%; right:10%;
-            display:flex; justify-content:space-between; font-size:13px; color:#6B7280;
+
+        .certificate-print-page {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
         }
-        .overlay-date {
-            position:absolute; bottom:8%; left:50%; transform:translateX(-50%);
-            font-size:13px; color:#9CA3AF; text-align:center;
+
+        .certificate-canvas {
+            position: relative;
+            width: 1123px;
+            height: 794px;
+            background: #ffffff;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
         }
-        .overlay-badge {
-            position:absolute; top:14%; left:50%; transform:translateX(-50%);
-            display:inline-block; background:#E9FBEF; color:#22C55E;
-            padding:4px 14px; border-radius:20px; font-size:12px; font-weight:600;
+
+        .certificate-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
         }
-        @else
-        .certificate-print-area {
-            max-width:800px;
-            width:100%;
-            position:relative;
-            overflow:hidden;
-            border:3px solid #00C853;
-            border-radius:12px;
-            padding:50px 40px;
-            text-align:center;
-            background:#fff;
+
+        .certificate-text-print {
+            position: absolute;
+            z-index: 10;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            line-height: 1.2;
         }
-        .cert-logo {
-            width:80px;height:80px;border-radius:50%;
-            background:linear-gradient(135deg,#00C853,#00AEEF);
-            display:flex;align-items:center;justify-content:center;
-            margin:0 auto 16px;font-size:28px;font-weight:800;color:#fff;
+
+        @page {
+            size: A4 landscape;
+            margin: 0;
         }
-        h1 { font-size:26px;font-weight:800;color:#111827;margin-bottom:6px;letter-spacing:1px; }
-        .subtitle { font-size:15px;color:#6B7280;margin-bottom:20px; }
-        .student-name { font-size:32px;font-weight:700;color:#071126;margin-bottom:8px; }
-        .desc { font-size:14px;color:#6B7280;max-width:500px;margin:0 auto 24px;line-height:1.6; }
-        .signatures { display:flex;justify-content:space-between;margin-top:32px;padding:0 20px;font-size:13px;color:#6B7280; }
-        .meta { margin-top:16px;font-size:13px;color:#9CA3AF; }
-        .meta strong { color:#6B7280; }
-        .badge { display:inline-block;background:#E9FBEF;color:#22C55E;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:12px; }
-        @endif
+
         @media print {
-            body { padding:0; }
-            @page { margin:0.5in; }
-            .certificate-print-area {
-                -webkit-print-color-adjust:exact !important;
-                print-color-adjust:exact !important;
+            html, body {
+                width: 297mm;
+                height: 210mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                overflow: hidden !important;
+            }
+
+            .no-print,
+            .print-toolbar,
+            button,
+            .btn {
+                display: none !important;
+            }
+
+            .certificate-print-page {
+                width: 297mm;
+                height: 210mm;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+                background: #ffffff !important;
+            }
+
+            .certificate-canvas {
+                width: 297mm !important;
+                height: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                overflow: hidden !important;
+                page-break-after: avoid;
+                page-break-before: avoid;
+                page-break-inside: avoid;
+            }
+
+            .certificate-bg {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+            }
+
+            .certificate-text-print {
+                display: block !important;
+                position: absolute !important;
+                z-index: 10 !important;
+                transform: translate(-50%, -50%) !important;
+                white-space: nowrap !important;
             }
         }
     </style>
@@ -101,60 +143,53 @@
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
-    @if($printIsImage)
-    <div class="certificate-print-area" style="aspect-ratio:11/8.5;padding:0;">
-        @if($award->show_logo)
-            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="overlay-logo">
-        @endif
-        @if($award->show_certificate_title)
-            <div class="overlay-title">{{ $award->certificate_title ?? $award->award_title }}</div>
-        @endif
-        <div class="overlay-badge">{{ $award->certificate_type ?? 'Certificate' }}</div>
-        @if($award->show_student_name)
-            <div class="overlay-student-name">{{ $award->student->full_name }}</div>
-        @endif
-        @if($award->show_award_description)
-            <div class="overlay-description">{{ $award->award_description ?? 'For outstanding achievement and dedication.' }}</div>
-        @endif
-        @if($award->show_principal_name || $award->show_program_coordinator_name)
-        <div class="overlay-signatures">
-            @if($award->show_principal_name)
-            <div>{{ $award->school_principal_name ?? '___________________' }}<br><strong>School Principal</strong></div>
-            @endif
-            @if($award->show_program_coordinator_name)
-            <div>{{ $award->program_coordinator_name ?? '___________________' }}<br><strong>Program Coordinator</strong></div>
-            @endif
+    <div class="print-toolbar no-print">
+        <button onclick="window.print()" class="print-btn">Print</button>
+    </div>
+
+    @if($canvasData && is_array($canvasData) && count($canvasData) > 0 && $fileUrl && $isImage)
+    <div class="certificate-print-page">
+        <div class="certificate-canvas">
+            <img src="{{ $fileUrl }}" alt="Certificate Template" class="certificate-bg">
+            @foreach($canvasData as $box)
+            <div class="certificate-text-print"
+                 style="left:{{ ($box['x'] ?? 50) }}%;top:{{ ($box['y'] ?? 50) }}%;
+                        font-size:{{ ($box['fontSize'] ?? 36) }}px;
+                        color:{{ $box['color'] ?? '#000000' }};
+                        font-weight:{{ $box['fontWeight'] ?? 'normal' }};
+                        text-align:{{ $box['textAlign'] ?? 'center' }};">
+                {{ $box['text'] ?? '' }}
+            </div>
+            @endforeach
         </div>
-        @endif
-        @if($award->show_award_date)
-        <div class="overlay-date">
-            Awarded on <strong>{{ $award->awarded_date->format('F d, Y') }}</strong>
-            @if($award->awarded_by) by <strong>{{ $award->awarded_by }}</strong> @endif
+    </div>
+    @elseif($fileUrl && $isImage)
+    <div class="certificate-print-page">
+        <div class="certificate-canvas">
+            <img src="{{ $fileUrl }}" alt="Certificate" class="certificate-bg">
         </div>
-        @endif
+    </div>
+    @elseif($fileUrl)
+    <div class="certificate-print-page">
+        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;">
+            <iframe src="{{ $fileUrl }}" style="width:100%;height:100%;border:none;"></iframe>
+        </div>
     </div>
     @else
-    <div class="certificate-print-area">
-        <div class="print-content">
-            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="cert-logo">
-            <div class="badge">{{ $award->certificate_type ?? 'Certificate' }}</div>
-            <h1>{{ $award->certificate_title ?? $award->award_title }}</h1>
-            <div class="subtitle">Presented to</div>
-            <div class="student-name">{{ $award->student->full_name }}</div>
-            <p class="desc">{{ $award->award_description ?? 'For outstanding achievement and dedication.' }}</p>
-            <div class="signatures">
-                <div>{{ $award->school_principal_name ?? '___________________' }}<br><strong>School Principal</strong></div>
-                <div>{{ $award->program_coordinator_name ?? '___________________' }}<br><strong>Program Coordinator</strong></div>
-            </div>
-            <div class="meta">
-                Awarded on <strong>{{ $award->awarded_date->format('F d, Y') }}</strong>
-                @if($award->awarded_by)
-                    by <strong>{{ $award->awarded_by }}</strong>
-                @endif
-            </div>
+    <div class="certificate-print-page">
+        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;">
+            <h3 style="color:#9CA3AF;">{{ $award->award_title ?: 'Certificate' }}</h3>
         </div>
     </div>
     @endif
-    <script>window.print();</script>
+
+    <script>
+        window.onload = function () {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('print') === '1') {
+                setTimeout(function () { window.print(); }, 500);
+            }
+        };
+    </script>
 </body>
 </html>

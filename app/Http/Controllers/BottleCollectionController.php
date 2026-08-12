@@ -14,12 +14,69 @@ class BottleCollectionController extends Controller
 {
     public function index(Request $request)
     {
+        $query = $this->buildFilteredQuery($request);
+
+        $collections = $query->orderBy('collection_date', 'desc')
+            ->orderBy('collection_time', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('pages.bottle-collection', compact('collections'));
+    }
+
+    public function fetchJson(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+
+        $collections = $query->orderBy('collection_date', 'desc')
+            ->orderBy('collection_time', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        $records = $collections->map(function ($c) {
+            return [
+                'lrn' => $c->lrn,
+                'student' => $c->student->full_name ?? 'Unknown',
+                'date' => $c->collection_date?->format('Y-m-d') ?? $c->collection_date,
+                'time' => $c->collection_time ? \Carbon\Carbon::parse($c->collection_time)->format('h:i A') : '',
+                'bottle_count' => (int) $c->bottle_count,
+                'points' => (int) $c->points_earned,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'records' => $records,
+            'pagination' => [
+                'current_page' => $collections->currentPage(),
+                'last_page' => $collections->lastPage(),
+                'total' => $collections->total(),
+                'from' => $collections->firstItem(),
+                'to' => $collections->lastItem(),
+            ],
+        ]);
+    }
+
+    private function buildFilteredQuery(Request $request)
+    {
         $query = BottleCollection::with('student');
 
-        if (Auth::user()->isTeacher()) {
-            $query->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
-            });
+        if (Auth::user()->isSuperAdmin()) {
+            // Super Admin sees all records — no filter needed
+        } elseif (Auth::user()->isAdmin()) {
+            // Admin sees all records (no school/campus scope in this system)
+        } elseif (Auth::user()->isTeacher()) {
+            $studentIds = Student::where('teacher_id', Auth::id())
+                ->orWhereHas('enrollments', function ($q) {
+                    $q->where('teacher_id', Auth::id())->where('status', 'active');
+                })
+                ->pluck('id');
+
+            if ($studentIds->isNotEmpty()) {
+                $query->whereIn('student_id', $studentIds);
+            } else {
+                $query->where('created_by', Auth::id());
+            }
         }
 
         if ($search = $request->get('search')) {
@@ -62,12 +119,7 @@ class BottleCollectionController extends Controller
             }
         }
 
-        $collections = $query->orderBy('collection_date', 'desc')
-            ->orderBy('collection_time', 'desc')
-            ->paginate(10)
-            ->withQueryString();
-
-        return view('pages.bottle-collection', compact('collections'));
+        return $query;
     }
 
     public function store(Request $request)
@@ -83,9 +135,11 @@ class BottleCollectionController extends Controller
 
         if (Auth::user()->isTeacher()) {
             $hasAccess = $student->enrollments()
-                ->where('teacher_id', Auth::id())
-                ->where('status', 'active')
-                ->exists();
+                    ->where('teacher_id', Auth::id())
+                    ->where('status', 'active')
+                    ->exists()
+                || $student->teacher_id === Auth::id();
+
             if (!$hasAccess) {
                 abort(403, 'You cannot add bottle collections for students assigned to another teacher.');
             }

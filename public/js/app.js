@@ -38,6 +38,7 @@ const mockCollections = [
 document.addEventListener('DOMContentLoaded', () => {
     initModals();
     initPasswordToggle();
+    initPasswordSubmitCheck();
     initSettingsTabs();
     initQrGeneration();
     initSidebarActive();
@@ -113,6 +114,74 @@ function initPasswordToggle() {
             const type = input.type === 'password' ? 'text' : 'password';
             input.type = type;
             btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
+        });
+    });
+
+    document.querySelectorAll('.password-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.getAttribute('data-target'));
+            if (!input) return;
+            const type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+            btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
+        });
+    });
+}
+
+// ---------- Password Match Check on Submit ----------
+function initPasswordSubmitCheck() {
+    document.querySelectorAll('form').forEach(form => {
+        const password = form.querySelector('input[name="password"]');
+        const confirm = form.querySelector('input[name="password_confirmation"]');
+        if (!password || !confirm) return;
+
+        const showPasswordAlert = () => {
+            let alertBox = form.querySelector('.password-confirm-alert');
+            if (!alertBox) {
+                alertBox = document.createElement('div');
+                alertBox.className = 'password-confirm-alert';
+                alertBox.style.display = 'none';
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn && submitBtn.parentNode) {
+                    submitBtn.parentNode.insertBefore(alertBox, submitBtn);
+                } else {
+                    form.appendChild(alertBox);
+                }
+            }
+
+            alertBox.textContent = "Password didn't match. Try again.";
+            alertBox.style.transition = 'none';
+            alertBox.style.display = 'block';
+            alertBox.style.opacity = '1';
+            alertBox.style.transform = 'translateY(0)';
+
+            setTimeout(() => {
+                alertBox.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                alertBox.style.opacity = '0';
+                alertBox.style.transform = 'translateY(-8px)';
+
+                setTimeout(() => {
+                    alertBox.style.display = 'none';
+                }, 500);
+            }, 4000);
+        };
+
+        form.addEventListener('submit', event => {
+            if (password.value !== confirm.value) {
+                event.preventDefault();
+                confirm.classList.add('password-invalid');
+                showPasswordAlert();
+                confirm.focus();
+            }
+        });
+
+        confirm.addEventListener('input', () => {
+            confirm.classList.remove('password-invalid');
+
+            const alertBox = form.querySelector('.password-confirm-alert');
+            if (alertBox) {
+                alertBox.style.display = 'none';
+            }
         });
     });
 }

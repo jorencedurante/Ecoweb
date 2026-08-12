@@ -3,52 +3,37 @@
 namespace App\Http\Controllers;
 
 use App\Models\CertificateAward;
+use App\Models\CertificateTemplate;
 use App\Models\Student;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CertificateController extends Controller
 {
     public function index(Request $request)
     {
-        $query = CertificateAward::with(['student', 'issuer']);
+        $user = Auth::user();
 
-        if (Auth::user()->isTeacher()) {
-            $query->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+        $query = CertificateAward::with(['issuer', 'teacher']);
+        if ($user->isTeacher()) {
+            $query->where(function ($q) {
+                $q->where('teacher_id', Auth::id())
+                    ->orWhere('issued_by', Auth::id());
             });
         }
-
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('certificate_title', 'like', "%{$search}%")
-                  ->orWhere('award_title', 'like', "%{$search}%")
-                  ->orWhere('award_description', 'like', "%{$search}%")
-                  ->orWhere('awarded_by', 'like', "%{$search}%")
-                  ->orWhere('school_principal_name', 'like', "%{$search}%")
-                  ->orWhere('program_coordinator_name', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
-                                   ->orWhere('lrn', 'like', "%{$search}%");
-                  });
+                $q->where('award_title', 'like', "%{$search}%")
+                    ->orWhere('award_description', 'like', "%{$search}%");
             });
         }
-
-        if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
-
-        if ($request->filled('certificate_type')) {
-            $query->where('certificate_type', $request->certificate_type);
-        }
-
         if ($request->filled('award_date')) {
             $query->whereDate('awarded_date', $request->award_date);
         }
-
         if ($request->filled('month')) {
             $monthNames = [
                 'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
@@ -60,94 +45,290 @@ class CertificateController extends Controller
                 $query->whereMonth('awarded_date', $monthNum);
             }
         }
-
         if ($request->filled('year')) {
             $query->whereYear('awarded_date', $request->year);
         }
-
         $awards = $query->latest()->paginate(10)->withQueryString();
-        $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
-        if (Auth::user()->isTeacher()) {
-            $students->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
-            });
-        }
-        $students = $students->get();
-        $latestAward = CertificateAward::with('student', 'issuer')->latest()->first();
-        $certificateTypes = CertificateAward::select('certificate_type')->distinct()->whereNotNull('certificate_type')->pluck('certificate_type');
 
-        return view('pages.certificate', compact('awards', 'students', 'latestAward', 'certificateTypes'));
+        return view('pages.certificate', compact('awards'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'certificate_type' => 'nullable|string|max:255',
+            'student_id' => 'nullable|exists:students,id',
             'certificate_title' => 'required|string|max:255',
-            'award_title' => 'required|string|max:255',
             'award_description' => 'nullable|string',
-            'school_principal_name' => 'nullable|string|max:255',
-            'program_coordinator_name' => 'nullable|string|max:255',
-            'awarded_by' => 'nullable|string|max:255',
             'awarded_date' => 'required|date',
-            'template_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'show_logo' => 'nullable|boolean',
-            'show_certificate_title' => 'nullable|boolean',
-            'show_student_name' => 'nullable|boolean',
-            'show_award_description' => 'nullable|boolean',
-            'show_award_date' => 'nullable|boolean',
-            'show_principal_name' => 'nullable|boolean',
-            'show_program_coordinator_name' => 'nullable|boolean',
+            'certificate_file' => 'required|file|mimes:pdf,jpg,jpeg,png,docx|max:10240',
         ]);
 
-        $student = Student::findOrFail($validated['student_id']);
-        if (Auth::user()->isTeacher() && $student->teacher_id !== Auth::id()) {
-            abort(403, 'You cannot create awards for students assigned to another teacher.');
+        if ($request->filled('student_id')) {
+            $studentQuery = Student::query();
+            if (Auth::user()->isTeacher()) {
+                $studentQuery->whereHas('enrollments', function ($q) {
+                    $q->where('teacher_id', Auth::id());
+                });
+            }
+            $studentQuery->findOrFail($validated['student_id']);
         }
 
-        $templatePath = null;
-
-        if ($request->hasFile('template_file')) {
-            $templatePath = $request->file('template_file')
-                ->store('certificate_templates', 'public');
-        }
+        $filePath = $request->file('certificate_file')->store('certificates', 'public');
 
         $award = CertificateAward::create([
-            'student_id' => $validated['student_id'],
-            'certificate_type' => $validated['certificate_type'] ?? null,
-            'certificate_title' => $validated['certificate_title'],
-            'award_title' => $validated['award_title'],
+            'student_id' => $validated['student_id'] ?? null,
+            'teacher_id' => Auth::user()->isTeacher() ? Auth::id() : null,
+            'award_title' => $validated['certificate_title'],
             'award_description' => $validated['award_description'] ?? null,
-            'school_principal_name' => $validated['school_principal_name'] ?? null,
-            'program_coordinator_name' => $validated['program_coordinator_name'] ?? null,
-            'awarded_by' => $validated['awarded_by'] ?? null,
             'awarded_date' => $validated['awarded_date'],
-            'template_file_path' => $templatePath,
+            'certificate_file' => $filePath,
             'status' => 'Active',
             'issued_by' => Auth::id(),
-            'show_logo' => $request->boolean('show_logo'),
-            'show_certificate_title' => $request->boolean('show_certificate_title'),
-            'show_student_name' => $request->boolean('show_student_name', true),
-            'show_award_description' => $request->boolean('show_award_description'),
-            'show_award_date' => $request->boolean('show_award_date'),
-            'show_principal_name' => $request->boolean('show_principal_name'),
-            'show_program_coordinator_name' => $request->boolean('show_program_coordinator_name'),
         ]);
 
         AdminActivity::create([
             'user_id' => Auth::id(),
-            'action' => 'Added Award',
-            'description' => "Awarded {$award->award_title} to {$award->student->full_name}.",
+            'action' => 'Uploaded Certificate',
+            'description' => "Uploaded certificate {$award->award_title}.",
             'module' => 'Certificate',
         ]);
 
-        return redirect()->route('admin.certificate')->with('success', 'Certificate awarded successfully!');
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate uploaded successfully!');
+    }
+
+    public function create()
+    {
+        $user = Auth::user();
+
+        $templates = CertificateTemplate::where('status', 'active')
+            ->where(function ($q) use ($user) {
+                if ($user->isTeacher()) {
+                    $q->where('visibility', 'global')->orWhere('uploaded_by', Auth::id());
+                }
+            })
+            ->orderBy('template_name')
+            ->get();
+
+        return view('pages.certificate-editor', compact('templates'));
+    }
+
+    public function saveCanvas(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => 'nullable|exists:students,id',
+            'award_title' => 'nullable|string|max:255',
+            'award_description' => 'nullable|string',
+            'template_file' => 'required|file|mimes:jpg,jpeg,png|max:10240',
+            'canvas_data' => 'nullable|string',
+        ]);
+
+        if ($request->filled('student_id')) {
+            $studentQuery = Student::query();
+            if (Auth::user()->isTeacher()) {
+                $studentQuery->whereHas('enrollments', function ($q) {
+                    $q->where('teacher_id', Auth::id());
+                });
+            }
+            $studentQuery->findOrFail($validated['student_id']);
+        }
+
+        $templatePath = $request->file('template_file')->store('certificate-templates', 'public');
+
+        $award = CertificateAward::create([
+            'student_id' => $validated['student_id'] ?? null,
+            'teacher_id' => Auth::user()->isTeacher() ? Auth::id() : null,
+            'issued_by' => Auth::id(),
+            'award_title' => $validated['award_title'] ?: 'Certificate',
+            'award_description' => $validated['award_description'] ?? null,
+            'awarded_date' => now()->toDateString(),
+            'template_file' => $templatePath,
+            'canvas_data' => $validated['canvas_data'] ? json_decode($validated['canvas_data'], true) : null,
+            'status' => 'Active',
+        ]);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Designed Certificate',
+            'description' => "Designed certificate {$award->award_title}.",
+            'module' => 'Certificate',
+        ]);
+
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate saved successfully!');
+    }
+
+    public function edit(CertificateAward $award)
+    {
+        $user = Auth::user();
+        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+            abort(403);
+        }
+
+        $templates = CertificateTemplate::where('status', 'active')
+            ->where(function ($q) use ($user) {
+                if ($user->isTeacher()) {
+                    $q->where('visibility', 'global')->orWhere('uploaded_by', Auth::id());
+                }
+            })
+            ->orderBy('template_name')
+            ->get();
+
+        return view('pages.certificate-editor', compact('templates', 'award'));
+    }
+
+    public function updateCanvas(Request $request, CertificateAward $award)
+    {
+        $user = Auth::user();
+        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+            abort(403);
+        }
+
+        $rules = [
+            'award_title' => 'nullable|string|max:255',
+            'award_description' => 'nullable|string',
+            'canvas_data' => 'nullable|string',
+        ];
+
+        if ($request->hasFile('template_file')) {
+            $rules['template_file'] = 'file|mimes:jpg,jpeg,png|max:10240';
+        }
+
+        $validated = $request->validate($rules);
+
+        $data = [
+            'award_title' => $validated['award_title'] ?? $award->award_title,
+            'award_description' => $validated['award_description'] ?? $award->award_description,
+            'canvas_data' => $validated['canvas_data'] !== null ? json_decode($validated['canvas_data'], true) : $award->canvas_data,
+        ];
+
+        if ($request->hasFile('template_file')) {
+            $data['template_file'] = $request->file('template_file')->store('certificate-templates', 'public');
+        }
+
+        $award->update($data);
+
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate updated successfully!');
+    }
+
+    public function templatesList()
+    {
+        $user = Auth::user();
+        $templates = CertificateTemplate::where('status', 'active')
+            ->where(function ($q) use ($user) {
+                if ($user->isTeacher()) {
+                    $q->where('visibility', 'global')->orWhere('uploaded_by', Auth::id());
+                }
+            })
+            ->orderBy('template_name')
+            ->get(['id', 'template_name', 'file_path', 'file_type']);
+
+        return response()->json($templates);
+    }
+
+    public function download(CertificateAward $award)
+    {
+        $user = Auth::user();
+        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+            abort(403);
+        }
+
+        $filePath = $award->template_file ?? $award->certificate_file ?? $award->template_file_path;
+        if (!$filePath || !Storage::disk('public')->exists($filePath)) {
+            abort(404, 'Certificate file not found.');
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $filename = Str::slug($award->award_title ?? 'certificate') . '.' . $extension;
+
+        return Storage::disk('public')->download($filePath, $filename);
+    }
+
+    public function storeTemplate(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'template_file' => 'required|file|mimes:jpg,jpeg,png|max:10240',
+        ]);
+
+        $file = $request->file('template_file');
+        $path = $file->store('certificate-templates', 'public');
+
+        $template = CertificateTemplate::create([
+            'template_name' => $request->title,
+            'description' => $request->description,
+            'file_path' => $path,
+            'file_type' => $file->getClientOriginalExtension(),
+            'status' => 'active',
+            'visibility' => Auth::user()->isAdminLevel() ? 'global' : 'private',
+            'template_type' => 'uploaded',
+            'uploaded_by' => Auth::id(),
+            'created_by' => Auth::id(),
+        ]);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Uploaded Template',
+            'description' => "Uploaded certificate template: {$request->title}.",
+            'module' => 'Certificate',
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'id' => $template->id,
+                'template_name' => $template->template_name,
+                'file_path' => $template->file_path,
+                'message' => 'Template uploaded successfully!',
+            ]);
+        }
+
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate template uploaded successfully.');
     }
 
     public function print(CertificateAward $award)
     {
-        $award->load('student', 'issuer');
+        $award->load('issuer', 'teacher');
         return view('pages.certificate-print', compact('award'));
+    }
+
+    public function archive(CertificateAward $award)
+    {
+        $user = Auth::user();
+        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+            abort(403);
+        }
+        $award->update(['status' => 'Archived']);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Archived Certificate',
+            'description' => "Archived certificate {$award->award_title}.",
+            'module' => 'Certificate',
+        ]);
+
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate archived successfully.');
+    }
+
+    public function destroy(CertificateAward $award)
+    {
+        if (!Auth::user()->isAdminLevel()) {
+            abort(403);
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Deleted Certificate',
+            'description' => "Deleted certificate {$award->award_title}.",
+            'module' => 'Certificate',
+        ]);
+
+        $award->delete();
+
+        return redirect()->route('admin.certificate')
+            ->with('success', 'Certificate deleted successfully.');
     }
 }

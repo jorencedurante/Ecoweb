@@ -79,24 +79,24 @@
                     <th>Points</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="bottle-collection-tbody">
                 @forelse($collections as $c)
                 <tr>
                     <td>{{ $c->lrn }}</td>
                     <td><strong>{{ $c->student->full_name ?? 'Unknown' }}</strong></td>
-                    <td>{{ $c->collection_date }}</td>
+                    <td>{{ $c->collection_date?->format('Y-m-d') ?? $c->collection_date }}</td>
                     <td>{{ \Carbon\Carbon::parse($c->collection_time)->format('h:i A') }}</td>
                     <td>{{ $c->bottle_count }}</td>
                     <td>{{ $c->points_earned }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">No collection records found.</td></tr>
+                <tr id="bottle-collection-empty"><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">No collection records found.</td></tr>
                 @endforelse
             </tbody>
         </table>
         <div class="pagination">
-            <span class="page-info">Showing {{ $collections->firstItem() ?? 0 }} to {{ $collections->lastItem() ?? 0 }} of {{ $collections->total() }} entries</span>
-            <div class="page-btns">
+            <span class="page-info" id="bottle-collection-page-info">Showing {{ $collections->firstItem() ?? 0 }} to {{ $collections->lastItem() ?? 0 }} of {{ $collections->total() }} entries</span>
+            <div class="page-btns" id="bottle-collection-page-btns">
                 @for ($i = 1; $i <= $collections->lastPage(); $i++)
                     <a href="{{ $collections->url($i) }}" class="page-btn {{ $collections->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
                 @endfor
@@ -216,6 +216,100 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Auto-refresh: poll for new records every 3 seconds
+    let pollInterval = setInterval(fetchBottleCollections, 3000);
+    let isPollingPaused = false;
+
+    function fetchBottleCollections() {
+        if (isPollingPaused) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', getCurrentPage());
+
+        fetch('{{ route("admin.bottle-collection.fetch") }}?' + params.toString())
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateTable(data.records, data.pagination);
+                }
+            })
+            .catch(function () {
+                // Silently fail — don't disrupt the user
+            });
+    }
+
+    function getCurrentPage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('page') || '1';
+    }
+
+    function updateTable(records, pagination) {
+        const tbody = document.getElementById('bottle-collection-tbody');
+        if (!tbody) return;
+
+        if (!records || records.length === 0) {
+            tbody.innerHTML = '<tr id="bottle-collection-empty"><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">No collection records found.</td></tr>';
+            updatePagination(pagination);
+            return;
+        }
+
+        let html = '';
+        records.forEach(function (r) {
+            html += '<tr>' +
+                '<td>' + escapeHtml(r.lrn) + '</td>' +
+                '<td><strong>' + escapeHtml(r.student) + '</strong></td>' +
+                '<td>' + escapeHtml(r.date) + '</td>' +
+                '<td>' + escapeHtml(r.time) + '</td>' +
+                '<td>' + escapeHtml(r.bottle_count) + '</td>' +
+                '<td>' + escapeHtml(r.points) + '</td>' +
+            '</tr>';
+        });
+        tbody.innerHTML = html;
+        updatePagination(pagination);
+    }
+
+    function updatePagination(pagination) {
+        if (!pagination) return;
+
+        const info = document.getElementById('bottle-collection-page-info');
+        if (info) {
+            info.textContent = 'Showing ' + (pagination.from || 0) + ' to ' + (pagination.to || 0) + ' of ' + (pagination.total || 0) + ' entries';
+        }
+
+        const btns = document.getElementById('bottle-collection-page-btns');
+        if (btns) {
+            let html = '';
+            for (let i = 1; i <= pagination.last_page; i++) {
+                const active = i === pagination.current_page ? ' active' : '';
+                html += '<a href="?page=' + i + '" class="page-btn' + active + '">' + i + '</a>';
+            }
+            btns.innerHTML = html;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
+    }
+
+    // Pause polling when the Add Collection modal is open
+    const modalOverlay = document.getElementById('addCollectionModal');
+    if (modalOverlay) {
+        const observer = new MutationObserver(function () {
+            isPollingPaused = modalOverlay.style.display === 'block' || modalOverlay.classList.contains('show');
+        });
+        observer.observe(modalOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+
+    // Resume polling after form submission redirect
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            fetchBottleCollections();
+        }
+    });
 });
 </script>
 @endpush

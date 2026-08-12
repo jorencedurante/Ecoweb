@@ -64,7 +64,13 @@
                     <td>ADM{{ str_pad($account->id, 3, '0', STR_PAD_LEFT) }}</td>
                     <td><strong>{{ $account->name }}</strong></td>
                     <td>{{ $account->email }}</td>
-                    <td><span style="font-weight:600;">{{ ucfirst($account->role) }}</span></td>
+                    <td>
+                        @if(auth()->user()->isSuperAdmin())
+                            <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--accent-light,#e8f1ff);color:var(--accent,#1a73e8);">{{ ucfirst($account->role) }}</span>
+                        @else
+                            <span class="role-badge" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">{{ ucfirst($account->role) }}</span>
+                        @endif
+                    </td>
                     <td>{{ $account->position ?? 'N/A' }}</td>
                     <td><span style="color:{{ $account->status === 'active' ? 'var(--green)' : 'var(--gray)' }};font-weight:600;">{{ ucfirst($account->status) }}</span></td>
                     <td>
@@ -81,6 +87,7 @@
                                     created_at: '{{ optional($account->created_at)->format('F d, Y h:i A') }}',
                                     updated_at: '{{ optional($account->updated_at)->format('F d, Y h:i A') }}'
                                 })">👁</button>
+                            @if(auth()->user()->isSuperAdmin())
                             <button type="button" class="action-icon-btn edit" title="Edit Account"
                                 data-modal-target="editTeacherModal"
                                 data-id="{{ $account->id }}"
@@ -94,6 +101,7 @@
                                 @csrf @method('DELETE')
                                 <button type="submit" class="action-icon-btn delete" title="Delete / Deactivate Account">🗑</button>
                             </form>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -138,32 +146,46 @@
                     <div class="password-note">Leave password fields blank if you do not want to change the password.</div>
                     <div class="form-group">
                         <label>Current Password</label>
-                        <input type="password" name="current_password" id="editTeacherCurrentPassword" placeholder="Enter current password">
+                        <div class="password-field-wrapper">
+                            <input type="password" name="current_password" id="editTeacherCurrentPassword" placeholder="Enter current password">
+                            <button type="button" class="password-toggle" data-target="editTeacherCurrentPassword" aria-label="Show or hide current password">👁</button>
+                        </div>
                         @error('current_password')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>New Password (leave blank to keep current)</label>
-                        <input type="password" name="password" id="editTeacherPassword" placeholder="Leave blank to keep current">
+                        <div class="password-field-wrapper">
+                            <input type="password" name="password" id="editTeacherPassword" placeholder="Leave blank to keep current">
+                            <button type="button" class="password-toggle" data-target="editTeacherPassword" aria-label="Show or hide new password">👁</button>
+                        </div>
                         @error('password')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>Confirm Password</label>
-                        <input type="password" name="password_confirmation" id="editTeacherPasswordConfirm" placeholder="Confirm new password">
+                        <div class="password-field-wrapper">
+                            <input type="password" name="password_confirmation" id="editTeacherPasswordConfirm" placeholder="Confirm new password">
+                            <button type="button" class="password-toggle" data-target="editTeacherPasswordConfirm" aria-label="Show or hide confirm password">👁</button>
+                        </div>
                         @error('password_confirmation')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>Role</label>
+                        @if(auth()->user()->isSuperAdmin())
                         <select name="role" id="editTeacherRole" required>
                             <option value="admin">Admin</option>
                             <option value="teacher">Teacher</option>
                             <option value="super_admin">Super Admin</option>
                         </select>
+                        @else
+                        <input type="text" id="editTeacherRoleText" disabled style="background:#f1f5f9;cursor:not-allowed;">
+                        <input type="hidden" name="role" value="">
+                        @endif
                     </div>
                     <div class="form-group">
                         <label>Position</label>
@@ -180,6 +202,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeEditTeacherModal()">Cancel</button>
+                    <div class="password-confirm-alert" style="display: none;">
+                        Password didn't match. Try again.
+                    </div>
                     <button type="submit" class="btn btn-primary">Update Account</button>
                 </div>
             </form>
@@ -290,7 +315,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('editTeacherName').value = btn.dataset.name;
             document.getElementById('editTeacherUsername').value = btn.dataset.username;
             document.getElementById('editTeacherEmail').value = btn.dataset.email;
-            document.getElementById('editTeacherRole').value = btn.dataset.role;
+            const roleTextEl = document.getElementById('editTeacherRoleText');
+            if (roleTextEl) {
+                roleTextEl.value = btn.dataset.role;
+            } else {
+                document.getElementById('editTeacherRole').value = btn.dataset.role;
+            }
             document.getElementById('editTeacherPosition').value = btn.dataset.position;
             document.getElementById('editTeacherStatus').value = btn.dataset.status;
             document.getElementById('editTeacherCurrentPassword').value = '';

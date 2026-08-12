@@ -41,6 +41,19 @@ class StudentController extends Controller
         abort(403, 'Unauthorized access to this student record.');
     }
 
+    private function ensureCanManageStudents(): void
+    {
+        $role = Auth::user()->role;
+
+        if ($role === 'admin') {
+            abort(403, 'Admin accounts are view-only and cannot modify student records.');
+        }
+
+        if (!in_array($role, ['teacher', 'super_admin'])) {
+            abort(403, 'You are not allowed to manage student records.');
+        }
+    }
+
     public function index(Request $request)
     {
         $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
@@ -58,8 +71,10 @@ class StudentController extends Controller
             });
         }
 
-        if ($gradeLevel = $request->get('grade_level')) {
-            $query->where('grade_level', $gradeLevel);
+        if (Auth::user()->isAdminLevel()) {
+            if ($gradeLevel = $request->get('grade_level')) {
+                $query->where('grade_level', $gradeLevel);
+            }
         }
 
         if ($gender = $request->get('gender')) {
@@ -90,8 +105,10 @@ class StudentController extends Controller
             });
         }
 
-        if ($gradeLevel = $request->get('grade_level')) {
-            $query->where('grade_level', $gradeLevel);
+        if (Auth::user()->isAdminLevel()) {
+            if ($gradeLevel = $request->get('grade_level')) {
+                $query->where('grade_level', $gradeLevel);
+            }
         }
 
         if ($gender = $request->get('gender')) {
@@ -106,6 +123,8 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureCanManageStudents();
+
         $user = Auth::user();
 
         $validated = $request->validate([
@@ -173,6 +192,7 @@ class StudentController extends Controller
 
     public function update(Request $request, Student $student)
     {
+        $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
         $user = Auth::user();
@@ -222,6 +242,7 @@ class StudentController extends Controller
 
     public function archive(Student $student)
     {
+        $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
         $student->update(['status' => 'Archived']);
@@ -238,6 +259,7 @@ class StudentController extends Controller
 
     public function restore(Student $student)
     {
+        $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
         $student->update(['status' => 'Active']);
@@ -295,6 +317,7 @@ class StudentController extends Controller
 
     public function updateAchievementProgress(Request $request, Student $student)
     {
+        $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
         $validated = $request->validate([
@@ -389,6 +412,8 @@ class StudentController extends Controller
 
     public function import(Request $request)
     {
+        $this->ensureCanManageStudents();
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls',
             'grade_level' => 'nullable|string|max:20',

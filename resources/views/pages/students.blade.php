@@ -7,6 +7,12 @@
 @section('content')
     <div class="students-page-wrapper">
 
+    @if(Auth::user()->role === 'admin')
+    <div style="background:rgba(59,130,246,0.08);border:1px solid var(--blue);color:#1e40af;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;">
+        Admin account is view-only. Student import and record changes are restricted to Teachers and Super Admin.
+    </div>
+    @endif
+
     <div class="filter-card">
         <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
             <i class="fas fa-filter"></i> Filters
@@ -17,6 +23,12 @@
                     <label>Search</label>
                     <input type="text" name="search" placeholder="Search students..." value="{{ request('search') }}">
                 </div>
+                @if(auth()->user()->isTeacher())
+                <div class="filter-search">
+                    <label>&nbsp;</label>
+                    <small class="text-muted" style="color:var(--text-light);font-size:12px;padding-top:10px;">Showing students from your assigned class.</small>
+                </div>
+                @else
                 <div class="filter-search">
                     <label>Grade Level</label>
                     <select name="grade_level">
@@ -26,6 +38,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div class="filter-search">
                     <label>Gender</label>
                     <select name="gender">
@@ -47,8 +60,10 @@
             <div class="table-header-left"></div>
             <div class="table-toolbar-actions">
                 <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
+                @if(Auth::user()->role !== 'admin')
                 <button class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
                 <button class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
+                @endif
             </div>
         </div>
         <table>
@@ -79,6 +94,7 @@
                             <a href="{{ route('students.info', $student->id) }}" class="action-icon-btn view" title="View Info">👁</a>
                             <a href="{{ route('students.achievements', $student->id) }}" class="action-icon-btn achievements" title="Achievements">🏆</a>
                             <a href="{{ route('students.awards', $student->id) }}" class="action-icon-btn awards" title="Awards">🎖</a>
+                            @if(Auth::user()->role !== 'admin')
                             <button class="action-icon-btn edit" title="Edit Student" data-modal-target="editStudentModal"
                                 data-id="{{ $student->id }}"
                                 data-lrn="{{ $student->lrn }}"
@@ -93,6 +109,7 @@
                                 @csrf @method('PATCH')
                                 <button type="submit" class="action-icon-btn archive" title="Archive Student">📦</button>
                             </form>
+                            @endif
                             @endif
                         </div>
                     </td>
@@ -143,6 +160,7 @@
     </div>
     @endif
 
+    @if(Auth::user()->role !== 'admin')
     <!-- Import Students Modal -->
     <div class="modal-overlay" id="importStudentModal">
         <div class="modal-content" style="max-width:520px;">
@@ -328,6 +346,7 @@
             </form>
         </div>
     </div>
+    @endif
 @endsection
 
 @push('scripts')

@@ -142,9 +142,10 @@
                     <span>Issued: {{ $award->awarded_date ? $award->awarded_date->format('M d, Y') : ($award->created_at->format('M d, Y')) }}</span>
                     @if($award->certificate_type)<span style="background:rgba(0,174,239,0.1);color:#00AEEF;padding:2px 8px;border-radius:6px;font-weight:600;">{{ $award->certificate_type }}</span>@endif
                 </div>
-                @if($award->template_file_path)
+                @php $certFilePath = $award->template_file ?? $award->template_file_path; @endphp
+                @if($certFilePath)
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid #E5E7EB;">
-                    <a href="{{ asset('storage/' . $award->template_file_path) }}" target="_blank" style="font-size:12px;font-weight:600;color:#22C55E;text-decoration:none;">View Certificate →</a>
+                    <a href="{{ asset('storage/' . $certFilePath) }}" target="_blank" style="font-size:12px;font-weight:600;color:#22C55E;text-decoration:none;">View Certificate →</a>
                 </div>
                 @endif
             </div>

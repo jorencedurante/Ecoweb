@@ -54,6 +54,12 @@ Route::post('/email/verify/resend', [AuthController::class, 'resendOtp'])->name(
 Route::middleware(['auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // Email change routes (outside 'verified' middleware — user's email may not be verified yet)
+    Route::get('/account/email-change/verify', [AccountSettingsController::class, 'showEmailChangeVerify'])->name('account.email-change.verify');
+    Route::post('/account/email-change/verify', [AccountSettingsController::class, 'confirmEmailChange'])->name('account.email-change.confirm');
+    Route::post('/account/email-change/resend', [AccountSettingsController::class, 'resendEmailChangeOtp'])->name('account.email-change.resend');
+    Route::post('/account/email-change/cancel', [AccountSettingsController::class, 'cancelEmailChange'])->name('account.email-change.cancel');
+
     Route::middleware('verified')->prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
@@ -88,12 +94,22 @@ Route::middleware(['auth'])->group(function () {
 
         // Bottle Collection
         Route::get('/bottle-collection', [BottleCollectionController::class, 'index'])->name('admin.bottle-collection');
+        Route::get('/bottle-collection/fetch', [BottleCollectionController::class, 'fetchJson'])->name('admin.bottle-collection.fetch');
         Route::post('/bottle-collection', [BottleCollectionController::class, 'store'])->name('admin.bottle-collection.store');
 
         // Certificate / Awards
         Route::get('/certificate', [CertificateController::class, 'index'])->name('admin.certificate');
         Route::post('/certificate', [CertificateController::class, 'store'])->name('admin.certificate.store');
+        Route::post('/certificate/template', [CertificateController::class, 'storeTemplate'])->name('admin.certificate.template.store');
+        Route::get('/certificate/create', [CertificateController::class, 'create'])->name('admin.certificate.create');
+        Route::post('/certificate/save-canvas', [CertificateController::class, 'saveCanvas'])->name('admin.certificate.save-canvas');
+        Route::get('/certificate/{award}/edit', [CertificateController::class, 'edit'])->name('admin.certificate.edit');
+        Route::put('/certificate/{award}/update-canvas', [CertificateController::class, 'updateCanvas'])->name('admin.certificate.update-canvas');
+        Route::get('/certificate/templates/list', [CertificateController::class, 'templatesList'])->name('admin.certificate.templates.list');
         Route::get('/certificate/{award}/print', [CertificateController::class, 'print'])->name('admin.certificate.print');
+        Route::get('/certificate/{award}/download', [CertificateController::class, 'download'])->name('admin.certificate.download');
+        Route::patch('/certificate/{award}/archive', [CertificateController::class, 'archive'])->name('admin.certificate.archive');
+        Route::delete('/certificate/{award}', [CertificateController::class, 'destroy'])->name('admin.certificate.destroy');
 
         // Reports
         Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');

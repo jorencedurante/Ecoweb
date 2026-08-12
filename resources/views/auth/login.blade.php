@@ -25,10 +25,10 @@
                 <h3>Login to Your Account</h3>
                 <p class="subtitle">Enter your credentials to continue</p>
                 @if(session('success'))
-                    <div class="alert-success show" style="margin-bottom:16px;">{{ session('success') }}</div>
+                    <div class="auto-dismiss-alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
                 @endif
                 @if($errors->any())
-                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -61,6 +61,20 @@
             </div>
         </div>
     </div>
+    <style>
+    .auto-dismiss-alert { transition: opacity 0.5s ease, transform 0.5s ease; }
+    .auto-dismiss-alert.fade-out { opacity: 0; transform: translateY(-8px); }
+    </style>
     <script src="{{ asset('js/app.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.auto-dismiss-alert').forEach(function (el) {
+            setTimeout(function () {
+                el.classList.add('fade-out');
+                setTimeout(function () { el.remove(); }, 500);
+            }, 4000);
+        });
+    });
+    </script>
 </body>
 </html>

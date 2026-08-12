@@ -15,6 +15,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'username', 'email', 'password', 'role', 'position', 'profile_photo', 'status',
         'email_verification_code', 'email_verification_expires_at', 'email_verified_at',
+        'pending_email', 'email_change_otp', 'email_change_otp_expires_at',
     ];
 
     protected $hidden = [
@@ -27,6 +28,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
             'email_verification_expires_at' => 'datetime',
+            'email_change_otp_expires_at' => 'datetime',
         ];
     }
 

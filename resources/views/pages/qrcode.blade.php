@@ -5,13 +5,6 @@
 @section('page-subtitle', 'Generate QR codes for student information.')
 
 @section('content')
-    @if(session('success'))
-    <div class="alert-success show">✅ {{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;margin-bottom:16px;">❌ {{ session('error') }}</div>
-    @endif
-
     <div class="qr-page-grid">
         <div class="qr-card">
             <h3>Generate QR Code</h3>
