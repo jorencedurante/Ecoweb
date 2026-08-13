@@ -150,7 +150,7 @@
     </div>
 
     {{-- Add Achievement Quest Modal --}}
-    <div id="questModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+    <!-- <div id="questModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
         <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <h4 style="font-size:16px;font-weight:700;">Add Achievement Quest</h4>
@@ -202,7 +202,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </div> -->
 @endsection
 
 @push('scripts')
