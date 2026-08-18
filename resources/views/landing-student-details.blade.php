@@ -61,18 +61,34 @@
         <div style="background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:24px 28px;">
             <h4 style="font-size:15px;font-weight:700;color:#111827;margin-bottom:16px;">Achievement Progress</h4>
             @php
-                $totalPoints = $student->total_points ?? $student->bottleCollections->sum('points_earned');
-                $goal = 100;
-                $progress = min(($totalPoints / $goal) * 100, 100);
+                $nextAchievement = $achievementProgress['nextAchievement'];
+                $progress = $achievementProgress['progress'];
+                $pointsNeeded = $achievementProgress['pointsNeeded'];
+                $allCompleted = $achievementProgress['allAchievementsCompleted'];
+                $metricLabel = $achievementProgress['metricLabel'];
+                $nextGoalValue = $achievementProgress['nextGoalValue'];
+                $currentValue = $metricLabel === 'Bottles' ? $achievementProgress['totalBottles'] : $achievementProgress['totalPoints'];
             @endphp
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span style="font-size:13px;color:#6B7280;">Current Points: <strong style="color:#111827;">{{ number_format($totalPoints) }}</strong></span>
-                <span style="font-size:13px;color:#6B7280;">Next Goal: <strong style="color:#22C55E;">{{ number_format($goal) }} Points</strong></span>
-            </div>
-            <div style="background:#E5E7EB;border-radius:8px;height:14px;overflow:hidden;">
-                <div style="background:linear-gradient(90deg,#22C55E,#00AEEF);width:{{ $progress }}%;height:100%;border-radius:8px;transition:width 0.5s;"></div>
-            </div>
-            <div style="text-align:right;margin-top:6px;font-size:12px;color:#9CA3AF;">{{ round($progress) }}% complete</div>
+            @if($allCompleted)
+                <p style="font-size:13px;font-weight:700;color:#22C55E;margin-bottom:8px;">🎉 All achievements completed</p>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:13px;color:#6B7280;">Current {{ $metricLabel }}: <strong style="color:#111827;">{{ number_format($currentValue) }}</strong></span>
+                </div>
+                <div style="background:#E5E7EB;border-radius:8px;height:14px;overflow:hidden;">
+                    <div style="background:linear-gradient(90deg,#22C55E,#00AEEF);width:100%;height:100%;border-radius:8px;transition:width 0.5s;"></div>
+                </div>
+                <div style="text-align:right;margin-top:6px;font-size:12px;color:#9CA3AF;">100% complete</div>
+            @else
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:13px;color:#6B7280;">Current {{ $metricLabel }}: <strong style="color:#111827;">{{ number_format($currentValue) }}</strong></span>
+                    <span style="font-size:13px;color:#6B7280;">Next Goal: <strong style="color:#22C55E;">{{ $nextAchievement->title }}</strong></span>
+                </div>
+                <p style="font-size:12px;color:#6B7280;margin-bottom:8px;">{{ number_format($pointsNeeded) }} {{ $metricLabel }} needed to reach <strong>{{ number_format($nextGoalValue) }} {{ $metricLabel }}</strong>.</p>
+                <div style="background:#E5E7EB;border-radius:8px;height:14px;overflow:hidden;">
+                    <div style="background:linear-gradient(90deg,#22C55E,#00AEEF);width:{{ $progress }}%;height:100%;border-radius:8px;transition:width 0.5s;"></div>
+                </div>
+                <div style="text-align:right;margin-top:6px;font-size:12px;color:#9CA3AF;">{{ round($progress) }}% complete</div>
+            @endif
         </div>
 
         {{-- Bottle Collection Summary --}}
