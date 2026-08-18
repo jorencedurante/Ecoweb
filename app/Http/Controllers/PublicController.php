@@ -137,15 +137,20 @@ class PublicController extends Controller
         $lrn = $this->extractLrnFromQrValue($lrn) ?? $lrn;
 
         $student = Student::where('lrn', $lrn)
-            ->with([
-                'earnedAchievements.quest',
-                'certificateAwards',
-                'bottleCollections',
-            ])
             ->where('status', '!=', 'Archived')
             ->firstOrFail();
 
-        return view('landing-student-details', compact('student'));
+        $student->syncEarnedAchievements();
+
+        $student->load([
+            'earnedAchievements.quest',
+            'certificateAwards',
+            'bottleCollections',
+        ]);
+
+        $achievementProgress = $student->achievementProgressData();
+
+        return view('landing-student-details', compact('student', 'achievementProgress'));
     }
 
     private function getLandingRankings(): array

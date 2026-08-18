@@ -132,7 +132,6 @@ Route::middleware(['auth'])->group(function () {
             // System Settings
             Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.settings');
             Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
-            Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
             Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
         });
 
@@ -142,10 +141,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/qrcode/{qrCode}/download', [QrCodeController::class, 'download'])->name('admin.qrcode.download');
         Route::get('/qrcode/{qrCode}/print', [QrCodeController::class, 'printPdf'])->name('admin.qrcode.print');
 
-        // Achievements
-        Route::get('/achievements', [AchievementController::class, 'index'])->name('admin.achievements.index');
-        Route::post('/achievements', [AchievementController::class, 'store'])->name('admin.achievements.store');
-        Route::put('/achievements/{achievement}', [AchievementController::class, 'update'])->name('admin.achievements.update');
+        // Achievement Quests (managed from the Certificate Award module; Admin/Super Admin only)
+        Route::post('/certificate/achievement-quests', [AchievementController::class, 'store'])->name('achievement-quests.store');
+        Route::put('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'update'])->name('achievement-quests.update');
+        Route::delete('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'destroy'])->name('achievement-quests.destroy');
 
         // Legacy routes (keep existing PageController routes working)
         Route::get('/students-filtered', [StudentController::class, 'index'])->name('admin.students-filtered');

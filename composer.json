@@ -6,14 +6,15 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-    "php": "^8.2",
-    "ext-zip": "*",
-    "doctrine/dbal": "*",
-    "endroid/qr-code": "*",
-    "laravel/framework": "^12.0",
-    "laravel/tinker": "^2.10.1",
-    "openspout/openspout": "^4.28",
-    "shuchkin/simplexls": "*"
+        "php": "^8.2",
+        "ext-zip": "*",
+        "doctrine/dbal": "*",
+        "endroid/qr-code": "*",
+        "laravel/framework": "^12.0",
+        "laravel/tinker": "^2.10.1",
+        "openspout/openspout": "^4.28",
+        "resend/resend-laravel": "^1.4",
+        "shuchkin/simplexls": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

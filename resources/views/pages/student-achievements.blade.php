@@ -46,12 +46,7 @@
         </div>
     </div>
 
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h4 style="font-size:15px;font-weight:600;">📋 Available Achievement Quests</h4>
-        @if(in_array(auth()->user()->role ?? 'admin', ['admin', 'teacher', 'super_admin']))
-        <button type="button" class="btn btn-primary btn-sm" onclick="openQuestModal()">+ Add Achievement Quest</button>
-        @endif
-    </div>
+    <h4 style="font-size:15px;font-weight:600;margin-bottom:12px;">📋 Available Achievement Quests</h4>
     <div class="achievement-grid" style="margin-bottom:24px;">
         @forelse($quests as $quest)
             @php
@@ -75,11 +70,6 @@
                     @if($quest->required_bottles > 0)<span>{{ $quest->required_bottles }} bottles required</span>@endif
                     @if($quest->points_required > 0)<span>{{ $quest->points_required }} pts required</span>@endif
                 </div>
-                @if(in_array(auth()->user()->role ?? 'admin', ['admin', 'teacher', 'super_admin']))
-                <div style="margin-top:8px;">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="openEditProgressModal({{ $quest->id }}, '{{ addslashes($quest->title) }}', {{ $quest->required_bottles }}, {{ $quest->points_required }})">Edit Progress</button>
-                </div>
-                @endif
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
                     <div style="font-size:12px;color:var(--text-medium);margin-bottom:4px;">
                         <span>Status: <strong style="color:{{ $isCompleted ? 'var(--green)' : '#FBBF24' }};">{{ $isCompleted ? 'Completed' : 'In Progress' }}</strong></span>
@@ -119,135 +109,4 @@
         </div>
         @endforelse
     </div>
-
-    {{-- Edit Progress Modal --}}
-    <div id="editProgressModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:12px;padding:28px;width:500px;max-width:95%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h4 style="font-size:16px;font-weight:700;">Edit Quest Progress</h4>
-                <button type="button" onclick="closeEditProgressModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
-            </div>
-            <form method="POST" action="{{ route('admin.achievements.update', ['achievement' => '__ID__']) }}" id="editProgressForm">
-                @csrf
-                @method('PUT')
-                <p style="margin-bottom:16px;color:var(--text-medium);font-size:14px;" id="editProgressTitle"></p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                    <div class="form-group">
-                        <label>Required Bottles</label>
-                        <input type="number" name="required_bottles" id="edit_required_bottles" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group">
-                        <label>Required Points</label>
-                        <input type="number" name="points_required" id="edit_points_required" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                </div>
-                <div style="display:flex;gap:12px;margin-top:20px;justify-content:flex-end;">
-                    <button type="button" class="btn btn-outline" onclick="closeEditProgressModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- Add Achievement Quest Modal --}}
-    <!-- <div id="questModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h4 style="font-size:16px;font-weight:700;">Add Achievement Quest</h4>
-                <button type="button" onclick="closeQuestModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
-            </div>
-            <form method="POST" action="{{ route('admin.achievements.store') }}">
-                @csrf
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                    <div class="form-group">
-                        <label>Achievement Title</label>
-                        <input type="text" name="title" value="{{ old('title') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group">
-                        <label>Badge Name</label>
-                        <input type="text" name="badge_name" value="{{ old('badge_name') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group" style="grid-column:span 2;">
-                        <label>Description</label>
-                        <textarea name="description" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">{{ old('description') }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Milestone Type</label>
-                        <select name="milestone" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                            <option value="Bottle Collection" {{ old('milestone') === 'Bottle Collection' ? 'selected' : '' }}>Bottle Collection</option>
-                            <option value="Points" {{ old('milestone') === 'Points' ? 'selected' : '' }}>Points</option>
-                            <option value="Consistency" {{ old('milestone') === 'Consistency' ? 'selected' : '' }}>Consistency</option>
-                            <option value="Special Award" {{ old('milestone') === 'Special Award' ? 'selected' : '' }}>Special Award</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                            <option value="Active" {{ old('status') === 'Active' ? 'selected' : '' }}>Active</option>
-                            <option value="Inactive" {{ old('status') === 'Inactive' ? 'selected' : '' }}>Inactive</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Required Bottles</label>
-                        <input type="number" name="required_bottles" value="{{ old('required_bottles', 0) }}" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                    <div class="form-group">
-                        <label>Required Points</label>
-                        <input type="number" name="points_required" value="{{ old('points_required', 0) }}" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                    </div>
-                </div>
-                <div style="display:flex;gap:12px;margin-top:20px;justify-content:flex-end;">
-                    <button type="button" class="btn btn-outline" onclick="closeQuestModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Achievement Quest</button>
-                </div>
-            </form>
-        </div>
-    </div> -->
 @endsection
-
-@push('scripts')
-<script>
-function openQuestModal() {
-    document.getElementById('questModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-function closeQuestModal() {
-    document.getElementById('questModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-document.addEventListener('DOMContentLoaded', function () {
-    var qmodal = document.getElementById('questModal');
-    if (qmodal) {
-        qmodal.addEventListener('click', function (e) {
-            if (e.target === qmodal) {
-                closeQuestModal();
-            }
-        });
-    }
-});
-
-function openEditProgressModal(id, title, requiredBottles, requiredPoints) {
-    document.getElementById('editProgressTitle').textContent = 'Quest: ' + title;
-    document.getElementById('edit_required_bottles').value = requiredBottles;
-    document.getElementById('edit_points_required').value = requiredPoints;
-    var form = document.getElementById('editProgressForm');
-    form.action = '{{ route("admin.achievements.update", ["achievement" => "__ID__"]) }}'.replace('__ID__', id);
-    document.getElementById('editProgressModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-function closeEditProgressModal() {
-    document.getElementById('editProgressModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-document.addEventListener('DOMContentLoaded', function () {
-    var epmodal = document.getElementById('editProgressModal');
-    if (epmodal) {
-        epmodal.addEventListener('click', function (e) {
-            if (e.target === epmodal) {
-                closeEditProgressModal();
-            }
-        });
-    }
-});
-</script>
-@endpush
