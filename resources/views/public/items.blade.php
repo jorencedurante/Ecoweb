@@ -52,16 +52,11 @@
                 <article class="reward-card">
                     <div class="reward-card-header">
                         <div class="reward-icon">🎁</div>
-                        <span class="reward-stock">{{ $item->quantity }} left</span>
                     </div>
 
                     <div class="reward-card-body">
                         <h3>{{ $item->item_name }}</h3>
                         <p>{{ $item->description ?? 'No description available.' }}</p>
-                        <div class="reward-points-box">
-                            <span>Required Points</span>
-                            <strong>{{ $item->points_required }} pts</strong>
-                        </div>
                     </div>
 
                     <form method="POST" action="{{ route('public.items.request') }}" class="reward-claim-form">
