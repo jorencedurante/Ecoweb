@@ -68,6 +68,7 @@
             </div>
             <button class="btn btn-primary" data-modal-target="addCollectionModal">+ Add Collection</button>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -94,6 +95,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="pagination">
             <span class="page-info" id="bottle-collection-page-info">Showing {{ $collections->firstItem() ?? 0 }} to {{ $collections->lastItem() ?? 0 }} of {{ $collections->total() }} entries</span>
             <div class="page-btns" id="bottle-collection-page-btns">

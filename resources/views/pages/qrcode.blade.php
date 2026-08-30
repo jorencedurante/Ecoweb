@@ -79,6 +79,7 @@
             <h4>Generated QR Codes</h4>
         </div>
         <div class="table-wrapper">
+            <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
@@ -110,6 +111,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
         @if($qrCodes->hasPages())
         <div class="pagination">

@@ -52,6 +52,7 @@
             <div class="table-header-left"></div>
             <a href="{{ route('admin.students') }}" class="btn btn-outline btn-sm" style="font-size:13px;">← Back to Active Students</a>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -90,6 +91,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="pagination">
             <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
             <div class="page-btns">

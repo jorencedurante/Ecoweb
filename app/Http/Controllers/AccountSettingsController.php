@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class AccountSettingsController extends Controller
 {
@@ -49,9 +50,9 @@ class AccountSettingsController extends Controller
 
             try {
                 Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-                \Log::info('Email change OTP sent to old email: ' . $oldEmail);
+                Log::info('Email change OTP sent to old email: ' . $oldEmail);
             } catch (\Throwable $e) {
-                \Log::error('Email change OTP sending failed', [
+                Log::error('Email change OTP sending failed', [
                     'user_id' => auth()->id(),
                     'email' => auth()->user()->email,
                     'error' => $e->getMessage(),
@@ -169,9 +170,9 @@ class AccountSettingsController extends Controller
 
         try {
             Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-            \Log::info('Email change OTP resent to old email: ' . $oldEmail);
+            Log::info('Email change OTP resent to old email: ' . $oldEmail);
         } catch (\Throwable $e) {
-            \Log::error('Email change OTP sending failed', [
+            Log::error('Email change OTP sending failed', [
                 'user_id' => auth()->id(),
                 'email' => auth()->user()->email,
                 'error' => $e->getMessage(),

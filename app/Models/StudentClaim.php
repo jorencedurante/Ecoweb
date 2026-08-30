@@ -12,6 +12,7 @@ class StudentClaim extends Model
     protected $fillable = [
         'student_id',
         'claim_item_id',
+        'quantity',
         'item_name',
         'points_deducted',
         'points_before',
@@ -23,11 +24,16 @@ class StudentClaim extends Model
         'approved_by',
         'approved_at',
         'rejected_reason',
+        'is_archived',
+        'released_at',
+        'released_by',
     ];
 
     protected $casts = [
         'claim_date' => 'date',
         'approved_at' => 'datetime',
+        'released_at' => 'datetime',
+        'is_archived' => 'boolean',
     ];
 
     public function student(): BelongsTo
@@ -48,5 +54,10 @@ class StudentClaim extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function releaser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by');
     }
 }

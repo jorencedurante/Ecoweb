@@ -11,7 +11,6 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\AdminActivityController;
-use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\AchievementController;
@@ -75,6 +74,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/claims/pending', fn() => redirect()->route('claims.index'))->name('claims.pending');
             Route::patch('/claims/{claim}/approve', [ClaimController::class, 'approve'])->name('claims.approve');
             Route::patch('/claims/{claim}/reject', [ClaimController::class, 'reject'])->name('claims.reject');
+            Route::patch('/claims/student/{student}/archive-all', [ClaimController::class, 'archiveAllByStudent'])->name('claims.archiveAllByStudent');
+            Route::patch('/claims/{claim}/archive', [ClaimController::class, 'archive'])->name('claims.archive');
         });
 
         // Students
@@ -117,6 +118,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/bottle-report', [ReportController::class, 'bottleReport'])->name('admin.bottle-report');
         Route::get('/admin-activities', [ReportController::class, 'adminActivities'])->name('admin.admin-activities');
 
+        // Reports - Print routes
+        Route::get('/reports/print/top-students', [ReportController::class, 'printTopStudents'])->name('reports.top-students.print');
+        Route::get('/reports/print/student-ranking', [ReportController::class, 'printStudentRanking'])->name('reports.student-ranking.print');
+        Route::get('/reports/print/bottle-collection', [ReportController::class, 'printBottleCollection'])->name('reports.bottle-collection.print');
+        Route::get('/reports/print/item-claims', [ReportController::class, 'printItemClaims'])->name('reports.item-claims.print');
+        Route::get('/reports/print/student-activities', [ReportController::class, 'printStudentActivities'])->name('reports.student-activities.print');
+
         // Account Settings (all authenticated users)
         Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
@@ -145,8 +153,5 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/certificate/achievement-quests', [AchievementController::class, 'store'])->name('achievement-quests.store');
         Route::put('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'update'])->name('achievement-quests.update');
         Route::delete('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'destroy'])->name('achievement-quests.destroy');
-
-        // Legacy routes (keep existing PageController routes working)
-        Route::get('/students-filtered', [StudentController::class, 'index'])->name('admin.students-filtered');
     });
 });
