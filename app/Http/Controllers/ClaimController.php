@@ -120,7 +120,9 @@ class ClaimController extends Controller
             $claimsQuery->where('claimed_by', $request->claimed_by);
         }
 
-        $claims = $claimsQuery->latest()->paginate(15)->withQueryString();
+        $allClaims = $claimsQuery->latest('claim_date')->get();
+        $claimHistoryByStudent = $allClaims->groupBy('student_id');
+        $claims = $allClaims;
 
         $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
         if (Auth::user()->isTeacher()) {
@@ -132,7 +134,117 @@ class ClaimController extends Controller
         $availableItems = ClaimItem::where('status', 'Available')->where('quantity', '>', 0)->get();
         $allClaimItems = ClaimItem::orderBy('item_name')->get();
 
-        return view('pages.claims', compact('items', 'claims', 'pendingClaims', 'students', 'availableItems', 'allClaimItems'));
+        // Approved claims grouped by student (Admin/Super Admin only)
+        $approvedClaimsByStudent = collect();
+        if (in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            $approvedQuery = StudentClaim::with(['student', 'item', 'admin', 'approver'])
+                ->where('status', 'Approved')
+                ->where('is_archived', false);
+
+            // Filters for approved claims
+            if ($request->filled('approved_search')) {
+                $search = $request->approved_search;
+                $approvedQuery->where(function ($q) use ($search) {
+                    $q->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('remarks', 'like', "%{$search}%")
+                      ->orWhereHas('student', function ($studentQuery) use ($search) {
+                          $studentQuery->where('full_name', 'like', "%{$search}%")
+                                       ->orWhere('lrn', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+                $quarter = $request->approved_quarter;
+                $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+                switch ($quarter) {
+                    case 'Q1':
+                        $approvedQuery->whereMonth('claim_date', '>=', 1)
+                                       ->whereMonth('claim_date', '<=', 3)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q2':
+                        $approvedQuery->whereMonth('claim_date', '>=', 4)
+                                       ->whereMonth('claim_date', '<=', 6)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q3':
+                        $approvedQuery->whereMonth('claim_date', '>=', 7)
+                                       ->whereMonth('claim_date', '<=', 9)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q4':
+                        $approvedQuery->whereMonth('claim_date', '>=', 10)
+                                       ->whereMonth('claim_date', '<=', 12)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                }
+            } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+                $approvedQuery->whereYear('claim_date', $request->approved_year);
+            }
+
+            $approvedClaimsByStudent = $approvedQuery->latest('claim_date')
+                ->get()
+                ->groupBy('student_id');
+        }
+
+        // Archived/released claims grouped by student (Admin/Super Admin only)
+        $archivedClaimsByStudent = collect();
+        if (in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            $archivedQuery = StudentClaim::with(['student', 'item', 'approver', 'releaser'])
+                ->where('status', 'Approved')
+                ->where('is_archived', true);
+
+            if ($request->filled('approved_search')) {
+                $search = $request->approved_search;
+                $archivedQuery->where(function ($q) use ($search) {
+                    $q->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('remarks', 'like', "%{$search}%")
+                      ->orWhereHas('student', function ($studentQuery) use ($search) {
+                          $studentQuery->where('full_name', 'like', "%{$search}%")
+                                       ->orWhere('lrn', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+                $quarter = $request->approved_quarter;
+                $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+                switch ($quarter) {
+                    case 'Q1':
+                        $archivedQuery->whereMonth('claim_date', '>=', 1)
+                                       ->whereMonth('claim_date', '<=', 3)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q2':
+                        $archivedQuery->whereMonth('claim_date', '>=', 4)
+                                       ->whereMonth('claim_date', '<=', 6)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q3':
+                        $archivedQuery->whereMonth('claim_date', '>=', 7)
+                                       ->whereMonth('claim_date', '<=', 9)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q4':
+                        $archivedQuery->whereMonth('claim_date', '>=', 10)
+                                       ->whereMonth('claim_date', '<=', 12)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                }
+            } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+                $archivedQuery->whereYear('claim_date', $request->approved_year);
+            }
+
+            $archivedClaimsByStudent = $archivedQuery->latest('released_at')
+                ->get()
+                ->groupBy('student_id');
+        }
+
+        return view('pages.claims', compact(
+            'items', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
+            'approvedClaimsByStudent', 'archivedClaimsByStudent'
+        ));
     }
 
     public function storeItem(Request $request)
@@ -186,6 +298,7 @@ class ClaimController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'claim_item_id' => 'required|exists:claim_items,id',
+            'quantity' => 'required|integer|min:1',
             'remarks' => 'nullable|string',
         ], [
             'student_id.required' => 'Please select a valid student from the search results.',
@@ -202,24 +315,26 @@ class ClaimController extends Controller
             return back()->withErrors(['claim_error' => 'This item is not available.'])->withInput();
         }
 
-        if ($item->quantity <= 0) {
-            return back()->withErrors(['claim_error' => 'This item is out of stock.'])->withInput();
+        $quantity = (int) $validated['quantity'];
+        $totalPointsRequired = $item->points_required * $quantity;
+
+        if ($item->quantity < $quantity) {
+            return back()->withErrors(['claim_error' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])->withInput();
         }
 
         $pointsBefore = $student->total_points ?? 0;
-        $pointsRequired = $item->points_required;
 
-        if ($pointsBefore < $pointsRequired) {
+        if ($pointsBefore < $totalPointsRequired) {
             return back()->withErrors([
-                'claim_error' => 'Insufficient points. Student does not have enough points to claim this item.'
+                'claim_error' => 'Insufficient points. Required: ' . number_format($totalPointsRequired) . ' pts.'
             ])->withInput();
         }
 
-        $pointsAfter = $pointsBefore - $pointsRequired;
+        $pointsAfter = $pointsBefore - $totalPointsRequired;
 
-        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $pointsRequired, $validated) {
+        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $totalPointsRequired, $quantity, $validated) {
             $student->update(['total_points' => $pointsAfter]);
-            $item->decrement('quantity');
+            $item->decrement('quantity', $quantity);
             $item->refresh();
 
             if ($item->quantity <= 0) {
@@ -229,8 +344,9 @@ class ClaimController extends Controller
             StudentClaim::create([
                 'student_id' => $student->id,
                 'claim_item_id' => $item->id,
+                'quantity' => $quantity,
                 'item_name' => $item->item_name,
-                'points_deducted' => $pointsRequired,
+                'points_deducted' => $totalPointsRequired,
                 'points_before' => $pointsBefore,
                 'points_after' => $pointsAfter,
                 'claim_date' => now()->toDateString(),
@@ -245,7 +361,7 @@ class ClaimController extends Controller
         AdminActivity::create([
             'user_id' => Auth::id(),
             'action' => 'Claimed Item',
-            'description' => "{$student->full_name} claimed {$item->item_name} for {$pointsRequired} points.",
+            'description' => "{$student->full_name} claimed {$item->item_name} for {$totalPointsRequired} points.",
             'module' => 'Claims',
         ]);
 
@@ -269,23 +385,26 @@ class ClaimController extends Controller
             return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
         }
 
-        if ($item->quantity <= 0 || $item->status !== 'Available') {
-            return back()->withErrors(['claim' => 'This item is no longer available.']);
+        $quantity = $claim->quantity ?? 1;
+        $totalPointsRequired = $item->points_required * $quantity;
+
+        if ($item->quantity < $quantity || $item->status !== 'Available') {
+            return back()->withErrors(['claim' => 'Not enough item stock available. Only ' . $item->quantity . ' left.']);
         }
 
-        if (($student->total_points ?? 0) < $item->points_required) {
-            return back()->withErrors(['claim' => 'Student no longer has enough points.']);
+        if (($student->total_points ?? 0) < $totalPointsRequired) {
+            return back()->withErrors(['claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.']);
         }
 
-        DB::transaction(function () use ($claim, $student, $item) {
+        DB::transaction(function () use ($claim, $student, $item, $quantity, $totalPointsRequired) {
             $pointsBefore = $student->total_points ?? 0;
-            $pointsAfter = $pointsBefore - $item->points_required;
+            $pointsAfter = $pointsBefore - $totalPointsRequired;
 
             $student->update([
                 'total_points' => $pointsAfter,
             ]);
 
-            $item->decrement('quantity');
+            $item->decrement('quantity', $quantity);
             $item->refresh();
 
             if ($item->quantity <= 0) {
@@ -295,7 +414,7 @@ class ClaimController extends Controller
             }
 
             $claim->update([
-                'points_deducted' => $item->points_required,
+                'points_deducted' => $totalPointsRequired,
                 'points_before' => $pointsBefore,
                 'points_after' => $pointsAfter,
                 'status' => 'Approved',
@@ -308,7 +427,7 @@ class ClaimController extends Controller
         AdminActivity::create([
             'user_id' => Auth::id(),
             'action' => 'Approved Claim',
-            'description' => "Approved {$student->full_name}'s claim for {$claim->item_name}.",
+            'description' => "Approved {$student->full_name}'s claim for {$claim->item_name} (qty: {$quantity}).",
             'module' => 'Claims',
         ]);
 
@@ -344,6 +463,68 @@ class ClaimController extends Controller
         ]);
 
         return back()->with('success', 'Item claim rejected successfully.');
+    }
+
+    public function archive(StudentClaim $claim)
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            abort(403, 'Only Admin and Super Admin can archive released item requests.');
+        }
+
+        if ($claim->status !== 'Approved') {
+            return back()->with('error', 'Only approved item requests can be archived.');
+        }
+
+        $claim->update([
+            'is_archived' => true,
+            'released_at' => now(),
+            'released_by' => Auth::id(),
+        ]);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Archived Item Request',
+            'description' => "Marked {$claim->student->full_name}'s request for {$claim->item_name} as released/archived.",
+            'module' => 'Claims',
+        ]);
+
+        return back()->with('success', 'Item request marked as released and archived successfully.');
+    }
+
+    public function archiveAllByStudent($studentId)
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            abort(403, 'Only Admin and Super Admin can archive item requests.');
+        }
+
+        $claims = StudentClaim::where('student_id', $studentId)
+            ->where('status', 'Approved')
+            ->where('is_archived', false)
+            ->get();
+
+        if ($claims->isEmpty()) {
+            return back()->with('error', 'No approved active item requests found for this student.');
+        }
+
+        $studentName = $claims->first()->student->full_name ?? 'Unknown';
+        $count = $claims->count();
+
+        foreach ($claims as $claim) {
+            $claim->update([
+                'is_archived' => true,
+                'released_at' => now(),
+                'released_by' => Auth::id(),
+            ]);
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Bulk Archived Item Requests',
+            'description' => "Marked all {$count} approved request(s) for {$studentName} as released/archived.",
+            'module' => 'Claims',
+        ]);
+
+        return back()->with('success', "All {$count} approved item requests for {$studentName} were marked as released.");
     }
 
     public function filterItems(Request $request)
@@ -436,10 +617,12 @@ class ClaimController extends Controller
             $claims->where('claimed_by', $request->claimed_by);
         }
 
-        $claims = $claims->latest()->paginate(15)->withQueryString();
+        $allClaims = $claims->latest('claim_date')->get();
+        $claimHistoryByStudent = $allClaims->groupBy('student_id');
+        $claims = $allClaims;
 
         if ($request->ajax()) {
-            return view('partials.claim-history-table', compact('claims'))->render();
+            return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
         }
 
         return redirect()->route('claims.index');

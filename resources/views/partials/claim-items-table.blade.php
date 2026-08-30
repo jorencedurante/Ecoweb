@@ -1,4 +1,5 @@
 <div class="table-wrapper">
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
@@ -40,6 +41,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
     @if($claimItems->hasPages())
     <div class="pagination">
         <span class="page-info">Showing {{ $claimItems->firstItem() }} to {{ $claimItems->lastItem() }} of {{ $claimItems->total() }} entries</span>

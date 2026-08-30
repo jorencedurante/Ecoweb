@@ -60,6 +60,7 @@
             <span style="font-size:12px;color:var(--text-light);margin-left:8px;">({{ $awards->total() }} records)</span>
         </div>
     </div>
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
@@ -126,6 +127,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
     @if($awards->hasPages())
     <div class="pagination">
         <span class="page-info">Showing {{ $awards->firstItem() ?? 0 }} to {{ $awards->lastItem() ?? 0 }} of {{ $awards->total() }} entries</span>
@@ -148,6 +150,7 @@
     @endif
 </div>
 <div class="table-container">
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
@@ -203,6 +206,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 @if(Auth::user()->isAdminLevel())

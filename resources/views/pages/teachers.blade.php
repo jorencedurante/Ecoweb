@@ -46,6 +46,7 @@
             <div class="table-header-left"></div>
             <span style="font-size:13px;color:var(--text-light);">New accounts should be created through the Sign Up page.</span>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -110,6 +111,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="pagination">
             <span class="page-info">Showing {{ $accounts->firstItem() ?? 0 }} to {{ $accounts->lastItem() ?? 0 }} of {{ $accounts->total() }} entries</span>
             <div class="page-btns">

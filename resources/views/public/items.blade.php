@@ -71,6 +71,10 @@
                         <div class="reward-input-group">
                             <input type="text" name="lrn" placeholder="Enter your LRN" required value="{{ old('lrn') }}">
                         </div>
+                        <label>Quantity</label>
+                        <div class="reward-input-group">
+                            <input type="number" name="quantity" min="1" max="{{ $item->quantity }}" value="{{ old('quantity', 1) }}" required>
+                        </div>
                         <button type="submit">Request Claim</button>
                     </form>
                 </article>

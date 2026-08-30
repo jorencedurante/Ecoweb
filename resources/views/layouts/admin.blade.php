@@ -12,6 +12,10 @@
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}?v=10">
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle no-print" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-brand">
@@ -106,6 +110,18 @@
     </style>
     <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
     <script>
+    function toggleSidebar() {
+        var sidebar = document.querySelector('.sidebar');
+        var overlay = document.querySelector('.sidebar-overlay');
+        var toggle = document.querySelector('.mobile-menu-toggle');
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+        if (sidebar.classList.contains('open')) {
+            toggle.classList.add('hidden');
+        } else {
+            toggle.classList.remove('hidden');
+        }
+    }
     document.addEventListener('DOMContentLoaded', function () {
         var alerts = document.querySelectorAll('.auto-dismiss-alert');
         alerts.forEach(function (alert) {
