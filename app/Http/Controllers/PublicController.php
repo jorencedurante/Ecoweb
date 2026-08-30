@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\ClaimItem;
 use App\Models\StudentClaim;
-use Illuminate\Support\Facades\DB;
 
 class PublicController extends Controller
 {
@@ -73,6 +72,7 @@ class PublicController extends Controller
         $validated = $request->validate([
             'lrn' => 'required|string',
             'claim_item_id' => 'required|exists:claim_items,id',
+            'quantity' => 'required|integer|min:1',
         ]);
 
         $student = Student::where('lrn', $validated['lrn'])
@@ -95,32 +95,65 @@ class PublicController extends Controller
                 ->withInput();
         }
 
-        if (($student->total_points ?? 0) < $item->points_required) {
+        $quantity = (int) $validated['quantity'];
+        $totalPointsRequired = $item->points_required * $quantity;
+
+        if (($student->total_points ?? 0) < $totalPointsRequired) {
             return redirect()
                 ->route('public.items')
-                ->withErrors(['claim_item_id' => 'You do not have enough points to request this item.'])
+                ->withErrors(['claim_item_id' => 'You do not have enough points for this quantity. Required: ' . number_format($totalPointsRequired) . ' pts.'])
+                ->withInput();
+        }
+
+        if ($item->quantity < $quantity) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
                 ->withInput();
         }
 
         $existingPending = StudentClaim::where('student_id', $student->id)
             ->where('claim_item_id', $item->id)
             ->where('status', 'Pending')
-            ->exists();
+            ->first();
 
         if ($existingPending) {
+            $newQuantity = $existingPending->quantity + $quantity;
+            $newTotalPoints = $item->points_required * $newQuantity;
+
+            if (($student->total_points ?? 0) < $newTotalPoints) {
+                return redirect()
+                    ->route('public.items')
+                    ->withErrors(['claim_item_id' => 'You do not have enough points to increase this request. Required: ' . number_format($newTotalPoints) . ' pts.'])
+                    ->withInput();
+            }
+
+            if ($item->quantity < $newQuantity) {
+                return redirect()
+                    ->route('public.items')
+                    ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
+                    ->withInput();
+            }
+
+            $existingPending->update([
+                'quantity' => $newQuantity,
+                'points_deducted' => $newTotalPoints,
+                'points_after' => ($student->total_points ?? 0) - $newTotalPoints,
+            ]);
+
             return redirect()
                 ->route('public.items')
-                ->withErrors(['claim_item_id' => 'You already have a pending request for this item.'])
-                ->withInput();
+                ->with('success', 'Your pending request has been updated to quantity ' . $newQuantity . '.');
         }
 
         StudentClaim::create([
             'student_id' => $student->id,
             'claim_item_id' => $item->id,
+            'quantity' => $quantity,
             'item_name' => $item->item_name,
-            'points_deducted' => $item->points_required,
+            'points_deducted' => $totalPointsRequired,
             'points_before' => $student->total_points ?? 0,
-            'points_after' => ($student->total_points ?? 0) - $item->points_required,
+            'points_after' => ($student->total_points ?? 0) - $totalPointsRequired,
             'claim_date' => now()->toDateString(),
             'claimed_by' => null,
             'remarks' => 'Requested from public Items page',
@@ -129,7 +162,7 @@ class PublicController extends Controller
 
         return redirect()
             ->route('public.items')
-            ->with('success', 'Your item claim request has been submitted and is pending approval.');
+            ->with('success', 'Your item claim request (qty: ' . $quantity . ') has been submitted and is pending approval.');
     }
 
     public function studentDetails($lrn)

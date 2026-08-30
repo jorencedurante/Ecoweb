@@ -92,9 +92,10 @@
         </div>
     </div>
 
-    <div class="table-container">
+        <div class="table-container">
         <div class="table-header">
             <h4 style="font-size:14px;font-weight:600;">Top Students</h4>
+            <a href="{{ route('reports.top-students.print') }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
         </div>
         <table>
             <thead>

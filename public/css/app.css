@@ -62,21 +62,6 @@ body {
     position: relative;
 }
 
-.login-logo {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--green), var(--blue));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-    font-weight: 800;
-    color: #fff;
-    margin-bottom: 24px;
-    letter-spacing: -1px;
-}
-
 .auth-logo-img {
     width: 110px;
     height: 110px;
@@ -901,8 +886,7 @@ body.modal-open {
     display: flex;
 }
 
-.modal-content,
-.award-modal {
+.modal-content {
     width: 100%;
     max-width: 760px;
     max-height: 85vh;
@@ -1089,62 +1073,6 @@ body.modal-open {
     }
 }
 
-/* ===================== OVERLAY OPTIONS ===================== */
-.overlay-options-section {
-    margin-top: 20px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-}
-
-.overlay-options-heading {
-    margin: 0 0 8px;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-dark);
-}
-
-.overlay-help-text {
-    margin: 0 0 16px;
-    font-size: 13px;
-    color: var(--text-light);
-    line-height: 1.5;
-}
-
-.overlay-options-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 32px;
-}
-
-.overlay-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-dark);
-    line-height: 1.3;
-    cursor: pointer;
-}
-
-.overlay-option input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-@media (max-width: 768px) {
-    .overlay-options-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    .overlay-option {
-        font-size: 14px;
-    }
-}
-
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1273,173 +1201,6 @@ body.modal-open {
     max-width: 400px;
     margin: 0 auto;
     line-height: 1.6;
-}
-
-.certificate-preview {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 11 / 8.5;
-    margin: 0 auto;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    overflow: hidden;
-}
-
-.certificate-preview.has-template {
-    background-color: #ffffff;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-.certificate-preview.default-template {
-    background: #ffffff;
-}
-
-.certificate-preview .certificate-content {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: 100%;
-    padding: 30px 40px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.certificate-preview.has-template .certificate-content {
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.certificate-preview .cert-signatures {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 24px;
-    padding: 0 20px;
-    font-size: 12px;
-    color: var(--text-medium);
-}
-
-.certificate-preview .cert-date {
-    margin-top: 14px;
-    font-size: 12px;
-    color: var(--text-light);
-}
-
-.certificate-preview .cert-logo {
-    width: 60px;
-    height: 60px;
-    object-fit: contain;
-    display: block;
-    margin: 0 auto 10px;
-}
-
-.certificate-preview h2 {
-    font-size: 20px;
-    color: var(--text-dark);
-    letter-spacing: 1px;
-    margin-bottom: 6px;
-}
-
-.certificate-preview .cert-subtitle {
-    color: var(--text-medium);
-    font-size: 13px;
-    margin-bottom: 16px;
-}
-
-.certificate-preview .cert-student {
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--sidebar-bg);
-    margin-bottom: 6px;
-}
-
-/* ===================== UPLOADED TEMPLATE OVERLAYS ===================== */
-.uploaded-template-preview {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 11 / 8.5;
-    margin: 0 auto;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: #ffffff;
-    overflow: hidden;
-}
-
-.uploaded-template-preview .overlay-logo {
-    position: absolute;
-    top: 6%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 60px;
-    object-fit: contain;
-    z-index: 2;
-}
-
-.uploaded-template-preview .overlay-title {
-    position: absolute;
-    top: 35%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 20px;
-    font-weight: 600;
-    color: #111827;
-    text-align: center;
-    z-index: 2;
-    white-space: nowrap;
-}
-
-.uploaded-template-preview .overlay-student-name {
-    position: absolute;
-    top: 48%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 32px;
-    font-weight: 700;
-    color: #111827;
-    text-align: center;
-    z-index: 2;
-    white-space: nowrap;
-}
-
-.uploaded-template-preview .overlay-description {
-    position: absolute;
-    top: 56%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 14px;
-    color: #6B7280;
-    text-align: center;
-    max-width: 500px;
-    line-height: 1.6;
-    z-index: 2;
-}
-
-.uploaded-template-preview .overlay-signatures {
-    position: absolute;
-    bottom: 15%;
-    left: 8%;
-    right: 8%;
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #6B7280;
-    z-index: 2;
-}
-
-.uploaded-template-preview .overlay-date {
-    position: absolute;
-    bottom: 7%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 13px;
-    color: #9CA3AF;
-    text-align: center;
-    z-index: 2;
 }
 
 /* ===================== REPORT CARDS ===================== */
@@ -2622,19 +2383,9 @@ body.public-landing-page {
         print-color-adjust: exact;
     }
 
-    .certificate-preview,
-    .uploaded-template-preview {
-        background-size: contain !important;
-        background-repeat: no-repeat !important;
-        background-position: center !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
     button,
     .btn,
     .action-buttons,
-    .certificate-actions,
     .sidebar,
     .topbar {
         display: none !important;

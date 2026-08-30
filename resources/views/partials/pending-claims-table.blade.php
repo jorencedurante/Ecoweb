@@ -1,5 +1,6 @@
 <div class="table-container">
     @if($pendingClaims->isNotEmpty())
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
@@ -7,6 +8,7 @@
                 <th>Student</th>
                 <th>LRN</th>
                 <th>Item</th>
+                <th>Qty</th>
                 <th>Points Required</th>
                 <th>Student Points</th>
                 <th>Date Requested</th>
@@ -20,6 +22,7 @@
                 <td><strong>{{ $claim->student->full_name ?? 'N/A' }}</strong></td>
                 <td>{{ $claim->student->lrn ?? 'N/A' }}</td>
                 <td>{{ $claim->item_name }}</td>
+                <td>{{ $claim->quantity ?? 1 }}</td>
                 <td>{{ number_format($claim->points_deducted) }}</td>
                 <td>{{ number_format($claim->student->total_points ?? 0) }}</td>
                 <td>{{ $claim->created_at->format('M d, Y h:i A') }}</td>
@@ -42,6 +45,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
     @else
     <div style="text-align:center;padding:30px;color:#9CA3AF;">
         <p>No pending claims.</p>

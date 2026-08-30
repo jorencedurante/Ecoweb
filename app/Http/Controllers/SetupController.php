@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Mail\SendOtpMail;
 
 class SetupController extends Controller
@@ -53,9 +54,9 @@ class SetupController extends Controller
 
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
-            \Log::info('Setup Super Admin OTP sent to: ' . $user->email);
+            Log::info('Setup Super Admin OTP sent to: ' . $user->email);
         } catch (\Exception $e) {
-            \Log::error('Setup Super Admin OTP failed: ' . $e->getMessage());
+            Log::error('Setup Super Admin OTP failed: ' . $e->getMessage());
         }
 
         return redirect()->route('verification.notice', ['email' => $user->email])

@@ -13,6 +13,7 @@
         </div>
 
         <div class="table-wrapper">
+            <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
@@ -62,6 +63,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
             @if($pendingClaims->hasPages())
             <div class="pagination" style="padding:12px 16px;">
                 <span class="page-info">Showing {{ $pendingClaims->firstItem() }} to {{ $pendingClaims->lastItem() }} of {{ $pendingClaims->total() }} entries</span>
@@ -226,6 +228,226 @@
             @include('partials.claim-history-table', ['claims' => $claims])
         </div>
     </div>
+
+    {{-- All Item Requests by Student (Admin/Super Admin only) --}}
+    @if(in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin']))
+    <div id="approved-by-student-section" class="data-card" style="margin-top:24px;">
+        <div class="data-card-header with-filters">
+            <div class="card-title-area">
+                <h3>All Item Requests by Student</h3>
+                <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Compiled record of approved item requests for quarterly releasing.</p>
+            </div>
+            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;">
+                <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN...">
+
+                <select name="approved_quarter">
+                    <option value="">All Quarters</option>
+                    <option value="Q1" {{ request('approved_quarter') == 'Q1' ? 'selected' : '' }}>Q1 (Jan-Mar)</option>
+                    <option value="Q2" {{ request('approved_quarter') == 'Q2' ? 'selected' : '' }}>Q2 (Apr-Jun)</option>
+                    <option value="Q3" {{ request('approved_quarter') == 'Q3' ? 'selected' : '' }}>Q3 (Jul-Sep)</option>
+                    <option value="Q4" {{ request('approved_quarter') == 'Q4' ? 'selected' : '' }}>Q4 (Oct-Dec)</option>
+                </select>
+
+                <select name="approved_year">
+                    <option value="">All Years</option>
+                    @for($y = date('Y'); $y >= date('Y') - 3; $y--)
+                        <option value="{{ $y }}" {{ request('approved_year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                    @endfor
+                </select>
+
+                <button type="submit" class="btn-filter">Filter</button>
+                <button type="button" id="clearApprovedByStudentFilter" class="btn-clear">Clear</button>
+            </form>
+        </div>
+
+        <div id="approvedByStudentContainer" style="padding:16px;">
+            @forelse($approvedClaimsByStudent as $studentId => $claimsGroup)
+                @php
+                    $firstClaim = $claimsGroup->first();
+                    $student = $firstClaim->student;
+                    $totalItems = $claimsGroup->sum('quantity') ?: $claimsGroup->count();
+                    $totalPoints = $claimsGroup->sum('points_deducted');
+                    $latestDate = $claimsGroup->max('claim_date');
+                    $studentName = $student->full_name ?? 'Unknown Student';
+                    $studentLRN = $student->lrn ?? 'N/A';
+                    $studentGrade = $student->grade_level ?? '';
+                    $collapseId = 'approved-student-' . $studentId;
+                @endphp
+                <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;">
+                    <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;flex-wrap:wrap;gap:8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="toggleApprovedStudent('{{ $collapseId }}')">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:700;font-size:14px;color:#111827;">{{ $studentName }}</div>
+                            <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+                                LRN: {{ $studentLRN }}
+                                @if($studentGrade) &middot; {{ $studentGrade }} @endif
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                            <div style="text-align:center;">
+                                <div style="font-size:18px;font-weight:700;color:#111827;">{{ $totalItems }}</div>
+                                <div style="font-size:11px;color:#6b7280;">Items</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:18px;font-weight:700;color:#ef4444;">{{ number_format($totalPoints) }}</div>
+                                <div style="font-size:11px;color:#6b7280;">Points</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:12px;color:#6b7280;">{{ $latestDate ? \Carbon\Carbon::parse($latestDate)->format('M d, Y') : 'N/A' }}</div>
+                                <div style="font-size:11px;color:#9ca3af;">Latest</div>
+                            </div>
+                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                                View Requests ▼
+                            </button>
+                            <form method="POST" action="{{ route('claims.archiveAllByStudent', $studentId) }}" style="display:inline;" onclick="event.stopPropagation();">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="return confirm('Mark all approved item requests of {{ addslashes($studentName) }} as released?')">
+                                    Mark All Released
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="{{ $collapseId }}" class="approved-student-details" style="display:none;padding:0;">
+                        <div class="table-responsive">
+                            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                                <thead>
+                                    <tr style="background:#f3f4f6;">
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Before</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points After</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Approved By</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Remarks</th>
+                                        <th style="padding:10px 14px;text-align:center;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($claimsGroup as $claim)
+                                    <tr style="border-bottom:1px solid #f3f4f6;">
+                                        <td style="padding:10px 14px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
+                                        <td style="padding:10px 14px;">{{ $claim->quantity ?? 1 }}</td>
+                                        <td style="padding:10px 14px;color:#ef4444;font-weight:600;">-{{ number_format($claim->points_deducted) }}</td>
+                                        <td style="padding:10px 14px;">{{ number_format($claim->points_before) }}</td>
+                                        <td style="padding:10px 14px;color:#22c55e;font-weight:600;">{{ number_format($claim->points_after) }}</td>
+                                        <td style="padding:10px 14px;">{{ $claim->claim_date ? \Carbon\Carbon::parse($claim->claim_date)->format('M d, Y') : 'N/A' }}</td>
+                                        <td style="padding:10px 14px;">{{ $claim->approver->name ?? $claim->admin->name ?? 'System' }}</td>
+                                        <td style="padding:10px 14px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $claim->remarks ?? '—' }}</td>
+                                        <td style="padding:10px 14px;text-align:center;">
+                                            <form method="POST" action="{{ route('claims.archive', $claim->id) }}" style="display:inline;">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="return confirm('Mark this item request as released and archive it?')">
+                                                    Mark Released
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div style="text-align:center;padding:40px 20px;color:#9ca3af;">
+                    <div style="font-size:32px;margin-bottom:8px;">📋</div>
+                    <p style="font-size:14px;font-weight:500;">No approved item requests found.</p>
+                    <p style="font-size:13px;">Approved claims will appear here grouped by student.</p>
+                </div>
+            @endforelse
+        </div>
+    </div>
+    @endif
+
+    {{-- Archived Released Item Requests (Admin/Super Admin only) --}}
+    @if(in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin']) && $archivedClaimsByStudent->isNotEmpty())
+    <div id="archived-by-student-section" class="data-card" style="margin-top:24px;">
+        <div class="data-card-header" style="cursor:pointer;" onclick="toggleArchivedSection()">
+            <div class="card-title-area" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                <div>
+                    <h3 style="display:flex;align-items:center;gap:8px;">
+                        Archived Released Item Requests
+                        <span id="archived-toggle-icon" style="font-size:12px;color:#6b7280;">▼</span>
+                    </h3>
+                    <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Previously released item requests for reference.</p>
+                </div>
+            </div>
+        </div>
+        <div id="archived-by-student-container" style="display:none;padding:16px;">
+            @foreach($archivedClaimsByStudent as $studentId => $claimsGroup)
+                @php
+                    $firstClaim = $claimsGroup->first();
+                    $student = $firstClaim->student;
+                    $totalItems = $claimsGroup->sum('quantity') ?: $claimsGroup->count();
+                    $totalPoints = $claimsGroup->sum('points_deducted');
+                    $latestRelease = $claimsGroup->max('released_at');
+                    $studentName = $student->full_name ?? 'Unknown Student';
+                    $studentLRN = $student->lrn ?? 'N/A';
+                    $studentGrade = $student->grade_level ?? '';
+                    $collapseId = 'archived-student-' . $studentId;
+                @endphp
+                <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;">
+                    <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;flex-wrap:wrap;gap:8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="toggleApprovedStudent('{{ $collapseId }}')">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:700;font-size:14px;color:#111827;">{{ $studentName }}</div>
+                            <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+                                LRN: {{ $studentLRN }}
+                                @if($studentGrade) &middot; {{ $studentGrade }} @endif
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                            <div style="text-align:center;">
+                                <div style="font-size:18px;font-weight:700;color:#6b7280;">{{ $totalItems }}</div>
+                                <div style="font-size:11px;color:#6b7280;">Released</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:18px;font-weight:700;color:#6b7280;">{{ number_format($totalPoints) }}</div>
+                                <div style="font-size:11px;color:#6b7280;">Points</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:12px;color:#6b7280;">{{ $latestRelease ? \Carbon\Carbon::parse($latestRelease)->format('M d, Y') : 'N/A' }}</div>
+                                <div style="font-size:11px;color:#9ca3af;">Last Released</div>
+                            </div>
+                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                                View Requests ▼
+                            </button>
+                        </div>
+                    </div>
+                    <div id="{{ $collapseId }}" class="approved-student-details" style="display:none;padding:0;">
+                        <div class="table-responsive">
+                            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                                <thead>
+                                    <tr style="background:#f3f4f6;">
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released Date</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($claimsGroup as $claim)
+                                    <tr style="border-bottom:1px solid #f3f4f6;">
+                                        <td style="padding:10px 14px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
+                                        <td style="padding:10px 14px;">{{ $claim->quantity ?? 1 }}</td>
+                                        <td style="padding:10px 14px;color:#ef4444;font-weight:600;">-{{ number_format($claim->points_deducted) }}</td>
+                                        <td style="padding:10px 14px;">{{ $claim->claim_date ? \Carbon\Carbon::parse($claim->claim_date)->format('M d, Y') : 'N/A' }}</td>
+                                        <td style="padding:10px 14px;color:#6b7280;">{{ $claim->released_at ? \Carbon\Carbon::parse($claim->released_at)->format('M d, Y') : 'N/A' }}</td>
+                                        <td style="padding:10px 14px;color:#6b7280;">{{ $claim->releaser->name ?? 'System' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 @endsection
 
 <!-- Edit Item Modal -->
@@ -454,6 +676,74 @@ document.addEventListener('DOMContentLoaded', function () {
             claimHistoryForm.dispatchEvent(new Event('submit'));
         });
     }
+
+    // --- Approved by Student Filters ---
+    const approvedByStudentForm = document.getElementById('approvedByStudentFilterForm');
+    const approvedByStudentContainer = document.getElementById('approvedByStudentContainer');
+
+    if (approvedByStudentForm && approvedByStudentContainer) {
+        approvedByStudentForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            const formData = new FormData(approvedByStudentForm);
+            const queryString = new URLSearchParams(formData).toString();
+            window.location.href = '{{ route("claims.index") }}?' + queryString + '#approved-by-student-section';
+        });
+    }
+
+    const clearApprovedByStudentFilter = document.getElementById('clearApprovedByStudentFilter');
+    if (clearApprovedByStudentFilter && approvedByStudentForm) {
+        clearApprovedByStudentFilter.addEventListener('click', function () {
+            window.location.href = '{{ route("claims.index") }}#approved-by-student-section';
+        });
+    }
+
+    // Scroll to section if hash present
+    if (window.location.hash === '#approved-by-student-section') {
+        setTimeout(function () {
+            var section = document.getElementById('approved-by-student-section');
+            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+    }
 });
+</script>
+<script>
+function toggleApprovedStudent(id) {
+    var el = document.getElementById(id);
+    var btn = document.getElementById('btn-' + id);
+    if (!el) return;
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        if (btn) btn.textContent = 'Hide Requests ▲';
+    } else {
+        el.style.display = 'none';
+        if (btn) btn.textContent = 'View Requests ▼';
+    }
+}
+
+function toggleArchivedSection() {
+    var container = document.getElementById('archived-by-student-container');
+    var icon = document.getElementById('archived-toggle-icon');
+    if (!container) return;
+    if (container.style.display === 'none' || container.style.display === '') {
+        container.style.display = 'block';
+        if (icon) icon.textContent = '▲';
+    } else {
+        container.style.display = 'none';
+        if (icon) icon.textContent = '▼';
+    }
+}
+
+function toggleClaimHistoryStudent(id) {
+    var el = document.getElementById(id);
+    var btn = document.getElementById('btn-' + id);
+    if (!el) return;
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        if (btn) btn.textContent = 'Hide History ▲';
+    } else {
+        el.style.display = 'none';
+        if (btn) btn.textContent = 'View History ▼';
+    }
+}
 </script>
 @endpush

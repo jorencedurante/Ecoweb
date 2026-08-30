@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Carbon;
-
 abstract class Controller
 {
     protected function getQuarterDateRange(?string $quarter): array

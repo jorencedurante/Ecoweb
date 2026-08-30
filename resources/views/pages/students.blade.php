@@ -66,6 +66,7 @@
                 @endif
             </div>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -121,6 +122,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         @if($students->hasPages())
         <div class="pagination">
             <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
