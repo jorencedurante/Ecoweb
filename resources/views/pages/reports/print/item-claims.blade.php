@@ -48,12 +48,12 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Student Name</th>
-                    <th>Total Claims</th>
-                    <th>Points Used</th>
-                    <th>Latest Claim</th>
-                    <th>Current Points</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Student Name</th>
+                    <th scope="col">Total Claims</th>
+                    <th scope="col">Points Used</th>
+                    <th scope="col">Latest Claim</th>
+                    <th scope="col">Current Points</th>
                 </tr>
             </thead>
             <tbody>

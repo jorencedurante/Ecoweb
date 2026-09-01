@@ -23,7 +23,7 @@
                 @endif
 
                 @error('otp')
-                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991b1b;display:flex;align-items:center;gap:8px;">
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991b1b;display:flex;align-items:center;gap:8px;" role="alert" id="otp-error">
                     <span style="font-size:14px;">⚠️</span>
                     <span>{{ $message }}</span>
                 </div>
@@ -45,6 +45,8 @@
                                inputmode="numeric"
                                autocomplete="off"
                                data-index="{{ $i }}"
+                               aria-label="OTP digit {{ $i }}"
+                               @error('otp') aria-describedby="otp-error" @enderror
                                style="width:48px;height:52px;text-align:center;font-size:22px;font-weight:700;border:2px solid #d1d5db;border-radius:10px;outline:none;background:#fff;color:#111827;transition:border-color 0.2s,box-shadow 0.2s;"
                                @if($i === 1) autofocus @endif>
                         @endfor

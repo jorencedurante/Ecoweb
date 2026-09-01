@@ -6,18 +6,18 @@
 
 @section('content')
     <div class="filter-card">
-        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
             <i class="fas fa-filter"></i> Filters
-        </div>
+        </button>
         <div class="filter-body">
             <form method="GET" action="{{ route('admin.teachers') }}" class="filter-form">
                 <div class="filter-search">
                     <label>Search</label>
-                    <input type="text" name="search" placeholder="Search accounts..." value="{{ request('search') }}">
+                    <input type="text" name="search" placeholder="Search accounts..." value="{{ request('search') }}" aria-label="Search accounts">
                 </div>
                 <div class="filter-search">
                     <label>Role</label>
-                    <select name="role">
+                    <select name="role" aria-label="Filter by role">
                         <option value="">All Roles</option>
                         <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
                         <option value="teacher" {{ request('role') === 'teacher' ? 'selected' : '' }}>Teacher</option>
@@ -26,7 +26,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Status</label>
-                    <select name="status">
+                    <select name="status" aria-label="Filter by status">
                         <option value="">All Status</option>
                         <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
                         <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
@@ -50,13 +50,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Position</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Position</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -76,7 +76,7 @@
                     <td><span style="color:{{ $account->status === 'active' ? 'var(--green)' : 'var(--gray)' }};font-weight:600;">{{ ucfirst($account->status) }}</span></td>
                     <td>
                         <div class="account-actions">
-                            <button type="button" class="action-icon-btn view" title="View Account Details"
+                            <button type="button" class="action-icon-btn view" title="View Account Details" aria-label="View account details"
                                 onclick="openViewAccountModal({
                                     id: 'ADM{{ str_pad($account->id, 3, '0', STR_PAD_LEFT) }}',
                                     name: '{{ $account->name }}',
@@ -89,7 +89,7 @@
                                     updated_at: '{{ optional($account->updated_at)->format('F d, Y h:i A') }}'
                                 })">👁</button>
                             @if(auth()->user()->isSuperAdmin())
-                            <button type="button" class="action-icon-btn edit" title="Edit Account"
+                            <button type="button" class="action-icon-btn edit" title="Edit Account" aria-label="Edit account"
                                 data-modal-target="editTeacherModal"
                                 data-id="{{ $account->id }}"
                                 data-name="{{ $account->name }}"
@@ -100,7 +100,7 @@
                                 data-status="{{ $account->status ?? 'active' }}">✏️</button>
                             <form method="POST" action="{{ route('admin.teachers.destroy', $account->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this account?')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="action-icon-btn delete" title="Delete / Deactivate Account">🗑</button>
+                                <button type="submit" class="action-icon-btn delete" title="Delete / Deactivate Account" aria-label="Delete account">🗑</button>
                             </form>
                             @endif
                         </div>
@@ -128,74 +128,74 @@
             <div class="modal-header">
                 <h2>Edit Account</h2>
                 <p>Update account information</p>
-                <button type="button" class="modal-close" onclick="closeEditTeacherModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeEditTeacherModal()" aria-label="Close">&times;</button>
             </div>
             <form method="POST" action="" id="editTeacherForm" class="modal-form">
                 @csrf @method('PUT')
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Full Name</label>
-                        <input type="text" name="name" id="editTeacherName" required>
+                        <input type="text" name="name" id="editTeacherName" required aria-label="Full name">
                     </div>
                     <div class="form-group">
                         <label>Username</label>
-                        <input type="text" name="username" id="editTeacherUsername" required>
+                        <input type="text" name="username" id="editTeacherUsername" required aria-label="Username">
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" name="email" id="editTeacherEmail" required>
+                        <input type="email" name="email" id="editTeacherEmail" required aria-label="Email">
                     </div>
                     <div class="password-note">Leave password fields blank if you do not want to change the password.</div>
                     <div class="form-group">
                         <label>Current Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="current_password" id="editTeacherCurrentPassword" placeholder="Enter current password">
+                            <input type="password" name="current_password" id="editTeacherCurrentPassword" placeholder="Enter current password" aria-label="Current password" aria-describedby="current_password-error">
                             <button type="button" class="password-toggle" data-target="editTeacherCurrentPassword" aria-label="Show or hide current password">👁</button>
                         </div>
                         @error('current_password')
-                            <div class="field-error">{{ $message }}</div>
+                            <div class="field-error" id="current_password-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>New Password (leave blank to keep current)</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password" id="editTeacherPassword" placeholder="Leave blank to keep current">
+                            <input type="password" name="password" id="editTeacherPassword" placeholder="Leave blank to keep current" aria-label="New password" aria-describedby="password-error">
                             <button type="button" class="password-toggle" data-target="editTeacherPassword" aria-label="Show or hide new password">👁</button>
                         </div>
                         @error('password')
-                            <div class="field-error">{{ $message }}</div>
+                            <div class="field-error" id="password-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>Confirm Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password_confirmation" id="editTeacherPasswordConfirm" placeholder="Confirm new password">
+                            <input type="password" name="password_confirmation" id="editTeacherPasswordConfirm" placeholder="Confirm new password" aria-label="Confirm new password" aria-describedby="password_confirmation-error">
                             <button type="button" class="password-toggle" data-target="editTeacherPasswordConfirm" aria-label="Show or hide confirm password">👁</button>
                         </div>
                         @error('password_confirmation')
-                            <div class="field-error">{{ $message }}</div>
+                            <div class="field-error" id="password_confirmation-error">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-group">
                         <label>Role</label>
                         @if(auth()->user()->isSuperAdmin())
-                        <select name="role" id="editTeacherRole" required>
+                        <select name="role" id="editTeacherRole" required aria-label="Role">
                             <option value="admin">Admin</option>
                             <option value="teacher">Teacher</option>
                             <option value="super_admin">Super Admin</option>
                         </select>
                         @else
-                        <input type="text" id="editTeacherRoleText" disabled style="background:#f1f5f9;cursor:not-allowed;">
-                        <input type="hidden" name="role" value="">
+                        <input type="text" id="editTeacherRoleText" disabled style="background:#f1f5f9;cursor:not-allowed;" aria-label="Role">
+                        <input type="hidden" name="role" value="" aria-label="Role">
                         @endif
                     </div>
                     <div class="form-group">
                         <label>Position</label>
-                        <input type="text" name="position" id="editTeacherPosition" placeholder="e.g. Teacher 1">
+                        <input type="text" name="position" id="editTeacherPosition" placeholder="e.g. Teacher 1" aria-label="Position">
                     </div>
                     <div class="form-group">
                         <label>Status</label>
-                        <select name="status" id="editTeacherStatus" required>
+                        <select name="status" id="editTeacherStatus" required aria-label="Status">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="archived">Archived</option>
@@ -221,7 +221,7 @@
                     <h2>Account Details</h2>
                     <p>View admin or teacher account information</p>
                 </div>
-                <button type="button" class="modal-close" onclick="closeViewAccountModal()">×</button>
+                <button type="button" class="modal-close" onclick="closeViewAccountModal()" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <div class="account-detail-card">

@@ -5,7 +5,7 @@
 @section('page-subtitle', 'View complete student details')
 
 @section('content')
-    <a href="{{ route('admin.students') }}" class="back-link">← Back to Students</a>
+    <a href="{{ route('admin.students') }}" class="back-link" aria-label="Back to students list">← Back to Students</a>
 
     {{-- Header --}}
     <div class="card" style="margin-bottom:24px;">
@@ -38,7 +38,7 @@
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <div class="grid-2col" style="margin-bottom:24px;">
         {{-- Basic Information --}}
         <div class="card">
             <div class="card-body">
@@ -188,7 +188,7 @@
     <div class="card" style="margin-bottom:24px;">
         <div class="card-body">
             <h4 style="font-size:14px;font-weight:600;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border);">QR Information</h4>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+            <div class="grid-2col" style="gap:24px;">
                 <div>
                     <div class="details-grid">
                         <div class="detail-item">
@@ -224,18 +224,18 @@
         <div class="card-body">
             <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Claim History</h4>
             @if($claims->count() > 0)
-            <div style="overflow-x:auto;">
+            <div class="table-responsive">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <thead>
                         <tr>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">#</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Item Claimed</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Points Deducted</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Points Before</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Points After</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Claim Date</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Claimed By</th>
-                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);">Remarks</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">#</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Item Claimed</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Points Deducted</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Points Before</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Points After</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Claim Date</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Claimed By</th>
+                            <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border);" scope="col">Remarks</th>
                         </tr>
                     </thead>
                     <tbody>

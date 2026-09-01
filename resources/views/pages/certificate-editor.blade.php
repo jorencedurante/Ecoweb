@@ -23,7 +23,8 @@
                 <label>Upload Certificate Template <span style="color:var(--red);">*</span></label>
                 <input type="file" name="template_file" id="template_file"
                        accept=".jpg,.jpeg,.png" {{ isset($award) ? '' : 'required' }}
-                       style="width:100%;padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
+                       style="width:100%;padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
+                       aria-label="Upload template file">
                 @if(isset($award) && $award->template_file)
                 <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Leave empty to keep existing template: <strong>{{ basename($award->template_file) }}</strong></div>
                 @else
@@ -35,13 +36,15 @@
                 <label>Certificate Title (optional)</label>
                 <input type="text" name="award_title" placeholder="e.g. Certificate of Recognition"
                        value="{{ old('award_title', isset($award) ? $award->award_title : '') }}"
-                       style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
+                       style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
+                       aria-label="Certificate title">
             </div>
 
             <div class="form-group" style="margin-top:12px;">
                 <label>Description (optional)</label>
                 <textarea name="award_description" placeholder="Brief description of this certificate..."
-                          style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;resize:vertical;min-height:60px;">{{ old('award_description', isset($award) ? $award->award_description : '') }}</textarea>
+                          style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;resize:vertical;min-height:60px;"
+                          aria-label="Description">{{ old('award_description', isset($award) ? $award->award_description : '') }}</textarea>
             </div>
         </div>
     </div>
@@ -53,13 +56,14 @@
                 <button type="button" id="addTextBtn" class="btn btn-primary btn-sm">+ Add Text</button>
                 <div style="border-left:1px solid var(--border);height:20px;"></div>
                 <label style="font-size:12px;font-weight:500;">Size:</label>
-                <input type="number" id="fontSizeControl" value="36" min="8" max="200"
+                <input type="number" id="fontSizeControl" value="36" min="8" max="200" aria-label="Font size"
                        style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;outline:none;">
                 <label style="font-size:12px;font-weight:500;">Color:</label>
-                <input type="color" id="fontColorControl" value="#000000"
+                <input type="color" id="fontColorControl" value="#000000" aria-label="Font color"
                        style="width:32px;height:28px;padding:1px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:none;">
                 <button type="button" id="boldToggle" class="btn btn-sm"
-                        style="font-weight:700;border:1px solid var(--border);padding:4px 10px;font-size:12px;"><strong>B</strong></button>
+                        style="font-weight:700;border:1px solid var(--border);padding:4px 10px;font-size:12px;"
+                        aria-label="Toggle bold"><strong>B</strong></button>
                 <button type="button" id="deleteTextBtn" class="btn btn-sm"
                         style="background:var(--red);color:#fff;padding:4px 10px;font-size:12px;">Delete</button>
             </div>
@@ -377,7 +381,7 @@ document.getElementById('previewPrintBtn').addEventListener('click', function ()
         textHtml += '<div class="print-text-box" style="left:' + box.x + '%;top:' + box.y + '%;font-size:' + box.fontSize + 'px;color:' + box.color + ';font-weight:' + box.fontWeight + ';text-align:' + (box.textAlign || 'center') + ';">' + box.text + '</div>';
     });
 
-    printWindow.document.write('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Print Preview</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:0;}body{margin:0;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;}.certificate-canvas{position:relative;width:297mm;height:210mm;overflow:hidden;}.certificate-canvas img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}.print-text-box{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;line-height:1.2;word-break:break-word;}@media print{body{margin:0;}.certificate-canvas{box-shadow:none;}}</style></head><body><div class="certificate-canvas"><img src="' + templateUrl + '">' + textHtml + '</div><script>window.onload=function(){setTimeout(function(){window.print();},500);};<\/script></body></html>');
+    printWindow.document.write('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Print Preview</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:0;}body{margin:0;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;}.certificate-canvas{position:relative;width:297mm;height:210mm;overflow:hidden;}.certificate-canvas img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}.print-text-box{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;line-height:1.2;word-break:break-word;}@media print{body{margin:0;}.certificate-canvas{box-shadow:none;}}</style></head><body><div class="certificate-canvas"><img src="' + templateUrl + '" alt="Certificate template">' + textHtml + '</div><script>window.onload=function(){setTimeout(function(){window.print();},500);};<\/script></body></html>');
     printWindow.document.close();
 });
 </script>

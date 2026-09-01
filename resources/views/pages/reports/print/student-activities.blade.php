@@ -59,14 +59,14 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Student Name</th>
-                                <th>Grade</th>
-                                <th>Total Points</th>
-                                <th>Bottles</th>
-                                <th>Claims</th>
-                                <th>Latest Collection</th>
-                                <th>Latest Claim</th>
+                                <th scope="col">#</th>
+                                <th scope="col">Student Name</th>
+                                <th scope="col">Grade</th>
+                                <th scope="col">Total Points</th>
+                                <th scope="col">Bottles</th>
+                                <th scope="col">Claims</th>
+                                <th scope="col">Latest Collection</th>
+                                <th scope="col">Latest Claim</th>
                             </tr>
                         </thead>
                         <tbody>
