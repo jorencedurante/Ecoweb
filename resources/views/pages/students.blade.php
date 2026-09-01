@@ -8,20 +8,20 @@
     <div class="students-page-wrapper">
 
     @if(Auth::user()->role === 'admin')
-    <div style="background:rgba(59,130,246,0.08);border:1px solid var(--blue);color:#1e40af;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;">
+    <div role="status" style="background:rgba(59,130,246,0.08);border:1px solid var(--blue);color:#1e40af;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;">
         Admin account is view-only. Student import and record changes are restricted to Teachers and Super Admin.
     </div>
     @endif
 
     <div class="filter-card">
-        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
             <i class="fas fa-filter"></i> Filters
-        </div>
+        </button>
         <div class="filter-body">
             <form method="GET" action="{{ route('admin.students') }}" id="filterForm" class="filter-form">
                 <div class="filter-search">
                     <label>Search</label>
-                    <input type="text" name="search" placeholder="Search students..." value="{{ request('search') }}">
+                    <input type="text" name="search" aria-label="Search students" placeholder="Search students..." value="{{ request('search') }}">
                 </div>
                 @if(auth()->user()->isTeacher())
                 <div class="filter-search">
@@ -31,7 +31,7 @@
                 @else
                 <div class="filter-search">
                     <label>Grade Level</label>
-                    <select name="grade_level">
+                    <select name="grade_level" aria-label="Filter by grade level">
                         <option value="">All Grades</option>
                         @foreach($gradeLevels ?? [] as $gl)
                             <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
@@ -41,7 +41,7 @@
                 @endif
                 <div class="filter-search">
                     <label>Gender</label>
-                    <select name="gender">
+                    <select name="gender" aria-label="Filter by gender">
                         <option value="">All Genders</option>
                         <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
                         <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
@@ -61,8 +61,8 @@
             <div class="table-toolbar-actions">
                 <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
                 @if(Auth::user()->role !== 'admin')
-                <button class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
-                <button class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
+                <button type="button" class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
+                <button type="button" class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
                 @endif
             </div>
         </div>
@@ -70,13 +70,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>LRN</th>
-                    <th>Name</th>
-                    <th>Grade Level</th>
-                    <th>QR Code</th>
-                    <th>Total Points</th>
-                    <th>Status</th>
-                    <th class="actions-th">Actions</th>
+                    <th scope="col">LRN</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Grade Level</th>
+                    <th scope="col">QR Code</th>
+                    <th scope="col">Total Points</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="actions-th">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,11 +92,11 @@
                     </td>
                     <td>
                         <div class="student-actions">
-                            <a href="{{ route('students.info', $student->id) }}" class="action-icon-btn view" title="View Info">👁</a>
-                            <a href="{{ route('students.achievements', $student->id) }}" class="action-icon-btn achievements" title="Achievements">🏆</a>
-                            <a href="{{ route('students.awards', $student->id) }}" class="action-icon-btn awards" title="Awards">🎖</a>
+                            <a href="{{ route('students.info', $student->id) }}" class="action-icon-btn view" title="View Info" aria-label="View student info">👁</a>
+                            <a href="{{ route('students.achievements', $student->id) }}" class="action-icon-btn achievements" title="Achievements" aria-label="View achievements">🏆</a>
+                            <a href="{{ route('students.awards', $student->id) }}" class="action-icon-btn awards" title="Awards" aria-label="View awards">🎖</a>
                             @if(Auth::user()->role !== 'admin')
-                            <button class="action-icon-btn edit" title="Edit Student" data-modal-target="editStudentModal"
+                            <button type="button" class="action-icon-btn edit" title="Edit Student" aria-label="Edit student" data-modal-target="editStudentModal"
                                 data-id="{{ $student->id }}"
                                 data-lrn="{{ $student->lrn }}"
                                 data-first="{{ $student->first_name }}"
@@ -108,7 +108,7 @@
                             @if($student->status !== 'Archived')
                             <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
                                 @csrf @method('PATCH')
-                                <button type="submit" class="action-icon-btn archive" title="Archive Student">📦</button>
+                                <button type="submit" class="action-icon-btn archive" title="Archive Student" aria-label="Archive student">📦</button>
                             </form>
                             @endif
                             @endif
@@ -139,10 +139,10 @@
 
     @if(session('import_result'))
     @php $result = session('import_result'); $type = $result['type'] ?? 'success'; @endphp
-    <div class="import-result-card import-result-{{ $type }}" id="importResult">
+    <div class="import-result-card import-result-{{ $type }}" id="importResult" role="alert">
         <div class="import-result-header">
             <span>📋 Import Result</span>
-            <button onclick="document.getElementById('importResult').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">×</button>
+            <button type="button" onclick="document.getElementById('importResult').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;" aria-label="Close">×</button>
         </div>
         <div class="import-result-summary">
             @foreach(explode(' | ', $result['message']) as $line)
@@ -175,7 +175,7 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Excel File <span style="color:var(--red);">*</span></label>
-                        <input type="file" name="file" accept=".xlsx,.xls" required>
+                        <input type="file" name="file" accept=".xlsx,.xls" required aria-label="Upload CSV file">
                     </div>
                     <div class="form-group">
                         <label>Grade Level (fallback if not detected in file)</label>
@@ -220,34 +220,34 @@
                 @csrf
                 <div class="modal-body">
                     @if($errors->any())
-                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;">
+                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;" role="alert">
                         @foreach($errors->all() as $error)<div>• {{ $error }}</div>@endforeach
                     </div>
                     @endif
                     <div class="form-row">
                         <div class="form-group">
                             <label>First Name</label>
-                            <input type="text" name="first_name" placeholder="Enter first name" value="{{ old('first_name') }}" required>
+                            <input type="text" name="first_name" aria-label="First name" placeholder="Enter first name" value="{{ old('first_name') }}" required>
                         </div>
                         <div class="form-group">
                             <label>Middle Name <span class="optional">(Optional)</span></label>
-                            <input type="text" name="middle_name" placeholder="Enter middle name" value="{{ old('middle_name') }}">
+                            <input type="text" name="middle_name" aria-label="Middle name" placeholder="Enter middle name" value="{{ old('middle_name') }}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Last Name</label>
-                            <input type="text" name="last_name" placeholder="Enter last name" value="{{ old('last_name') }}" required>
+                            <input type="text" name="last_name" aria-label="Last name" placeholder="Enter last name" value="{{ old('last_name') }}" required>
                         </div>
                         <div class="form-group">
                             <label>Student's LRN</label>
-                            <input type="text" name="lrn" placeholder="Enter LRN" value="{{ old('lrn') }}" required>
+                            <input type="text" name="lrn" aria-label="LRN" placeholder="Enter LRN" value="{{ old('lrn') }}" required>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Grade Level</label>
-                            <select name="grade_level">
+                            <select name="grade_level" aria-label="Grade level">
                                 <option value="">Select grade</option>
                                 @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
                                     <option value="{{ $g }}" {{ old('grade_level') == $g ? 'selected' : '' }}>{{ $g }}</option>
@@ -257,15 +257,15 @@
                         <div class="form-group">
                             <label>Gender</label>
                             <div class="radio-group">
-                                <label><input type="radio" name="gender" value="Male" {{ old('gender') == 'Male' ? 'checked' : '' }}> Male</label>
-                                <label><input type="radio" name="gender" value="Female" {{ old('gender') == 'Female' ? 'checked' : '' }}> Female</label>
+                                <label><input type="radio" name="gender" value="Male" aria-label="Gender" {{ old('gender') == 'Male' ? 'checked' : '' }}> Male</label>
+                                <label><input type="radio" name="gender" value="Female" aria-label="Gender" {{ old('gender') == 'Female' ? 'checked' : '' }}> Female</label>
                             </div>
                         </div>
                     </div>
                     @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
                     <div class="form-group">
                         <label>Assign Teacher</label>
-                        <select name="teacher_id">
+                        <select name="teacher_id" aria-label="Assign teacher">
                             <option value="">No teacher</option>
                             @foreach($teachers ?? [] as $teacher)
                                 <option value="{{ $teacher->id }}" {{ old('teacher_id') == $teacher->id ? 'selected' : '' }}>{{ $teacher->name }} ({{ $teacher->email }})</option>
@@ -295,27 +295,27 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>First Name</label>
-                            <input type="text" name="first_name" id="editFirstName" required>
+                            <input type="text" name="first_name" id="editFirstName" aria-label="First name" required>
                         </div>
                         <div class="form-group">
                             <label>Middle Name <span class="optional">(Optional)</span></label>
-                            <input type="text" name="middle_name" id="editMiddleName">
+                            <input type="text" name="middle_name" id="editMiddleName" aria-label="Middle name">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Last Name</label>
-                            <input type="text" name="last_name" id="editLastName" required>
+                            <input type="text" name="last_name" id="editLastName" aria-label="Last name" required>
                         </div>
                         <div class="form-group">
                             <label>Student's LRN</label>
-                            <input type="text" name="lrn" id="editLrn" required>
+                            <input type="text" name="lrn" id="editLrn" aria-label="LRN" required>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Grade Level</label>
-                            <select name="grade_level" id="editGradeLevel">
+                            <select name="grade_level" id="editGradeLevel" aria-label="Grade level">
                                 @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
                                     <option value="{{ $g }}">{{ $g }}</option>
                                 @endforeach
@@ -324,15 +324,15 @@
                         <div class="form-group">
                             <label>Gender</label>
                             <div class="radio-group">
-                                <label><input type="radio" name="gender" value="Male" id="editGenderMale"> Male</label>
-                                <label><input type="radio" name="gender" value="Female" id="editGenderFemale"> Female</label>
+                                <label><input type="radio" name="gender" value="Male" id="editGenderMale" aria-label="Gender"> Male</label>
+                                <label><input type="radio" name="gender" value="Female" id="editGenderFemale" aria-label="Gender"> Female</label>
                             </div>
                         </div>
                     </div>
                     @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
                     <div class="form-group">
                         <label>Assign Teacher</label>
-                        <select name="teacher_id" id="editTeacherId">
+                        <select name="teacher_id" id="editTeacherId" aria-label="Assign teacher">
                             <option value="">No teacher</option>
                             @foreach($teachers ?? [] as $teacher)
                                 <option value="{{ $teacher->id }}">{{ $teacher->name }} ({{ $teacher->email }})</option>

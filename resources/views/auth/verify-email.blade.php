@@ -25,13 +25,13 @@
                 <h3>Email Verification</h3>
                 <p class="subtitle">We sent a verification code to <strong>{{ $email }}</strong></p>
                 @if(session('success'))
-                    <div class="auto-dismiss-alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
                 @endif
                 @if(session('info'))
-                    <div class="auto-dismiss-alert" style="background:rgba(0,174,239,0.08);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">{{ session('info') }}</div>
+                    <div class="auto-dismiss-alert" role="status" style="background:rgba(0,174,239,0.08);border:1px solid var(--blue);color:var(--blue-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">{{ session('info') }}</div>
                 @endif
                 @if($errors->any())
-                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -44,15 +44,15 @@
                     <div class="form-group">
                         <label>Verification Code</label>
                         <div class="otp-boxes">
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" autofocus>
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input">
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input">
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input">
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input">
-                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input">
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error" autofocus>
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error">
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error">
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error">
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error">
+                            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-input" aria-label="OTP digit" aria-describedby="otp-error">
                         </div>
                         @error('otp')
-                            <small style="color:var(--red);font-size:12px;display:block;margin-top:4px;">{{ $message }}</small>
+                            <small id="otp-error" style="color:var(--red);font-size:12px;display:block;margin-top:4px;">{{ $message }}</small>
                         @enderror
                     </div>
                     <button type="submit" class="btn btn-success btn-block">Verify Email</button>

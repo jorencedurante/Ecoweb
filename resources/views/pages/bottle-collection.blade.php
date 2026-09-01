@@ -6,18 +6,18 @@
 
 @section('content')
     <div class="filter-card">
-        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
             <i class="fas fa-filter"></i> Filters
-        </div>
+        </button>
         <div class="filter-body">
             <form method="GET" action="{{ route('admin.bottle-collection') }}" class="filter-form">
                 <div class="filter-search">
                     <label>Search</label>
-                    <input type="text" name="search" placeholder="Search by LRN, student, bottle count, date..." value="{{ request('search') }}">
+                    <input type="text" name="search" placeholder="Search by LRN, student, bottle count, date..." value="{{ request('search') }}" aria-label="Search by student name or LRN">
                 </div>
                 <div class="filter-search">
                     <label>Day</label>
-                    <select name="day">
+                    <select name="day" aria-label="Day">
                         <option value="">Day</option>
                         @for($i = 1; $i <= 31; $i++)
                             <option value="{{ $i }}" {{ request('day') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -26,7 +26,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Month</label>
-                    <select name="month">
+                    <select name="month" aria-label="Month">
                         <option value="">Month</option>
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
                             <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
@@ -35,7 +35,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Year</label>
-                    <select name="year">
+                    <select name="year" aria-label="Year">
                         <option value="">Year</option>
                         @foreach(['2023','2024','2025','2026'] as $y)
                             <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -44,7 +44,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Quarter</label>
-                    <select name="quarter">
+                    <select name="quarter" aria-label="Quarter">
                         <option value="">Quarter</option>
                         <option value="q1" {{ request('quarter') == 'q1' ? 'selected' : '' }}>Q1 (Jan–Mar)</option>
                         <option value="q2" {{ request('quarter') == 'q2' ? 'selected' : '' }}>Q2 (Apr–Jun)</option>
@@ -66,18 +66,18 @@
         <div class="table-header">
             <div class="table-header-left">
             </div>
-            <button class="btn btn-primary" data-modal-target="addCollectionModal">+ Add Collection</button>
+            <button type="button" class="btn btn-primary" data-modal-target="addCollectionModal">+ Add Collection</button>
         </div>
         <div class="table-responsive">
         <table>
             <thead>
                 <tr>
-                    <th>LRN</th>
-                    <th>Student</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Bottle Count</th>
-                    <th>Points</th>
+                    <th scope="col">LRN</th>
+                    <th scope="col">Student</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Time</th>
+                    <th scope="col">Bottle Count</th>
+                    <th scope="col">Points</th>
                 </tr>
             </thead>
             <tbody id="bottle-collection-tbody">
@@ -132,25 +132,26 @@
                             name="student_id"
                             id="bottleSelectedStudentId"
                             value="{{ old('student_id') }}"
+                            aria-label="Select student"
                         >
                         <div id="bottleStudentSearchResults" class="student-search-results"></div>
                         @error('student_id')
-                            <div class="field-error">{{ $message }}</div>
+                            <div class="field-error" role="alert">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Date</label>
-                            <input type="date" name="collection_date" value="{{ date('Y-m-d') }}" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
+                            <input type="date" name="collection_date" value="{{ date('Y-m-d') }}" required aria-label="Collection date" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
                         </div>
                         <div class="form-group">
                             <label>Time</label>
-                            <input type="time" name="collection_time" value="{{ date('H:i') }}" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
+                            <input type="time" name="collection_time" value="{{ date('H:i') }}" required aria-label="Collection time" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Bottle Count</label>
-                        <input type="number" name="bottle_count" min="1" placeholder="Enter number of bottles" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
+                        <input type="number" name="bottle_count" min="1" placeholder="Enter number of bottles" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;" aria-label="Bottle count">
                     </div>
                 </div>
                 <div class="modal-footer">

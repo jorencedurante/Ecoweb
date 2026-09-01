@@ -49,11 +49,11 @@
         <table>
             <thead>
                 <tr>
-                    <th class="rank">#</th>
-                    <th>Student Name</th>
-                    <th>Grade Level</th>
-                    <th>Gender</th>
-                    <th>Total Points</th>
+                    <th scope="col" class="rank">#</th>
+                    <th scope="col">Student Name</th>
+                    <th scope="col">Grade Level</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">Total Points</th>
                 </tr>
             </thead>
             <tbody>

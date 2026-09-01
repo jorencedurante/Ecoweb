@@ -39,13 +39,13 @@
             <h4>Student's Report</h4>
             <p>View detailed student performance and collection activity reports.</p>
             @endif
-            <a href="{{ route('admin.student-report') }}" class="btn btn-primary btn-sm">View</a>
+            <a href="{{ route('admin.student-report') }}" class="btn btn-primary btn-sm" aria-label="View student report">View</a>
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(0,174,239,0.12);color:var(--blue);">🧴</div>
             <h4>Bottle Collection Report</h4>
             <p>Track bottle collection data with daily, weekly, and monthly summaries.</p>
-            <a href="{{ route('admin.bottle-report') }}" class="btn btn-primary btn-sm">View</a>
+            <a href="{{ route('admin.bottle-report') }}" class="btn btn-primary btn-sm" aria-label="View bottle collection report">View</a>
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(255,193,7,0.12);color:var(--yellow);">🔐</div>
@@ -56,7 +56,7 @@
             <h4>Student Activities</h4>
             <p>Summary of student activity and ranking grouped by teacher.</p>
             @endif
-            <a href="{{ route('admin.admin-activities') }}" class="btn btn-primary btn-sm">View</a>
+            <a href="{{ route('admin.admin-activities') }}" class="btn btn-primary btn-sm" aria-label="View student activities report">View</a>
         </div>
     </div>
 
@@ -71,7 +71,7 @@
             <div class="donut-placeholder" style="background: conic-gradient(var(--green) 0% {{ $malePct }}%, #E0E0E0 {{ $malePct }}% 100%);">
                 <div class="donut-inner">
                     <span>{{ $malePct }}%</span>
-                    <span style="font-size:10px;color:#999;">Male</span>
+                    <span style="font-size:10px;color:#6b7280;">Male</span>
                 </div>
             </div>
             <div class="donut-legend">
@@ -95,15 +95,16 @@
         <div class="table-container">
         <div class="table-header">
             <h4 style="font-size:14px;font-weight:600;">Top Students</h4>
-            <a href="{{ route('reports.top-students.print') }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+            <a href="{{ route('reports.top-students.print') }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;" aria-label="Print top students report">🖨️ Print Report</a>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Grade</th>
-                    <th>Bottles Collected</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Grade</th>
+                    <th scope="col">Bottles Collected</th>
                 </tr>
             </thead>
             <tbody>
@@ -117,5 +118,6 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 @endsection

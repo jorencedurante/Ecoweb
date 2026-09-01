@@ -180,10 +180,10 @@
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                     <tr>
-                        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Date</th>
-                        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Time</th>
-                        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Bottle Count</th>
-                        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Points Earned</th>
+                        <th scope="col" style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Date</th>
+                        <th scope="col" style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Time</th>
+                        <th scope="col" style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Bottle Count</th>
+                        <th scope="col" style="text-align:left;font-size:11px;text-transform:uppercase;color:#9CA3AF;font-weight:600;padding:8px 6px;border-bottom:1px solid #E5E7EB;">Points Earned</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -68,12 +68,12 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Student Name</th>
-                    <th>Bottle Count</th>
-                    <th>Collection Date</th>
-                    <th>Collection Time</th>
-                    <th>Points Earned</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Student Name</th>
+                    <th scope="col">Bottle Count</th>
+                    <th scope="col">Collection Date</th>
+                    <th scope="col">Collection Time</th>
+                    <th scope="col">Points Earned</th>
                 </tr>
             </thead>
             <tbody>
