@@ -17,15 +17,15 @@
             <table>
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Student</th>
-                        <th>LRN</th>
-                        <th>Item Requested</th>
-                        <th>Points Required</th>
-                        <th>Student Points</th>
-                        <th>Request Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th scope="col">#</th>
+                        <th scope="col">Student</th>
+                        <th scope="col">LRN</th>
+                        <th scope="col">Item Requested</th>
+                        <th scope="col">Points Required</th>
+                        <th scope="col">Student Points</th>
+                        <th scope="col">Request Date</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
                     </tr>
                 </thead>
 
@@ -46,13 +46,13 @@
                                 <form method="POST" action="{{ route('claims.approve', $claim->id) }}" onsubmit="return confirm('Approve this item claim?');">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" class="btn-approve">Approve</button>
+                                    <button type="submit" class="btn-approve" aria-label="Approve claim">Approve</button>
                                 </form>
 
                                 <form method="POST" action="{{ route('claims.reject', $claim->id) }}" onsubmit="return confirm('Reject this item claim?');">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" class="btn-reject">Reject</button>
+                                    <button type="submit" class="btn-reject" aria-label="Reject claim">Reject</button>
                                 </form>
                             </td>
                         </tr>
@@ -77,7 +77,7 @@
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <div class="grid-2col" style="margin-bottom:24px;">
         {{-- Claim Item Form --}}
         <div class="card">
             <div class="card-body">
@@ -85,28 +85,28 @@
                 <form method="POST" action="{{ route('claim-items.store') }}">
                     @csrf
                     @if($errors->has('item_name') || $errors->has('points_required') || $errors->has('quantity') || $errors->has('status'))
-                        <div class="form-error-message">Please check the claim item fields.</div>
+                        <div class="form-error-message" role="alert">Please check the claim item fields.</div>
                     @endif
                     <div class="form-group">
                         <label>Item Name</label>
-                        <input type="text" name="item_name" value="{{ old('item_name') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <input type="text" name="item_name" value="{{ old('item_name') }}" required aria-label="Item name" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                     </div>
                     <div class="form-group">
                         <label>Description</label>
-                        <textarea name="description" rows="2" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">{{ old('description') }}</textarea>
+                        <textarea name="description" rows="2" aria-label="Description" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">{{ old('description') }}</textarea>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                    <div class="grid-3col">
                         <div class="form-group">
                             <label>Points Required</label>
-                            <input type="number" name="points_required" value="{{ old('points_required') }}" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                            <input type="number" name="points_required" value="{{ old('points_required') }}" min="1" required aria-label="Points required" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                         </div>
                         <div class="form-group">
                             <label>Quantity</label>
-                            <input type="number" name="quantity" value="{{ old('quantity', 0) }}" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                            <input type="number" name="quantity" value="{{ old('quantity', 0) }}" min="0" required aria-label="Quantity" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                         </div>
                         <div class="form-group">
                             <label>Status</label>
-                            <select name="status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                            <select name="status" required aria-label="Item status" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                                 <option value="Available" {{ old('status') === 'Available' ? 'selected' : '' }}>Available</option>
                                 <option value="Unavailable" {{ old('status') === 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
                             </select>
@@ -124,12 +124,12 @@
                 <form method="POST" action="{{ route('claims.store') }}">
                     @csrf
                     @if($errors->has('claim_error'))
-                        <div class="claim-error-message">{{ $errors->first('claim_error') }}</div>
+                        <div class="claim-error-message" role="alert">{{ $errors->first('claim_error') }}</div>
                     @endif
                     <div class="student-search-wrapper">
                         <label>Select Student</label>
-                        <input type="text" id="studentSearchInput" name="student_display" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" value="{{ old('student_display') }}">
-                        <input type="hidden" name="student_id" id="selectedStudentId" value="{{ old('student_id') }}">
+                        <input type="text" id="studentSearchInput" name="student_display" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" value="{{ old('student_display') }}" aria-label="Select student">
+                        <input type="hidden" name="student_id" id="selectedStudentId" value="{{ old('student_id') }}" aria-label="Select student">
                         <div id="studentSearchResults" class="student-search-results"></div>
                         @error('student_id')
                             <div class="field-error">{{ $message }}</div>
@@ -137,14 +137,14 @@
                     </div>
                     <div class="form-group">
                         <label>Select Item</label>
-                        <select name="claim_item_id" id="claim_item_id" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <select name="claim_item_id" id="claim_item_id" required aria-label="Select item" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                             <option value="">Select item</option>
                             @foreach($availableItems as $i)
                                 <option value="{{ $i->id }}" data-points="{{ $i->points_required }}">{{ $i->item_name }} — {{ $i->points_required }} pts ({{ $i->quantity }} left)</option>
                             @endforeach
                         </select>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                    <div class="grid-2col" style="margin-bottom:12px;">
                         <div class="points-box" style="background:#F3F4F6;border-radius:8px;padding:12px;text-align:center;">
                             <span style="font-size:11px;color:#9CA3AF;">Student Points</span>
                             <strong id="studentPointsBox" style="font-size:20px;font-weight:700;color:#111827;display:block;">—</strong>
@@ -156,7 +156,7 @@
                     </div>
                     <div class="form-group">
                         <label>Remarks (optional)</label>
-                        <input type="text" name="remarks" value="{{ old('remarks') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <input type="text" name="remarks" value="{{ old('remarks') }}" aria-label="Remarks" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                     </div>
                     <button type="submit" class="btn btn-primary" id="claimSubmitBtn" style="width:100%;">Claim Item</button>
                 </form>
@@ -171,17 +171,17 @@
                 <h3>Claim Items</h3>
             </div>
             <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter">
-                <input type="text" name="item_search" value="{{ request('item_search') }}" placeholder="Search items...">
+                <input type="text" name="item_search" value="{{ request('item_search') }}" placeholder="Search items..." aria-label="Search items">
 
-                <select name="status">
+                <select name="status" aria-label="Filter by status">
                     <option value="">All Status</option>
                     <option value="Available" {{ request('status') == 'Available' ? 'selected' : '' }}>Available</option>
                     <option value="Unavailable" {{ request('status') == 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
                 </select>
 
-                <input type="number" name="min_points" value="{{ request('min_points') }}" placeholder="Min points">
+                <input type="number" name="min_points" value="{{ request('min_points') }}" placeholder="Min points" aria-label="Minimum points">
 
-                <input type="number" name="max_points" value="{{ request('max_points') }}" placeholder="Max points">
+                <input type="number" name="max_points" value="{{ request('max_points') }}" placeholder="Max points" aria-label="Maximum points">
 
                 <button type="submit" class="btn-filter">Filter</button>
                 <button type="button" id="clearClaimItemsFilter" class="btn-clear">Clear</button>
@@ -199,9 +199,9 @@
                 <h3>Claim History</h3>
             </div>
             <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter">
-                <input type="text" name="claim_search" value="{{ request('claim_search') }}" placeholder="Search student, item, claimed by...">
+                <input type="text" name="claim_search" value="{{ request('claim_search') }}" placeholder="Search student, item, claimed by..." aria-label="Search claims">
 
-                <select name="claim_item_id">
+                <select name="claim_item_id" aria-label="Filter by item">
                     <option value="">All Items</option>
                     @foreach($allClaimItems as $item)
                         <option value="{{ $item->id }}" {{ request('claim_item_id') == $item->id ? 'selected' : '' }}>
@@ -212,12 +212,12 @@
 
                 <div class="filter-field">
                     <label>Date From</label>
-                    <input type="date" name="date_from" value="{{ request('date_from') }}">
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" aria-label="Date from">
                 </div>
 
                 <div class="filter-field">
                     <label>Date To</label>
-                    <input type="date" name="date_to" value="{{ request('date_to') }}">
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" aria-label="Date to">
                 </div>
 
                 <button type="submit" class="btn-filter">Filter</button>
@@ -238,9 +238,9 @@
                 <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Compiled record of approved item requests for quarterly releasing.</p>
             </div>
             <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;">
-                <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN...">
+                <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN..." aria-label="Search approved claims">
 
-                <select name="approved_quarter">
+                <select name="approved_quarter" aria-label="Filter by quarter">
                     <option value="">All Quarters</option>
                     <option value="Q1" {{ request('approved_quarter') == 'Q1' ? 'selected' : '' }}>Q1 (Jan-Mar)</option>
                     <option value="Q2" {{ request('approved_quarter') == 'Q2' ? 'selected' : '' }}>Q2 (Apr-Jun)</option>
@@ -248,7 +248,7 @@
                     <option value="Q4" {{ request('approved_quarter') == 'Q4' ? 'selected' : '' }}>Q4 (Oct-Dec)</option>
                 </select>
 
-                <select name="approved_year">
+                <select name="approved_year" aria-label="Filter by year">
                     <option value="">All Years</option>
                     @for($y = date('Y'); $y >= date('Y') - 3; $y--)
                         <option value="{{ $y }}" {{ request('approved_year') == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -295,13 +295,13 @@
                                 <div style="font-size:12px;color:#6b7280;">{{ $latestDate ? \Carbon\Carbon::parse($latestDate)->format('M d, Y') : 'N/A' }}</div>
                                 <div style="font-size:11px;color:#9ca3af;">Latest</div>
                             </div>
-                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
                                 View Requests ▼
                             </button>
                             <form method="POST" action="{{ route('claims.archiveAllByStudent', $studentId) }}" style="display:inline;" onclick="event.stopPropagation();">
                                 @csrf
                                 @method('PATCH')
-                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="return confirm('Mark all approved item requests of {{ addslashes($studentName) }} as released?')">
+                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark all approved item requests of {{ addslashes($studentName) }} as released?')">
                                     Mark All Released
                                 </button>
                             </form>
@@ -312,15 +312,15 @@
                             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                                 <thead>
                                     <tr style="background:#f3f4f6;">
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Before</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points After</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Approved By</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Remarks</th>
-                                        <th style="padding:10px 14px;text-align:center;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Action</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Before</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points After</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Approved By</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Remarks</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:center;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -338,7 +338,7 @@
                                             <form method="POST" action="{{ route('claims.archive', $claim->id) }}" style="display:inline;">
                                                 @csrf
                                                 @method('PATCH')
-                                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" onclick="return confirm('Mark this item request as released and archive it?')">
+                                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark this item request as released and archive it?')">
                                                     Mark Released
                                                 </button>
                                             </form>
@@ -364,7 +364,7 @@
     {{-- Archived Released Item Requests (Admin/Super Admin only) --}}
     @if(in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin']) && $archivedClaimsByStudent->isNotEmpty())
     <div id="archived-by-student-section" class="data-card" style="margin-top:24px;">
-        <div class="data-card-header" style="cursor:pointer;" onclick="toggleArchivedSection()">
+        <div class="data-card-header" style="cursor:pointer;" onclick="toggleArchivedSection()" aria-expanded="false">
             <div class="card-title-area" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                 <div>
                     <h3 style="display:flex;align-items:center;gap:8px;">
@@ -410,7 +410,7 @@
                                 <div style="font-size:12px;color:#6b7280;">{{ $latestRelease ? \Carbon\Carbon::parse($latestRelease)->format('M d, Y') : 'N/A' }}</div>
                                 <div style="font-size:11px;color:#9ca3af;">Last Released</div>
                             </div>
-                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
                                 View Requests ▼
                             </button>
                         </div>
@@ -420,12 +420,12 @@
                             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                                 <thead>
                                     <tr style="background:#f3f4f6;">
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released Date</th>
-                                        <th style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released By</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released Date</th>
+                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released By</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -456,31 +456,31 @@
         <div class="modal-header">
             <h2>Edit Claim Item</h2>
             <p>Update item information</p>
-            <button type="button" class="modal-close" id="closeEditItemModal">&times;</button>
+            <button type="button" class="modal-close" id="closeEditItemModal" aria-label="Close">&times;</button>
         </div>
         <form method="POST" action="" id="editItemForm" class="modal-form">
             @csrf @method('PUT')
             <div class="modal-body">
                 <div class="form-group">
                     <label>Item Name</label>
-                    <input type="text" name="item_name" id="editItemName" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="text" name="item_name" id="editItemName" required aria-label="Item name" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" id="editItemDescription" rows="2" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;"></textarea>
+                    <textarea name="description" id="editItemDescription" rows="2" aria-label="Description" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;"></textarea>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                <div class="grid-3col">
                     <div class="form-group">
                         <label>Points Required</label>
-                        <input type="number" name="points_required" id="editItemPoints" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <input type="number" name="points_required" id="editItemPoints" min="1" required aria-label="Points required" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                     </div>
                     <div class="form-group">
                         <label>Quantity</label>
-                        <input type="number" name="quantity" id="editItemQuantity" min="0" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <input type="number" name="quantity" id="editItemQuantity" min="0" required aria-label="Quantity" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                     </div>
                     <div class="form-group">
                         <label>Status</label>
-                        <select name="status" id="editItemStatus" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                        <select name="status" id="editItemStatus" required aria-label="Item status" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
                             <option value="Available">Available</option>
                             <option value="Unavailable">Unavailable</option>
                         </select>

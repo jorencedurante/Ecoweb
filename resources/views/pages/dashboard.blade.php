@@ -70,7 +70,7 @@
             <div class="donut-placeholder" style="background: conic-gradient(var(--green) 0% {{ $malePct }}%, #E0E0E0 {{ $malePct }}% 100%);">
                 <div class="donut-inner">
                     <span>{{ $malePct }}%</span>
-                    <span style="font-size:10px;color:#999;">Male</span>
+                    <span style="font-size:10px;color:#6b7280;">Male</span>
                 </div>
             </div>
             <div class="donut-legend">

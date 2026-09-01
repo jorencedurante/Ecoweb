@@ -40,11 +40,11 @@
 
     <div class="items-container">
         @if(session('success'))
-            <div class="public-alert success">{{ session('success') }}</div>
+            <div class="public-alert success" role="status">{{ session('success') }}</div>
         @endif
 
         @if($errors->any())
-            <div class="public-alert error">{{ $errors->first() }}</div>
+            <div class="public-alert error" role="alert">{{ $errors->first() }}</div>
         @endif
 
         <div class="items-grid">
@@ -64,13 +64,13 @@
                         <input type="hidden" name="claim_item_id" value="{{ $item->id }}">
                         <label>Student LRN</label>
                         <div class="reward-input-group">
-                            <input type="text" name="lrn" placeholder="Enter your LRN" required value="{{ old('lrn') }}">
+                            <input type="text" name="lrn" placeholder="Enter your LRN" required value="{{ old('lrn') }}" aria-label="Student LRN">
                         </div>
                         <label>Quantity</label>
                         <div class="reward-input-group">
-                            <input type="number" name="quantity" min="1" max="{{ $item->quantity }}" value="{{ old('quantity', 1) }}" required>
+                            <input type="number" name="quantity" min="1" max="{{ $item->quantity }}" value="{{ old('quantity', 1) }}" required aria-label="Quantity">
                         </div>
-                        <button type="submit">Request Claim</button>
+                        <button type="submit" aria-label="Request Claim for {{ $item->item_name }}">Request Claim</button>
                     </form>
                 </article>
             @empty

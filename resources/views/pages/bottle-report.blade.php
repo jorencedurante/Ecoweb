@@ -8,18 +8,18 @@
     <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
 
     <div class="filter-card">
-        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
             <i class="fas fa-filter"></i> Filters
-        </div>
+        </button>
         <div class="filter-body">
             <form method="GET" action="{{ route('admin.bottle-report') }}" class="filter-form">
                 <div class="filter-search">
                     <label>Search</label>
-                    <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}">
+                    <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}" aria-label="Search students">
                 </div>
                 <div class="filter-search">
                     <label>Day</label>
-                    <select name="day">
+                    <select name="day" aria-label="Day">
                         <option value="">Day</option>
                         @for($i = 1; $i <= 31; $i++)
                             <option value="{{ $i }}" {{ request('day') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -28,7 +28,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Month</label>
-                    <select name="month">
+                    <select name="month" aria-label="Month">
                         <option value="">Month</option>
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
                             <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
@@ -37,7 +37,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Year</label>
-                    <select name="year">
+                    <select name="year" aria-label="Year">
                         <option value="">Year</option>
                         @foreach(['2023','2024','2025','2026'] as $y)
                             <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -46,7 +46,7 @@
                 </div>
                 <div class="filter-search">
                     <label>Quarter</label>
-                    <select name="quarter">
+                    <select name="quarter" aria-label="Quarter">
                         <option value="">Quarter</option>
                         <option value="q1" {{ request('quarter') == 'q1' ? 'selected' : '' }}>Q1 (Jan–Mar)</option>
                         <option value="q2" {{ request('quarter') == 'q2' ? 'selected' : '' }}>Q2 (Apr–Jun)</option>
@@ -125,13 +125,14 @@
             <h4 style="font-size:14px;font-weight:600;">Collection Records</h4>
             <a href="{{ route('reports.bottle-collection.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
         </div>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Student</th>
-                    <th>Date</th>
-                    <th>Total Bottles Collected</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Student</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Total Bottles Collected</th>
                 </tr>
             </thead>
             <tbody>
@@ -147,6 +148,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="pagination">
             <span class="page-info">Showing {{ $collections->firstItem() ?? 0 }} to {{ $collections->lastItem() ?? 0 }} of {{ $collections->total() }} entries</span>
             <div class="page-btns">

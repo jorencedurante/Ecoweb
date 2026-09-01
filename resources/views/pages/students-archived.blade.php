@@ -6,14 +6,14 @@
 
 @section('content')
     <div class="filter-card">
-        <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
             <i class="fas fa-filter"></i> Filters
-        </div>
+        </button>
         <div class="filter-body">
             <form method="GET" action="{{ route('admin.students.archived') }}" id="filterForm" class="filter-form">
                 <div class="filter-search">
                     <label>Search</label>
-                    <input type="text" name="search" placeholder="Search archived students..." value="{{ request('search') }}">
+                    <input type="text" name="search" placeholder="Search archived students..." value="{{ request('search') }}" aria-label="Search archived students">
                 </div>
                 @if(auth()->user()->isTeacher())
                 <div class="filter-search">
@@ -23,7 +23,7 @@
                 @else
                 <div class="filter-search">
                     <label>Grade Level</label>
-                    <select name="grade_level">
+                    <select name="grade_level" aria-label="Filter by grade level">
                         <option value="">All Grades</option>
                         @foreach($gradeLevels ?? [] as $gl)
                             <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
@@ -33,7 +33,7 @@
                 @endif
                 <div class="filter-search">
                     <label>Gender</label>
-                    <select name="gender">
+                    <select name="gender" aria-label="Filter by gender">
                         <option value="">All Genders</option>
                         <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
                         <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
@@ -56,13 +56,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>LRN</th>
-                    <th>Name</th>
-                    <th>Grade Level</th>
-                    <th>QR Code</th>
-                    <th>Total Points</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th scope="col">LRN</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Grade Level</th>
+                    <th scope="col">QR Code</th>
+                    <th scope="col">Total Points</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -76,11 +76,11 @@
                     <td><span style="color:var(--gray);font-weight:600;">{{ ucfirst($student->status) }}</span></td>
                     <td>
                         <div class="action-btns">
-                            <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs">View Info</a>
+                            <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs" aria-label="View info for {{ $student->full_name }}">View Info</a>
                             @if(Auth::user()->role !== 'admin')
                             <form method="POST" action="{{ route('students.restore', $student->id) }}" style="display:inline;" onsubmit="return confirm('Restore this student to active students?');">
                                 @csrf @method('PATCH')
-                                <button type="submit" class="btn btn-restore btn-xs">Restore</button>
+                                <button type="submit" class="btn btn-restore btn-xs" aria-label="Restore {{ $student->full_name }}">Restore</button>
                             </form>
                             @endif
                         </div>

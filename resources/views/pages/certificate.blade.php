@@ -14,22 +14,22 @@
 </div>
 
 <div class="filter-card" style="margin-top:24px;">
-    <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+    <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
         <i class="fas fa-filter"></i> Filters
-    </div>
+    </button>
     <div class="filter-body">
         <form method="GET" action="{{ route('admin.certificate') }}" class="filter-form">
             <div class="filter-search">
                 <label>Search</label>
-                <input type="text" name="search" placeholder="Search certificate title..." value="{{ request('search') }}">
+                <input type="text" name="search" placeholder="Search certificate title..." value="{{ request('search') }}" aria-label="Search certificate title">
             </div>
             <div class="filter-search">
                 <label>Award Date</label>
-                <input type="date" name="award_date" value="{{ request('award_date') }}">
+                <input type="date" name="award_date" value="{{ request('award_date') }}" aria-label="Award date">
             </div>
             <div class="filter-search">
                 <label>Month</label>
-                <select name="month">
+                <select name="month" aria-label="Month">
                     <option value="">Month</option>
                     @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
                         <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
@@ -38,7 +38,7 @@
             </div>
             <div class="filter-search">
                 <label>Year</label>
-                <select name="year">
+                <select name="year" aria-label="Year">
                     <option value="">Year</option>
                     @foreach(['2023','2024','2025','2026'] as $y)
                         <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -64,13 +64,13 @@
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Certificate Title</th>
-                <th>Description</th>
-                <th>Date Created</th>
-                <th>Created By</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th scope="col">#</th>
+                <th scope="col">Certificate Title</th>
+                <th scope="col">Description</th>
+                <th scope="col">Date Created</th>
+                <th scope="col">Created By</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -108,13 +108,13 @@
                         @if(Auth::user()->isAdminLevel() || $award->teacher_id === Auth::id())
                         <form method="POST" action="{{ route('admin.certificate.archive', $award->id) }}" style="display:inline;">
                             @csrf @method('PATCH')
-                            <button type="submit" class="btn btn-xs" style="background:var(--red);color:#fff;" onclick="return confirm('Archive this certificate?')">Archive</button>
+                            <button type="submit" class="btn btn-xs" style="background:var(--red);color:#fff;" onclick="return confirm('Archive this certificate?')" aria-label="Archive certificate">Archive</button>
                         </form>
                         @endif
                         @if(Auth::user()->isAdminLevel())
                         <form method="POST" action="{{ route('admin.certificate.destroy', $award->id) }}" style="display:inline;">
                             @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-xs" style="background:#dc2626;color:#fff;" onclick="return confirm('Delete this certificate permanently?')">Delete</button>
+                            <button type="submit" class="btn btn-xs" style="background:#dc2626;color:#fff;" onclick="return confirm('Delete this certificate permanently?')" aria-label="Delete certificate">Delete</button>
                         </form>
                         @endif
                     </div>
@@ -154,15 +154,15 @@
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Quest Title</th>
-                <th>Requirement Type</th>
-                <th>Required Value</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Created By</th>
+                <th scope="col">#</th>
+                <th scope="col">Quest Title</th>
+                <th scope="col">Requirement Type</th>
+                <th scope="col">Required Value</th>
+                <th scope="col">Description</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created By</th>
                 @if(Auth::user()->isAdminLevel())
-                <th>Actions</th>
+                <th scope="col">Actions</th>
                 @endif
             </tr>
         </thead>
@@ -215,37 +215,37 @@
     <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h4 style="font-size:16px;font-weight:700;">Add Achievement Quest</h4>
-            <button type="button" onclick="closeAddQuestModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
+            <button type="button" onclick="closeAddQuestModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;" aria-label="Close">✕</button>
         </div>
         <form method="POST" action="{{ route('achievement-quests.store') }}">
             @csrf
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="grid-2col" style="gap:16px;">
                 <div class="form-group" style="grid-column:span 2;">
                     <label>Quest Title</label>
-                    <input type="text" name="title" value="{{ old('title') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="text" name="title" value="{{ old('title') }}" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Quest title">
                 </div>
                 <div class="form-group" style="grid-column:span 2;">
                     <label>Description</label>
-                    <textarea name="description" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">{{ old('description') }}</textarea>
+                    <textarea name="description" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Description">{{ old('description') }}</textarea>
                 </div>
                 <div class="form-group">
                     <label>Requirement Type</label>
-                    <select name="requirement_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <select name="requirement_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Requirement type">
                         <option value="points" {{ old('requirement_type') === 'points' ? 'selected' : '' }}>Points</option>
                         <option value="bottles" {{ old('requirement_type') === 'bottles' ? 'selected' : '' }}>Bottles</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Required Value</label>
-                    <input type="number" name="required_value" value="{{ old('required_value') }}" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="number" name="required_value" value="{{ old('required_value') }}" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Required value">
                 </div>
                 <div class="form-group">
                     <label>Badge / Reward Name <span style="color:var(--text-light);">(optional)</span></label>
-                    <input type="text" name="badge_name" value="{{ old('badge_name') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="text" name="badge_name" value="{{ old('badge_name') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Badge name">
                 </div>
                 <div class="form-group">
                     <label>Status</label>
-                    <select name="status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <select name="status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Status">
                         <option value="Active" {{ old('status') === 'Active' ? 'selected' : '' }}>Active</option>
                         <option value="Inactive" {{ old('status') === 'Inactive' ? 'selected' : '' }}>Inactive</option>
                     </select>
@@ -264,38 +264,38 @@
     <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h4 style="font-size:16px;font-weight:700;">Edit Achievement Quest</h4>
-            <button type="button" onclick="closeQuestEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
+            <button type="button" onclick="closeQuestEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;" aria-label="Close">✕</button>
         </div>
         <form method="POST" action="" id="questEditForm">
             @csrf
             @method('PUT')
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="grid-2col" style="gap:16px;">
                 <div class="form-group" style="grid-column:span 2;">
                     <label>Quest Title</label>
-                    <input type="text" name="title" id="edit_quest_title" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="text" name="title" id="edit_quest_title" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Quest title">
                 </div>
                 <div class="form-group" style="grid-column:span 2;">
                     <label>Description</label>
-                    <textarea name="description" id="edit_quest_description" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;"></textarea>
+                    <textarea name="description" id="edit_quest_description" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Description"></textarea>
                 </div>
                 <div class="form-group">
                     <label>Requirement Type</label>
-                    <select name="requirement_type" id="edit_requirement_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <select name="requirement_type" id="edit_requirement_type" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Requirement type">
                         <option value="points">Points</option>
                         <option value="bottles">Bottles</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Required Value</label>
-                    <input type="number" name="required_value" id="edit_required_value" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="number" name="required_value" id="edit_required_value" min="1" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Required value">
                 </div>
                 <div class="form-group">
                     <label>Badge / Reward Name <span style="color:var(--text-light);">(optional)</span></label>
-                    <input type="text" name="badge_name" id="edit_quest_badge" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <input type="text" name="badge_name" id="edit_quest_badge" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Badge name">
                 </div>
                 <div class="form-group">
                     <label>Status</label>
-                    <select name="status" id="edit_quest_status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                    <select name="status" id="edit_quest_status" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" aria-label="Status">
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                     </select>

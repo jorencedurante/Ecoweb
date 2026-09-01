@@ -48,17 +48,17 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Student Name</th>
-                    <th>Grade Level</th>
-                    <th>Gender</th>
+                    <th scope="col">#</th>
+                    <th scope="col">Student Name</th>
+                    <th scope="col">Grade Level</th>
+                    <th scope="col">Gender</th>
                     @if($isTeacher)
-                        <th>Total Points</th>
-                        <th>Bottles Collected</th>
-                        <th>Total Claims</th>
+                        <th scope="col">Total Points</th>
+                        <th scope="col">Bottles Collected</th>
+                        <th scope="col">Total Claims</th>
                     @else
-                        <th>Bottles Collected</th>
-                        <th>Total Points</th>
+                        <th scope="col">Bottles Collected</th>
+                        <th scope="col">Total Points</th>
                     @endif
                 </tr>
             </thead>
