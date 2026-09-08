@@ -522,8 +522,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             searchTimeout = setTimeout(function () {
-                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
-                    .then(response => response.json())
+                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query), {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Search failed');
+                        return response.json();
+                    })
                     .then(students => {
                         studentSearchResults.innerHTML = '';
                         if (!students.length) {
@@ -593,9 +602,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const queryString = new URLSearchParams(formData).toString();
         container.classList.add('loading');
         fetch(url + '?' + queryString, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
         })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) throw new Error('Filter failed');
+            return response.text();
+        })
         .then(html => {
             container.innerHTML = html;
             container.classList.remove('loading');
