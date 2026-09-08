@@ -561,11 +561,7 @@ class ClaimController extends Controller
 
         $claimItems = $claimItems->latest()->paginate(15)->withQueryString();
 
-        if ($request->ajax()) {
-            return view('partials.claim-items-table', compact('claimItems'))->render();
-        }
-
-        return redirect()->route('claims.index');
+        return view('partials.claim-items-table', compact('claimItems'))->render();
     }
 
     public function filterHistory(Request $request)
@@ -621,10 +617,6 @@ class ClaimController extends Controller
         $claimHistoryByStudent = $allClaims->groupBy('student_id');
         $claims = $allClaims;
 
-        if ($request->ajax()) {
-            return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
-        }
-
-        return redirect()->route('claims.index');
+        return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
     }
 }
