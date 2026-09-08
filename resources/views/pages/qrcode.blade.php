@@ -16,11 +16,20 @@
                     <label>QR Type</label>
                     <div class="readonly-field">LRN</div>
                 </div>
-                <div class="student-search-wrapper">
-                    <label>Select Student</label>
-                    <input type="text" id="qrStudentSearchInput" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" aria-label="Select student">
-                    <input type="hidden" name="student_id" id="qrSelectedStudentId">
-                    <div id="qrStudentSearchResults" class="student-search-results"></div>
+                <div class="qr-form-group">
+                    <label for="qrStudentSelect">Select Student</label>
+                    <select id="qrStudentSelect" name="student_id" required style="width:100%;padding:14px 16px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#ffffff;">
+                        <option value="">Select student</option>
+                        @foreach ($studentsForQr as $student)
+                            @php
+                                $studentName = $student->full_name ?? trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+                                $studentLrn = $student->lrn ?? $student->student_id ?? '';
+                            @endphp
+                            <option value="{{ $student->id }}">
+                                {{ $studentName ?: 'Unnamed Student' }} — LRN: {{ $studentLrn }} — {{ $student->grade_level ?? $student->grade ?? '' }}
+                            </option>
+                        @endforeach
+                    </select>
                     @error('student_id')
                         <div class="field-error" role="alert">{{ $message }}</div>
                     @enderror
@@ -130,107 +139,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('QR STUDENT SEARCH SCRIPT LOADED');
-
-    var input = document.getElementById('qrStudentSearchInput');
-    var resultsBox = document.getElementById('qrStudentSearchResults');
-    var hiddenInput = document.getElementById('qrSelectedStudentId');
-
-    if (!input || !resultsBox || !hiddenInput) {
-        console.error('QR student search elements missing', {
-            input: input,
-            resultsBox: resultsBox,
-            hiddenInput: hiddenInput
-        });
-        return;
-    }
-
-    var searchUrl = '{{ route("qrcode.searchStudents") }}';
-
-    input.addEventListener('input', function () {
-        var query = input.value.trim();
-
-        console.log('QR input event:', query);
-
-        hiddenInput.value = '';
-
-        if (query.length < 2) {
-            resultsBox.innerHTML = '';
-            resultsBox.classList.remove('show');
-            resultsBox.style.display = 'none';
-            return;
-        }
-
-        fetch(searchUrl + '?search=' + encodeURIComponent(query), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        })
-        .then(function (response) {
-            console.log('QR search status:', response.status);
-
-            if (!response.ok) {
-                throw new Error('QR student search request failed');
-            }
-
-            return response.json();
-        })
-        .then(function (students) {
-            console.log('QR search JSON:', students);
-
-            resultsBox.innerHTML = '';
-
-            if (!Array.isArray(students) || students.length === 0) {
-                resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
-                resultsBox.classList.add('show');
-                resultsBox.style.display = 'block';
-                return;
-            }
-
-            students.forEach(function (student) {
-                var name = student.name || 'Unnamed Student';
-                var lrn = student.lrn || student.student_id || 'No LRN';
-                var grade = student.grade_level || '';
-
-                var button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'student-search-result-item';
-                button.innerHTML = '<strong>' + name + '</strong><small>LRN: ' + lrn + (grade ? ' &middot; ' + grade : '') + '</small>';
-
-                button.addEventListener('click', function () {
-                    input.value = name;
-                    hiddenInput.value = student.id;
-
-                    resultsBox.innerHTML = '';
-                    resultsBox.classList.remove('show');
-                    resultsBox.style.display = 'none';
-
-                    console.log('Selected QR student:', student);
-                });
-
-                resultsBox.appendChild(button);
-            });
-
-            resultsBox.classList.add('show');
-            resultsBox.style.display = 'block';
-        })
-        .catch(function (error) {
-            console.error('QR student search frontend error:', error);
-            resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
-            resultsBox.classList.add('show');
-            resultsBox.style.display = 'block';
-        });
-    });
-
-    document.addEventListener('click', function (event) {
-        if (!event.target.closest('.student-search-wrapper')) {
-            resultsBox.classList.remove('show');
-            resultsBox.style.display = 'none';
-        }
-    });
+    // No AJAX student search needed - using normal select
 });
 </script>
 @endpush
