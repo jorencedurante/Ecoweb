@@ -2925,6 +2925,8 @@ body.public-landing-page {
    ============================================================ */
 .student-search-wrapper {
     position: relative;
+    width: 100%;
+    overflow: visible !important;
     margin-bottom: 18px;
 }
 
@@ -2959,17 +2961,17 @@ body.public-landing-page {
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    z-index: 99999;
+    z-index: 999999 !important;
     background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
     max-height: 260px;
     overflow-y: auto;
 }
 
 .student-search-results.show {
-    display: block;
+    display: block !important;
 }
 
 .student-search-result-item {
@@ -3007,6 +3009,13 @@ body.public-landing-page {
     padding: 14px;
     text-align: center;
     color: #6b7280;
+}
+
+.claim-student-card,
+.claim-student-card .form-group,
+.qr-code-card,
+.qr-code-card .form-group {
+    overflow: visible !important;
 }
 
 .filter-field {
