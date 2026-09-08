@@ -154,13 +154,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'same-origin'
             })
                 .then(response => {
-                    if (!response.ok) throw new Error('Search failed');
+                    if (!response.ok) {
+                        console.error('QR student search HTTP error:', response.status);
+                        throw new Error('HTTP ' + response.status);
+                    }
                     return response.json();
                 })
-                .then(students => {
+                .then(data => {
+                    const students = Array.isArray(data) ? data : (data.data || data.students || []);
+                    console.log('QR student search results:', students);
                     resultsBox.innerHTML = '';
                     if (!students.length) {
-                        resultsBox.innerHTML = '<div class="student-search-empty">No student found.</div>';
+                        resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
                         resultsBox.style.display = 'block';
                         return;
                     }
@@ -181,7 +186,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     resultsBox.style.display = 'block';
                 })
-                .catch(function () {
+                .catch(function (error) {
+                    console.error('QR student search error:', error);
                     resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
                     resultsBox.style.display = 'block';
                 });
