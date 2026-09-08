@@ -619,4 +619,40 @@ class ClaimController extends Controller
 
         return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
     }
+
+    public function searchStudents(Request $request)
+    {
+        $search = trim($request->get('search', $request->get('q', '')));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $students = Student::query()
+            ->where(function ($query) use ($search) {
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('lrn', 'like', "%{$search}%")
+                    ->orWhere('student_id', 'like', "%{$search}%");
+
+                if (\Schema::hasColumn('students', 'middle_name')) {
+                    $query->orWhere('middle_name', 'like', "%{$search}%");
+                }
+            })
+            ->limit(10)
+            ->get();
+
+        return response()->json($students->map(function ($student) {
+            $name = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+
+            return [
+                'id' => $student->id,
+                'name' => $name ?: 'Unnamed Student',
+                'lrn' => $student->lrn ?? '',
+                'student_id' => $student->student_id ?? '',
+                'grade_level' => $student->grade_level ?? '',
+                'total_points' => $student->total_points ?? 0,
+            ];
+        }));
+    }
 }
