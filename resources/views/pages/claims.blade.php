@@ -127,24 +127,26 @@
                         <div class="claim-error-message" role="alert">{{ $errors->first('claim_error') }}</div>
                     @endif
                     <div class="form-group">
-                        <label for="claimStudentSelect">Select Student</label>
-                        <select id="claimStudentSelect" name="student_id" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
-                            <option value="">Select student</option>
-                            @foreach ($studentsForClaim as $student)
-                                @php
-                                    $studentName = $student->full_name ?? trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                                    $studentLrn = $student->lrn ?? $student->student_id ?? '';
-                                    $studentPoints = $student->total_points ?? $student->points ?? $student->current_points ?? 0;
-                                @endphp
-                                <option
-                                    value="{{ $student->id }}"
-                                    data-points="{{ $studentPoints }}"
-                                    {{ old('student_id') == $student->id ? 'selected' : '' }}
-                                >
-                                    {{ $studentName ?: 'Unnamed Student' }} — LRN: {{ $studentLrn }} — {{ $student->grade_level ?? $student->grade ?? '' }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <label for="claimStudentSearchInput">Select Student</label>
+                        <div class="student-search-wrapper">
+                            <input
+                                type="text"
+                                id="claimStudentSearchInput"
+                                name="student_display"
+                                placeholder="Search student by name, LRN, or Student ID..."
+                                autocomplete="off"
+                                aria-label="Search student"
+                                style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;"
+                            >
+                            <input
+                                type="hidden"
+                                id="claimSelectedStudentId"
+                                name="student_id"
+                                required
+                            >
+                            <div id="claimStudentSearchResults" class="student-search-results"></div>
+                        </div>
+                        <div id="claimStudentError" style="color:#ef4444;font-size:12px;margin-top:4px;display:none;">Please select a student from the search results.</div>
                         @error('student_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -510,23 +512,112 @@
 </div>
 
 @push('scripts')
+@php
+$claimStudentsData = $studentsForClaim->map(function ($student) {
+    $name = $student->full_name
+        ?? trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+    return [
+        'id' => $student->id,
+        'name' => $name ?: 'Unnamed Student',
+        'lrn' => $student->lrn ?? $student->student_id ?? '',
+        'student_id' => $student->student_id ?? '',
+        'grade_level' => $student->grade_level ?? $student->grade ?? '',
+        'points' => $student->total_points ?? $student->points ?? $student->current_points ?? 0,
+    ];
+})->values()->toArray();
+@endphp
+<script>
+const claimStudents = @json($claimStudentsData);
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var studentSelect = document.getElementById('claimStudentSelect');
     var pointsBox = document.getElementById('studentPointsBox');
     var itemSelect = document.getElementById('claim_item_id');
     var itemCost = document.getElementById('item_cost_display');
     var submitBtn = document.getElementById('claimSubmitBtn');
 
-    if (studentSelect) {
-        studentSelect.addEventListener('change', function () {
-            var selectedOption = studentSelect.options[studentSelect.selectedIndex];
-            var points = selectedOption && selectedOption.dataset ? selectedOption.dataset.points : '\u2014';
-            if (pointsBox) pointsBox.textContent = points || '\u2014';
-            checkSufficient();
+    // --- Student Search ---
+    var searchInput = document.getElementById('claimStudentSearchInput');
+    var resultsBox = document.getElementById('claimStudentSearchResults');
+    var hiddenInput = document.getElementById('claimSelectedStudentId');
+    var studentError = document.getElementById('claimStudentError');
+
+    function closeResults() {
+        resultsBox.innerHTML = '';
+        resultsBox.classList.remove('show');
+    }
+
+    function renderResults(students) {
+        resultsBox.innerHTML = '';
+
+        if (!students.length) {
+            resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
+            resultsBox.classList.add('show');
+            return;
+        }
+
+        students.slice(0, 12).forEach(function (student) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'student-search-result-item';
+
+            button.innerHTML =
+                '<strong>' + student.name + '</strong>' +
+                '<small>LRN: ' + (student.lrn || student.student_id || 'N/A') + (student.grade_level ? ' &middot; ' + student.grade_level : '') + '</small>';
+
+            button.addEventListener('click', function () {
+                searchInput.value = student.name;
+                hiddenInput.value = student.id;
+                if (pointsBox) pointsBox.textContent = student.points ?? '\u2014';
+                if (studentError) studentError.style.display = 'none';
+                closeResults();
+                checkSufficient();
+            });
+
+            resultsBox.appendChild(button);
+        });
+
+        resultsBox.classList.add('show');
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            var search = searchInput.value.trim().toLowerCase();
+            hiddenInput.value = '';
+            if (pointsBox) pointsBox.textContent = '\u2014';
+            if (studentError) studentError.style.display = 'none';
+
+            if (search.length < 1) {
+                closeResults();
+                return;
+            }
+
+            var filtered = claimStudents.filter(function (student) {
+                return (
+                    String(student.name || '').toLowerCase().includes(search) ||
+                    String(student.lrn || '').toLowerCase().includes(search) ||
+                    String(student.student_id || '').toLowerCase().includes(search) ||
+                    String(student.grade_level || '').toLowerCase().includes(search)
+                );
+            });
+
+            renderResults(filtered);
+        });
+
+        searchInput.addEventListener('focus', function () {
+            if (searchInput.value.trim().length > 0) {
+                searchInput.dispatchEvent(new Event('input'));
+            }
         });
     }
 
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.student-search-wrapper')) {
+            closeResults();
+        }
+    });
+
+    // --- Item Select ---
     if (itemSelect) {
         itemSelect.addEventListener('change', function () {
             var opt = this.options[this.selectedIndex];
@@ -543,6 +634,19 @@ document.addEventListener('DOMContentLoaded', function () {
             submitBtn.style.background = pts >= cost ? '#0ea5e9' : '#ef4444';
             submitBtn.style.opacity = '1';
         }
+    }
+
+    // --- Form validation: require hidden student_id ---
+    var claimForm = submitBtn ? submitBtn.closest('form') : null;
+    if (claimForm) {
+        claimForm.addEventListener('submit', function (e) {
+            if (!hiddenInput.value) {
+                e.preventDefault();
+                if (studentError) studentError.style.display = 'block';
+                searchInput.focus();
+                return false;
+            }
+        });
     }
 
     // --- AJAX Filtering ---

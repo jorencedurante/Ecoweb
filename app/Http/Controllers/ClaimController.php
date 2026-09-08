@@ -99,21 +99,14 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$historySearch}%")
                   ->orWhere('remarks', 'like', "%{$historySearch}%")
                   ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
-                      if (\Schema::hasColumn('students', 'first_name')) {
-                          $studentQuery->where('first_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'middle_name')) {
-                          $studentQuery->orWhere('middle_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'last_name')) {
-                          $studentQuery->orWhere('last_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'lrn')) {
-                          $studentQuery->orWhere('lrn', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'student_id')) {
-                          $studentQuery->orWhere('student_id', 'like', "%{$historySearch}%");
-                      }
+                      $studentQuery->where(function ($sq) use ($historySearch) {
+                          $sq->where('first_name', 'like', "%{$historySearch}%")
+                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
+                            ->orWhere('last_name', 'like', "%{$historySearch}%")
+                            ->orWhere('lrn', 'like', "%{$historySearch}%")
+                            ->orWhere('student_id', 'like', "%{$historySearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
+                      });
                   })
                   ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
                       if (\Schema::hasColumn('claim_items', 'item_name')) {
@@ -178,8 +171,11 @@ class ClaimController extends Controller
                     $q->where('item_name', 'like', "%{$search}%")
                       ->orWhere('remarks', 'like', "%{$search}%")
                       ->orWhereHas('student', function ($studentQuery) use ($search) {
-                          $studentQuery->where('full_name', 'like', "%{$search}%")
-                                       ->orWhere('lrn', 'like', "%{$search}%");
+                          $studentQuery->where(function ($sq) use ($search) {
+                              $sq->where('lrn', 'like', "%{$search}%")
+                                ->orWhere('student_id', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                          });
                       });
                 });
             }
@@ -231,8 +227,11 @@ class ClaimController extends Controller
                     $q->where('item_name', 'like', "%{$search}%")
                       ->orWhere('remarks', 'like', "%{$search}%")
                       ->orWhereHas('student', function ($studentQuery) use ($search) {
-                          $studentQuery->where('full_name', 'like', "%{$search}%")
-                                       ->orWhere('lrn', 'like', "%{$search}%");
+                          $studentQuery->where(function ($sq) use ($search) {
+                              $sq->where('lrn', 'like', "%{$search}%")
+                                ->orWhere('student_id', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                          });
                       });
                 });
             }
@@ -622,21 +621,14 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$historySearch}%")
                   ->orWhere('remarks', 'like', "%{$historySearch}%")
                   ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
-                      if (\Schema::hasColumn('students', 'first_name')) {
-                          $studentQuery->where('first_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'middle_name')) {
-                          $studentQuery->orWhere('middle_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'last_name')) {
-                          $studentQuery->orWhere('last_name', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'lrn')) {
-                          $studentQuery->orWhere('lrn', 'like', "%{$historySearch}%");
-                      }
-                      if (\Schema::hasColumn('students', 'student_id')) {
-                          $studentQuery->orWhere('student_id', 'like', "%{$historySearch}%");
-                      }
+                      $studentQuery->where(function ($sq) use ($historySearch) {
+                          $sq->where('first_name', 'like', "%{$historySearch}%")
+                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
+                            ->orWhere('last_name', 'like', "%{$historySearch}%")
+                            ->orWhere('lrn', 'like', "%{$historySearch}%")
+                            ->orWhere('student_id', 'like', "%{$historySearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
+                      });
                   })
                   ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
                       if (\Schema::hasColumn('claim_items', 'item_name')) {
@@ -684,11 +676,8 @@ class ClaimController extends Controller
                 $query->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('lrn', 'like', "%{$search}%")
-                    ->orWhere('student_id', 'like', "%{$search}%");
-
-                if (\Schema::hasColumn('students', 'middle_name')) {
-                    $query->orWhere('middle_name', 'like', "%{$search}%");
-                }
+                    ->orWhere('student_id', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
             })
             ->limit(10)
             ->get();
