@@ -530,13 +530,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     credentials: 'same-origin'
                 })
                     .then(response => {
-                        if (!response.ok) throw new Error('Search failed');
+                        if (!response.ok) {
+                            console.error('Claim student search HTTP error:', response.status);
+                            throw new Error('HTTP ' + response.status);
+                        }
                         return response.json();
                     })
-                    .then(students => {
+                    .then(data => {
+                        const students = Array.isArray(data) ? data : (data.data || data.students || []);
+                        console.log('Claim student search results:', students);
                         studentSearchResults.innerHTML = '';
                         if (!students.length) {
-                            studentSearchResults.innerHTML = '<div class="student-search-empty">No student found.</div>';
+                            studentSearchResults.innerHTML = '<div class="student-search-empty">No students found.</div>';
                             studentSearchResults.style.display = 'block';
                             return;
                         }
@@ -559,7 +564,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                         studentSearchResults.style.display = 'block';
                     })
-                    .catch(function () {
+                    .catch(function (error) {
+                        console.error('Claim student search error:', error);
                         studentSearchResults.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
                         studentSearchResults.style.display = 'block';
                     });
