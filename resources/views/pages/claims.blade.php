@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             searchTimeout = setTimeout(function () {
-                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query), {
+                fetch('{{ route("claims.searchStudents") }}?search=' + encodeURIComponent(query), {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'

@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
         // Claims / Rewards (admin & super admin only)
         Route::middleware('admin.only')->group(function () {
             Route::get('/claims', [ClaimController::class, 'index'])->name('claims.index');
+            Route::get('/claims/search-students', [ClaimController::class, 'searchStudents'])->name('claims.searchStudents');
             Route::post('/claim-items', [ClaimController::class, 'storeItem'])->name('claim-items.store');
             Route::put('/claim-items/{claimItem}', [ClaimController::class, 'updateItem'])->name('claim-items.update');
             Route::post('/claims', [ClaimController::class, 'claimItem'])->name('claims.store');
@@ -145,6 +146,7 @@ Route::middleware(['auth'])->group(function () {
 
         // QR Code
         Route::get('/qrcode', [QrCodeController::class, 'index'])->name('admin.qrcode');
+        Route::get('/qrcode/search-students', [QrCodeController::class, 'searchStudents'])->name('qrcode.searchStudents');
         Route::post('/qrcode/generate', [QrCodeController::class, 'generate'])->name('admin.qrcode.generate');
         Route::get('/qrcode/{qrCode}/download', [QrCodeController::class, 'download'])->name('admin.qrcode.download');
         Route::get('/qrcode/{qrCode}/print', [QrCodeController::class, 'printPdf'])->name('admin.qrcode.print');

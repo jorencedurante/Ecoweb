@@ -146,8 +146,17 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         searchTimeout = setTimeout(function () {
-            fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
-                .then(r => r.json())
+            fetch('{{ route("qrcode.searchStudents") }}?search=' + encodeURIComponent(query), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error('Search failed');
+                    return response.json();
+                })
                 .then(students => {
                     resultsBox.innerHTML = '';
                     if (!students.length) {
