@@ -171,17 +171,17 @@
                 <h3>Claim Items</h3>
             </div>
             <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter">
-                <input type="text" name="item_search" value="{{ request('item_search') }}" placeholder="Search items..." aria-label="Search items">
+                <input type="text" name="claim_item_search" value="{{ request('claim_item_search') }}" placeholder="Search item name..." aria-label="Search items">
 
-                <select name="status" aria-label="Filter by status">
+                <select name="claim_item_status" aria-label="Filter by status">
                     <option value="">All Status</option>
-                    <option value="Available" {{ request('status') == 'Available' ? 'selected' : '' }}>Available</option>
-                    <option value="Unavailable" {{ request('status') == 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
+                    <option value="Available" {{ request('claim_item_status') == 'Available' ? 'selected' : '' }}>Available</option>
+                    <option value="Unavailable" {{ request('claim_item_status') == 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
                 </select>
 
-                <input type="number" name="min_points" value="{{ request('min_points') }}" placeholder="Min points" aria-label="Minimum points">
+                <input type="number" name="claim_item_min_points" value="{{ request('claim_item_min_points') }}" placeholder="Min points" aria-label="Minimum points">
 
-                <input type="number" name="max_points" value="{{ request('max_points') }}" placeholder="Max points" aria-label="Maximum points">
+                <input type="number" name="claim_item_max_points" value="{{ request('claim_item_max_points') }}" placeholder="Max points" aria-label="Maximum points">
 
                 <button type="submit" class="btn-filter">Filter</button>
                 <button type="button" id="clearClaimItemsFilter" class="btn-clear">Clear</button>
