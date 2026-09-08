@@ -3011,6 +3011,72 @@ body.public-landing-page {
     color: #6b7280;
 }
 
+.item-search-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: visible !important;
+}
+
+.item-search-wrapper input[type="text"] {
+    width: 100%;
+}
+
+.item-search-results {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 99999 !important;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.item-search-results.show {
+    display: block !important;
+}
+
+.item-search-result-item {
+    width: 100%;
+    display: block;
+    text-align: left;
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+}
+
+.item-search-result-item:last-child {
+    border-bottom: none;
+}
+
+.item-search-result-item:hover {
+    background: #f8fafc;
+}
+
+.item-search-result-item strong {
+    display: block;
+    color: #111827;
+    font-weight: 700;
+}
+
+.item-search-result-item small {
+    display: block;
+    color: #6b7280;
+    margin-top: 3px;
+}
+
+.item-search-empty {
+    padding: 14px;
+    text-align: center;
+    color: #6b7280;
+}
+
 .claim-student-card,
 .claim-student-card .form-group,
 .qr-code-card,

@@ -30,29 +30,54 @@ class ClaimController extends Controller
 
         $claimItemsQuery = ClaimItem::query();
 
-        if ($request->filled('claim_item_search')) {
-            $claimItemSearch = trim($request->get('claim_item_search', ''));
-            if ($claimItemSearch !== '') {
-                $claimItemsQuery->where(function ($query) use ($claimItemSearch) {
-                    $query->where('item_name', 'like', "%{$claimItemSearch}%")
-                          ->orWhere('description', 'like', "%{$claimItemSearch}%");
-                });
-            }
+        $claimItemSearch = trim($request->get('claim_item_search', ''));
+        $claimItemStatus = $request->get('claim_item_status');
+        $claimItemMinPoints = $request->get('claim_item_min_points');
+        $claimItemMaxPoints = $request->get('claim_item_max_points');
+
+        if ($claimItemSearch !== '') {
+            $claimItemsQuery->where(function ($query) use ($claimItemSearch) {
+                if (\Schema::hasColumn('claim_items', 'item_name')) {
+                    $query->where('item_name', 'like', "%{$claimItemSearch}%");
+                }
+
+                if (\Schema::hasColumn('claim_items', 'name')) {
+                    $query->orWhere('name', 'like', "%{$claimItemSearch}%");
+                }
+
+                if (\Schema::hasColumn('claim_items', 'description')) {
+                    $query->orWhere('description', 'like', "%{$claimItemSearch}%");
+                }
+            });
         }
 
-        if ($request->filled('claim_item_status') && $request->claim_item_status !== 'All Status') {
-            $claimItemsQuery->where('status', $request->claim_item_status);
+        if (!empty($claimItemStatus)) {
+            $claimItemsQuery->where('status', $claimItemStatus);
         }
 
-        if ($request->filled('claim_item_min_points')) {
-            $claimItemsQuery->where('points_required', '>=', $request->claim_item_min_points);
+        if ($claimItemMinPoints !== null && $claimItemMinPoints !== '') {
+            $claimItemsQuery->where('points_required', '>=', $claimItemMinPoints);
         }
 
-        if ($request->filled('claim_item_max_points')) {
-            $claimItemsQuery->where('points_required', '<=', $request->claim_item_max_points);
+        if ($claimItemMaxPoints !== null && $claimItemMaxPoints !== '') {
+            $claimItemsQuery->where('points_required', '<=', $claimItemMaxPoints);
         }
 
-        $claimItems = $claimItemsQuery->orderByDesc('created_at')->paginate(15)->withQueryString();
+        $claimItems = $claimItemsQuery
+            ->orderByDesc('created_at')
+            ->get();
+
+        $claimItemsForSearch = ClaimItem::query()
+            ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
+            ->get();
+
+        \Log::info('Claim Items Filter Debug', [
+            'claim_item_search' => $request->get('claim_item_search'),
+            'claim_item_status' => $request->get('claim_item_status'),
+            'claim_item_min_points' => $request->get('claim_item_min_points'),
+            'claim_item_max_points' => $request->get('claim_item_max_points'),
+            'claim_items_count' => $claimItems->count(),
+        ]);
 
         // Pending claims with role filtering
         $pendingQuery = StudentClaim::with(['student', 'item'])
@@ -257,7 +282,7 @@ class ClaimController extends Controller
         }
 
         return view('pages.claims', compact(
-            'claimItems', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
+            'claimItems', 'claimItemsForSearch', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
             'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim'
         ));
     }
