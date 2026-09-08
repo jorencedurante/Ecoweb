@@ -57,7 +57,16 @@ class QrCodeController extends Controller
             $qrCode = QrCode::with('student')->find($generatedId);
         }
 
-        return view('pages.qrcode', compact('qrCodes', 'qrCode'));
+        // Students for QR select dropdown
+        $studentsForQrQuery = Student::whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $studentsForQrQuery->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $studentsForQr = $studentsForQrQuery->orderBy('last_name')->orderBy('first_name')->get();
+
+        return view('pages.qrcode', compact('qrCodes', 'qrCode', 'studentsForQr'));
     }
 
     public function generate(Request $request)

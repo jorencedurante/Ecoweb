@@ -155,6 +155,15 @@ class ClaimController extends Controller
         $availableItems = ClaimItem::where('status', 'Available')->where('quantity', '>', 0)->get();
         $allClaimItems = ClaimItem::orderBy('item_name')->get();
 
+        // Students for claim select dropdown
+        $studentsForClaimQuery = Student::query()->whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $studentsForClaimQuery->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $studentsForClaim = $studentsForClaimQuery->orderBy('last_name')->orderBy('first_name')->get();
+
         // Approved claims grouped by student (Admin/Super Admin only)
         $approvedClaimsByStudent = collect();
         if (in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
@@ -264,7 +273,7 @@ class ClaimController extends Controller
 
         return view('pages.claims', compact(
             'items', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
-            'approvedClaimsByStudent', 'archivedClaimsByStudent'
+            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim'
         ));
     }
 
