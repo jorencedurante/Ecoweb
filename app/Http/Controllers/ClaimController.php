@@ -71,6 +71,15 @@ class ClaimController extends Controller
             ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
             ->get();
 
+        $studentsForHistorySearch = Student::query()
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        $itemsForHistorySearch = ClaimItem::query()
+            ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
+            ->get();
+
         \Log::info('Claim Items Filter Debug', [
             'claim_item_search' => $request->get('claim_item_search'),
             'claim_item_status' => $request->get('claim_item_status'),
@@ -283,7 +292,7 @@ class ClaimController extends Controller
 
         return view('pages.claims', compact(
             'claimItems', 'claimItemsForSearch', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
-            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim'
+            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim', 'studentsForHistorySearch', 'itemsForHistorySearch'
         ));
     }
 
