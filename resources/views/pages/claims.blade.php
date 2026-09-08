@@ -126,11 +126,25 @@
                     @if($errors->has('claim_error'))
                         <div class="claim-error-message" role="alert">{{ $errors->first('claim_error') }}</div>
                     @endif
-                    <div class="student-search-wrapper">
-                        <label>Select Student</label>
-                        <input type="text" id="claimStudentSearchInput" name="student_display" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" value="{{ old('student_display') }}" aria-label="Select student">
-                        <input type="hidden" name="student_id" id="claimSelectedStudentId" value="{{ old('student_id') }}" aria-label="Select student">
-                        <div id="claimStudentSearchResults" class="student-search-results"></div>
+                    <div class="form-group">
+                        <label for="claimStudentSelect">Select Student</label>
+                        <select id="claimStudentSelect" name="student_id" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;">
+                            <option value="">Select student</option>
+                            @foreach ($studentsForClaim as $student)
+                                @php
+                                    $studentName = $student->full_name ?? trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+                                    $studentLrn = $student->lrn ?? $student->student_id ?? '';
+                                    $studentPoints = $student->total_points ?? $student->points ?? $student->current_points ?? 0;
+                                @endphp
+                                <option
+                                    value="{{ $student->id }}"
+                                    data-points="{{ $studentPoints }}"
+                                    {{ old('student_id') == $student->id ? 'selected' : '' }}
+                                >
+                                    {{ $studentName ?: 'Unnamed Student' }} — LRN: {{ $studentLrn }} — {{ $student->grade_level ?? $student->grade ?? '' }}
+                                </option>
+                            @endforeach
+                        </select>
                         @error('student_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -498,118 +512,20 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('CLAIM STUDENT SEARCH SCRIPT LOADED');
-
-    var input = document.getElementById('claimStudentSearchInput');
-    var resultsBox = document.getElementById('claimStudentSearchResults');
-    var hiddenInput = document.getElementById('claimSelectedStudentId');
+    var studentSelect = document.getElementById('claimStudentSelect');
     var pointsBox = document.getElementById('studentPointsBox');
     var itemSelect = document.getElementById('claim_item_id');
     var itemCost = document.getElementById('item_cost_display');
     var submitBtn = document.getElementById('claimSubmitBtn');
 
-    if (!input || !resultsBox || !hiddenInput) {
-        console.error('Claim student search elements missing', {
-            input: input,
-            resultsBox: resultsBox,
-            hiddenInput: hiddenInput
+    if (studentSelect) {
+        studentSelect.addEventListener('change', function () {
+            var selectedOption = studentSelect.options[studentSelect.selectedIndex];
+            var points = selectedOption && selectedOption.dataset ? selectedOption.dataset.points : '\u2014';
+            if (pointsBox) pointsBox.textContent = points || '\u2014';
+            checkSufficient();
         });
-        return;
     }
-
-    var searchUrl = '{{ route("claims.searchStudents") }}';
-
-    input.addEventListener('input', function () {
-        var query = input.value.trim();
-
-        console.log('Claim input event:', query);
-
-        hiddenInput.value = '';
-
-        if (pointsBox) pointsBox.textContent = '\u2014';
-
-        if (query.length < 2) {
-            resultsBox.innerHTML = '';
-            resultsBox.classList.remove('show');
-            resultsBox.style.display = 'none';
-            return;
-        }
-
-        fetch(searchUrl + '?search=' + encodeURIComponent(query), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        })
-        .then(function (response) {
-            console.log('Claim search status:', response.status);
-
-            if (!response.ok) {
-                throw new Error('Claim student search request failed');
-            }
-
-            return response.json();
-        })
-        .then(function (students) {
-            console.log('Claim search JSON:', students);
-
-            resultsBox.innerHTML = '';
-
-            if (!Array.isArray(students) || students.length === 0) {
-                resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
-                resultsBox.classList.add('show');
-                resultsBox.style.display = 'block';
-                return;
-            }
-
-            students.forEach(function (student) {
-                var name = student.name || 'Unnamed Student';
-                var lrn = student.lrn || student.student_id || 'No LRN';
-                var grade = student.grade_level || '';
-                var points = student.total_points || student.points || student.current_points || 0;
-
-                var button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'student-search-result-item';
-                button.innerHTML = '<strong>' + name + '</strong><small>LRN: ' + lrn + (grade ? ' &middot; ' + grade : '') + '</small>';
-
-                button.addEventListener('click', function () {
-                    input.value = name;
-                    hiddenInput.value = student.id;
-
-                    if (pointsBox) {
-                        pointsBox.textContent = points;
-                    }
-
-                    resultsBox.innerHTML = '';
-                    resultsBox.classList.remove('show');
-                    resultsBox.style.display = 'none';
-
-                    console.log('Selected claim student:', student);
-                });
-
-                resultsBox.appendChild(button);
-            });
-
-            resultsBox.classList.add('show');
-            resultsBox.style.display = 'block';
-        })
-        .catch(function (error) {
-            console.error('Claim student search frontend error:', error);
-            resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
-            resultsBox.classList.add('show');
-            resultsBox.style.display = 'block';
-        });
-    });
-
-    document.addEventListener('click', function (event) {
-        if (!event.target.closest('.student-search-wrapper')) {
-            resultsBox.classList.remove('show');
-            resultsBox.style.display = 'none';
-        }
-    });
 
     if (itemSelect) {
         itemSelect.addEventListener('change', function () {
@@ -630,14 +546,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- AJAX Filtering ---
-    const claimItemsForm = document.getElementById('claimItemsFilterForm');
-    const claimHistoryForm = document.getElementById('claimHistoryFilterForm');
-    const claimItemsContainer = document.getElementById('claimItemsTableContainer');
-    const claimHistoryContainer = document.getElementById('claimHistoryTableContainer');
+    var claimItemsForm = document.getElementById('claimItemsFilterForm');
+    var claimHistoryForm = document.getElementById('claimHistoryFilterForm');
+    var claimItemsContainer = document.getElementById('claimItemsTableContainer');
+    var claimHistoryContainer = document.getElementById('claimHistoryTableContainer');
 
     function submitFilter(form, container, url) {
-        const formData = new FormData(form);
-        const queryString = new URLSearchParams(formData).toString();
+        var formData = new FormData(form);
+        var queryString = new URLSearchParams(formData).toString();
         container.classList.add('loading');
         fetch(url + '?' + queryString, {
             headers: {
@@ -646,11 +562,11 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             credentials: 'same-origin'
         })
-        .then(response => {
+        .then(function (response) {
             if (!response.ok) throw new Error('Filter failed');
             return response.text();
         })
-        .then(html => {
+        .then(function (html) {
             container.innerHTML = html;
             container.classList.remove('loading');
         })
@@ -674,15 +590,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Edit Item Modal (event delegation for AJAX-refreshed rows) ---
-    const editModal = document.getElementById('editItemModal');
-    const editForm = document.getElementById('editItemForm');
-    const closeEditBtn = document.getElementById('closeEditItemModal');
-    const cancelEditBtn = document.getElementById('cancelEditItem');
+    var editModal = document.getElementById('editItemModal');
+    var editForm = document.getElementById('editItemForm');
+    var closeEditBtn = document.getElementById('closeEditItemModal');
+    var cancelEditBtn = document.getElementById('cancelEditItem');
 
     document.getElementById('claimItemsTableContainer').addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-edit-item');
+        var btn = e.target.closest('.btn-edit-item');
         if (!btn) return;
-        const id = btn.dataset.id;
+        var id = btn.dataset.id;
         editForm.action = '{{ url("admin/claim-items") }}/' + id;
         document.getElementById('editItemName').value = btn.dataset.name;
         document.getElementById('editItemDescription').value = btn.dataset.description || '';
@@ -706,8 +622,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Escape') closeEditItem();
     });
 
-    const clearClaimItemsFilter = document.getElementById('clearClaimItemsFilter');
-    const clearClaimHistoryFilter = document.getElementById('clearClaimHistoryFilter');
+    var clearClaimItemsFilter = document.getElementById('clearClaimItemsFilter');
+    var clearClaimHistoryFilter = document.getElementById('clearClaimHistoryFilter');
 
     if (clearClaimItemsFilter && claimItemsForm) {
         clearClaimItemsFilter.addEventListener('click', function () {
@@ -732,26 +648,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Approved by Student Filters ---
-    const approvedByStudentForm = document.getElementById('approvedByStudentFilterForm');
-    const approvedByStudentContainer = document.getElementById('approvedByStudentContainer');
+    var approvedByStudentForm = document.getElementById('approvedByStudentFilterForm');
+    var approvedByStudentContainer = document.getElementById('approvedByStudentContainer');
 
     if (approvedByStudentForm && approvedByStudentContainer) {
         approvedByStudentForm.addEventListener('submit', function (event) {
             event.preventDefault();
-            const formData = new FormData(approvedByStudentForm);
-            const queryString = new URLSearchParams(formData).toString();
+            var formData = new FormData(approvedByStudentForm);
+            var queryString = new URLSearchParams(formData).toString();
             window.location.href = '{{ route("claims.index") }}?' + queryString + '#approved-by-student-section';
         });
     }
 
-    const clearApprovedByStudentFilter = document.getElementById('clearApprovedByStudentFilter');
+    var clearApprovedByStudentFilter = document.getElementById('clearApprovedByStudentFilter');
     if (clearApprovedByStudentFilter && approvedByStudentForm) {
         clearApprovedByStudentFilter.addEventListener('click', function () {
             window.location.href = '{{ route("claims.index") }}#approved-by-student-section';
         });
     }
 
-    // Scroll to section if hash present
     if (window.location.hash === '#approved-by-student-section') {
         setTimeout(function () {
             var section = document.getElementById('approved-by-student-section');
