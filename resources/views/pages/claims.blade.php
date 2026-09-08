@@ -187,7 +187,24 @@
                 <h3>Claim Items</h3>
             </div>
             <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route('claims.index') }}#claim-items-section">
-                <input type="text" name="claim_item_search" value="{{ request('claim_item_search') }}" placeholder="Search item name..." aria-label="Search items">
+                <div class="item-search-wrapper">
+                    <input
+                        type="text"
+                        id="claimItemSearchInput"
+                        name="claim_item_search"
+                        value="{{ request('claim_item_search') }}"
+                        placeholder="Search item name..."
+                        autocomplete="off"
+                        aria-label="Search claim item"
+                    >
+                    <input
+                        type="hidden"
+                        id="claimSelectedItemName"
+                        name="claim_item_selected"
+                        value="{{ request('claim_item_selected') }}"
+                    >
+                    <div id="claimItemSearchResults" class="item-search-results"></div>
+                </div>
 
                 <select name="claim_item_status" aria-label="Filter by status">
                     <option value="">All Status</option>
@@ -200,7 +217,7 @@
                 <input type="number" name="claim_item_max_points" value="{{ request('claim_item_max_points') }}" placeholder="Max points" aria-label="Maximum points">
 
                 <button type="submit" class="btn-filter">Filter</button>
-                <a href="{{ route('claims.index') }}#claim-items-section" class="btn-clear">Clear</a>
+                <a href="{{ route('claims.index') }}#claim-items-section" id="clearClaimItemsFilter" class="btn-clear">Clear</a>
             </form>
         </div>
         <div id="claimItemsTableContainer">
@@ -529,6 +546,23 @@ $claimStudentsData = $studentsForClaim->map(function ($student) {
 <script>
 const claimStudents = @json($claimStudentsData);
 </script>
+@php
+$claimItemsSearchData = $claimItemsForSearch->map(function ($item) {
+    $itemName = $item->item_name ?? $item->name ?? 'Unnamed Item';
+
+    return [
+        'id' => $item->id,
+        'name' => $itemName,
+        'description' => $item->description ?? '',
+        'points_required' => $item->points_required ?? $item->points ?? 0,
+        'quantity' => $item->quantity ?? 0,
+        'status' => $item->status ?? '',
+    ];
+})->values()->toArray();
+@endphp
+<script>
+const claimItemsSearchData = @json($claimItemsSearchData);
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var pointsBox = document.getElementById('studentPointsBox');
@@ -649,6 +683,85 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Claim Items Search ---
+    var claimItemInput = document.getElementById('claimItemSearchInput');
+    var claimItemResults = document.getElementById('claimItemSearchResults');
+    var claimSelectedItemName = document.getElementById('claimSelectedItemName');
+
+    function closeItemResults() {
+        claimItemResults.innerHTML = '';
+        claimItemResults.classList.remove('show');
+    }
+
+    function renderItemResults(items) {
+        claimItemResults.innerHTML = '';
+
+        if (!items.length) {
+            claimItemResults.innerHTML = '<div class="item-search-empty">No items found.</div>';
+            claimItemResults.classList.add('show');
+            return;
+        }
+
+        items.slice(0, 10).forEach(function (item) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'item-search-result-item';
+
+            button.innerHTML =
+                '<strong>' + item.name + '</strong>' +
+                '<small>' + item.points_required + ' pts &middot; Qty: ' + item.quantity + ' &middot; ' + item.status + '</small>';
+
+            button.addEventListener('click', function () {
+                claimItemInput.value = item.name;
+                if (claimSelectedItemName) {
+                    claimSelectedItemName.value = item.name;
+                }
+                closeItemResults();
+            });
+
+            claimItemResults.appendChild(button);
+        });
+
+        claimItemResults.classList.add('show');
+    }
+
+    if (claimItemInput) {
+        claimItemInput.addEventListener('input', function () {
+            var search = claimItemInput.value.trim().toLowerCase();
+
+            if (claimSelectedItemName) {
+                claimSelectedItemName.value = '';
+            }
+
+            if (search.length < 1) {
+                closeItemResults();
+                return;
+            }
+
+            var filtered = claimItemsSearchData.filter(function (item) {
+                return (
+                    String(item.name || '').toLowerCase().includes(search) ||
+                    String(item.description || '').toLowerCase().includes(search) ||
+                    String(item.status || '').toLowerCase().includes(search)
+                );
+            });
+
+            renderItemResults(filtered);
+        });
+
+        claimItemInput.addEventListener('focus', function () {
+            if (claimItemInput.value.trim().length > 0) {
+                claimItemInput.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.item-search-wrapper')) {
+            closeItemResults();
+        }
+    });
+
     // --- AJAX Filtering ---
     var claimItemsForm = document.getElementById('claimItemsFilterForm');
     var claimHistoryForm = document.getElementById('claimHistoryFilterForm');
@@ -679,12 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (claimItemsForm && claimItemsContainer) {
-        claimItemsForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            submitFilter(claimItemsForm, claimItemsContainer, '{{ route("claims.items.filter") }}');
-        });
-    }
+    // Claim Items form submits normally via GET to claims.index (no AJAX interception)
 
     if (claimHistoryForm && claimHistoryContainer) {
         claimHistoryForm.addEventListener('submit', function (event) {
