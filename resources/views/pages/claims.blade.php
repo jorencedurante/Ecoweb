@@ -128,9 +128,9 @@
                     @endif
                     <div class="student-search-wrapper">
                         <label>Select Student</label>
-                        <input type="text" id="studentSearchInput" name="student_display" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" value="{{ old('student_display') }}" aria-label="Select student">
-                        <input type="hidden" name="student_id" id="selectedStudentId" value="{{ old('student_id') }}" aria-label="Select student">
-                        <div id="studentSearchResults" class="student-search-results"></div>
+                        <input type="text" id="claimStudentSearchInput" name="student_display" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" value="{{ old('student_display') }}" aria-label="Select student">
+                        <input type="hidden" name="student_id" id="claimSelectedStudentId" value="{{ old('student_id') }}" aria-label="Select student">
+                        <div id="claimStudentSearchResults" class="student-search-results"></div>
                         @error('student_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -498,106 +498,131 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // --- Student Search ---
-    const studentSearchInput = document.getElementById('studentSearchInput');
-    const selectedStudentId = document.getElementById('selectedStudentId');
-    const studentSearchResults = document.getElementById('studentSearchResults');
-    const studentPointsBox = document.getElementById('studentPointsBox');
-    const itemSelect = document.getElementById('claim_item_id');
-    const itemCost = document.getElementById('item_cost_display');
-    const submitBtn = document.getElementById('claimSubmitBtn');
+    console.log('CLAIM STUDENT SEARCH SCRIPT LOADED');
 
-    let searchTimeout = null;
+    var input = document.getElementById('claimStudentSearchInput');
+    var resultsBox = document.getElementById('claimStudentSearchResults');
+    var hiddenInput = document.getElementById('claimSelectedStudentId');
+    var pointsBox = document.getElementById('studentPointsBox');
+    var itemSelect = document.getElementById('claim_item_id');
+    var itemCost = document.getElementById('item_cost_display');
+    var submitBtn = document.getElementById('claimSubmitBtn');
 
-    if (studentSearchInput && selectedStudentId && studentSearchResults) {
-        studentSearchInput.addEventListener('input', function () {
-            const query = this.value.trim();
-            selectedStudentId.value = '';
-            if (studentPointsBox) studentPointsBox.textContent = '—';
-            checkSufficient();
-            clearTimeout(searchTimeout);
-            if (query.length < 2) {
-                studentSearchResults.innerHTML = '';
-                studentSearchResults.style.display = 'none';
+    if (!input || !resultsBox || !hiddenInput) {
+        console.error('Claim student search elements missing', {
+            input: input,
+            resultsBox: resultsBox,
+            hiddenInput: hiddenInput
+        });
+        return;
+    }
+
+    var searchUrl = '{{ route("claims.searchStudents") }}';
+
+    input.addEventListener('input', function () {
+        var query = input.value.trim();
+
+        console.log('Claim input event:', query);
+
+        hiddenInput.value = '';
+
+        if (pointsBox) pointsBox.textContent = '\u2014';
+
+        if (query.length < 2) {
+            resultsBox.innerHTML = '';
+            resultsBox.classList.remove('show');
+            resultsBox.style.display = 'none';
+            return;
+        }
+
+        fetch(searchUrl + '?search=' + encodeURIComponent(query), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function (response) {
+            console.log('Claim search status:', response.status);
+
+            if (!response.ok) {
+                throw new Error('Claim student search request failed');
+            }
+
+            return response.json();
+        })
+        .then(function (students) {
+            console.log('Claim search JSON:', students);
+
+            resultsBox.innerHTML = '';
+
+            if (!Array.isArray(students) || students.length === 0) {
+                resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
+                resultsBox.classList.add('show');
+                resultsBox.style.display = 'block';
                 return;
             }
-            searchTimeout = setTimeout(function () {
-                const searchUrl = '{{ route("claims.searchStudents") }}?search=' + encodeURIComponent(query);
-                console.log('Claim student search URL:', searchUrl);
-                console.log('Claim student search results container:', studentSearchResults);
-                fetch(searchUrl, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    credentials: 'same-origin'
-                })
-                    .then(response => {
-                        console.log('Claim student search HTTP status:', response.status, response.statusText);
-                        if (!response.ok) {
-                            throw new Error('HTTP ' + response.status + ' ' + response.statusText);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Claim student search raw response:', data);
-                        const students = Array.isArray(data) ? data : (data.data || data.students || []);
-                        console.log('Claim student search parsed students:', students);
-                        studentSearchResults.innerHTML = '';
-                        if (!students.length) {
-                            console.log('Claim student search: no results');
-                            studentSearchResults.innerHTML = '<div class="student-search-empty">No students found.</div>';
-                            studentSearchResults.style.display = 'block';
-                            return;
-                        }
-                        console.log('Claim student search: rendering', students.length, 'results');
-                        students.forEach(student => {
-                            const resultButton = document.createElement('button');
-                            resultButton.type = 'button';
-                            resultButton.className = 'student-search-result-item';
-                            resultButton.innerHTML = '<strong>' + student.name + '</strong><span>LRN: ' + (student.lrn ?? 'N/A') + ' | Student ID: ' + (student.student_id ?? 'N/A') + ' | ' + (student.grade_level ?? 'No grade') + ' | ' + (student.total_points ?? 0) + ' pts</span>';
-                            resultButton.addEventListener('click', function () {
-                                studentSearchInput.value = student.name + ' - LRN: ' + (student.lrn ?? 'N/A') + ' - ' + (student.total_points ?? 0) + ' pts';
-                                selectedStudentId.value = student.id;
-                                if (studentPointsBox) studentPointsBox.textContent = student.total_points ?? 0;
-                                studentSearchResults.innerHTML = '';
-                                studentSearchResults.style.display = 'none';
-                                const errorMessage = document.querySelector('.student-search-wrapper .field-error');
-                                if (errorMessage) errorMessage.style.display = 'none';
-                                checkSufficient();
-                            });
-                            studentSearchResults.appendChild(resultButton);
-                        });
-                        studentSearchResults.style.display = 'block';
-                        console.log('Claim student search: dropdown displayed');
-                    })
-                    .catch(function (error) {
-                        console.error('Claim student search error:', error.message, error);
-                        studentSearchResults.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
-                        studentSearchResults.style.display = 'block';
-                    });
-            }, 300);
-        });
 
-        document.addEventListener('click', function (event) {
-            if (!event.target.closest('.student-search-wrapper')) {
-                studentSearchResults.style.display = 'none';
-            }
+            students.forEach(function (student) {
+                var name = student.name || 'Unnamed Student';
+                var lrn = student.lrn || student.student_id || 'No LRN';
+                var grade = student.grade_level || '';
+                var points = student.total_points || student.points || student.current_points || 0;
+
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'student-search-result-item';
+                button.innerHTML = '<strong>' + name + '</strong><small>LRN: ' + lrn + (grade ? ' &middot; ' + grade : '') + '</small>';
+
+                button.addEventListener('click', function () {
+                    input.value = name;
+                    hiddenInput.value = student.id;
+
+                    if (pointsBox) {
+                        pointsBox.textContent = points;
+                    }
+
+                    resultsBox.innerHTML = '';
+                    resultsBox.classList.remove('show');
+                    resultsBox.style.display = 'none';
+
+                    console.log('Selected claim student:', student);
+                });
+
+                resultsBox.appendChild(button);
+            });
+
+            resultsBox.classList.add('show');
+            resultsBox.style.display = 'block';
+        })
+        .catch(function (error) {
+            console.error('Claim student search frontend error:', error);
+            resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
+            resultsBox.classList.add('show');
+            resultsBox.style.display = 'block';
         });
-    }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.student-search-wrapper')) {
+            resultsBox.classList.remove('show');
+            resultsBox.style.display = 'none';
+        }
+    });
 
     if (itemSelect) {
         itemSelect.addEventListener('change', function () {
-            const opt = this.options[this.selectedIndex];
-            itemCost.textContent = opt && opt.value ? (opt.dataset.points || '0') : '—';
+            var opt = this.options[this.selectedIndex];
+            itemCost.textContent = opt && opt.value ? (opt.dataset.points || '0') : '\u2014';
             checkSufficient();
         });
     }
 
     function checkSufficient() {
-        const pts = parseInt(studentPointsBox ? studentPointsBox.textContent : '0') || 0;
-        const cost = parseInt(itemCost ? itemCost.textContent : '0') || 0;
-        if (submitBtn && studentPointsBox && studentPointsBox.textContent !== '—' && itemCost && itemCost.textContent !== '—') {
+        var pts = parseInt(pointsBox ? pointsBox.textContent : '0') || 0;
+        var cost = parseInt(itemCost ? itemCost.textContent : '0') || 0;
+        if (submitBtn && pointsBox && pointsBox.textContent !== '\u2014' && itemCost && itemCost.textContent !== '\u2014') {
             submitBtn.textContent = pts >= cost ? 'Claim Item' : 'Insufficient Points';
             submitBtn.style.background = pts >= cost ? '#0ea5e9' : '#ef4444';
             submitBtn.style.opacity = '1';
