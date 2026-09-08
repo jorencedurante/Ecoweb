@@ -203,7 +203,7 @@
                 @if($bottleCollections->count() > 0)
                     <table class="detail-table">
                         <thead>
-                            <tr><th>Date</th><th>Time</th><th>Bottle Count</th><th>Points Earned</th></tr>
+                            <tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Bottle Count</th><th scope="col">Points Earned</th></tr>
                         </thead>
                         <tbody>
                             @foreach($bottleCollections as $c)

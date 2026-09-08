@@ -31,7 +31,8 @@ class QrCodeController extends Controller
                 $q->where('qr_type', 'like', "%{$search}%")
                   ->orWhere('qr_value', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                      $studentQuery->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
                                    ->orWhere('lrn', 'like', "%{$search}%")
                                    ->orWhere('student_id', 'like', "%{$search}%");
                   })
@@ -56,7 +57,16 @@ class QrCodeController extends Controller
             $qrCode = QrCode::with('student')->find($generatedId);
         }
 
-        return view('pages.qrcode', compact('qrCodes', 'qrCode'));
+        // Students for QR select dropdown
+        $studentsForQrQuery = Student::whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $studentsForQrQuery->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $studentsForQr = $studentsForQrQuery->orderBy('last_name')->orderBy('first_name')->get();
+
+        return view('pages.qrcode', compact('qrCodes', 'qrCode', 'studentsForQr'));
     }
 
     public function generate(Request $request)
@@ -141,5 +151,40 @@ class QrCodeController extends Controller
         $qrSvg = $result->getString();
 
         return view('pages.qrcode-print', compact('qrCode', 'qrValue', 'qrSvg'));
+    }
+
+    public function searchStudents(Request $request)
+    {
+        $search = trim($request->get('search', $request->get('q', '')));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $students = Student::query()
+            ->where(function ($query) use ($search) {
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('lrn', 'like', "%{$search}%")
+                    ->orWhere('student_id', 'like', "%{$search}%");
+
+                if (\Schema::hasColumn('students', 'middle_name')) {
+                    $query->orWhere('middle_name', 'like', "%{$search}%");
+                }
+            })
+            ->limit(10)
+            ->get();
+
+        return response()->json($students->map(function ($student) {
+            $name = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+
+            return [
+                'id' => $student->id,
+                'name' => $name ?: 'Unnamed Student',
+                'lrn' => $student->lrn ?? '',
+                'student_id' => $student->student_id ?? '',
+                'grade_level' => $student->grade_level ?? '',
+            ];
+        }));
     }
 }

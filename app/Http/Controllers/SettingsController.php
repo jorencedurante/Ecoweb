@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\SystemSetting;
-use App\Models\NotificationSetting;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,13 +13,9 @@ class SettingsController extends Controller
     public function index()
     {
         $settings = SystemSetting::firstOrCreate(['id' => 1]);
-        $notificationSettings = NotificationSetting::firstOrCreate(
-            ['user_id' => Auth::id()],
-            ['bottle_collection_reports' => true, 'system_alerts' => true, 'email_notifications' => true]
-        );
         $user = Auth::user();
 
-        return view('pages.settings', compact('settings', 'notificationSettings', 'user'));
+        return view('pages.settings', compact('settings', 'user'));
     }
 
     public function updateGeneral(Request $request)
@@ -41,24 +36,6 @@ class SettingsController extends Controller
         ]);
 
         return redirect()->route('admin.settings')->with('success', 'General settings saved successfully!');
-    }
-
-    public function updateNotifications(Request $request)
-    {
-        $validated = $request->validate([
-            'bottle_collection_reports' => 'nullable|boolean',
-            'system_alerts' => 'nullable|boolean',
-        ]);
-
-        NotificationSetting::updateOrCreate(
-            ['user_id' => Auth::id()],
-            [
-                'bottle_collection_reports' => $request->boolean('bottle_collection_reports'),
-                'system_alerts' => $request->boolean('system_alerts'),
-            ]
-        );
-
-        return redirect()->route('admin.settings')->with('success', 'Notification settings saved successfully!');
     }
 
     public function updateSecurity(Request $request)

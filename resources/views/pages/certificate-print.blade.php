@@ -18,31 +18,11 @@
         html, body {
             margin: 0;
             padding: 0;
-            background: #f3f4f6;
+            background: #ffffff;
         }
 
         * {
             box-sizing: border-box;
-        }
-
-        .print-toolbar {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .print-btn {
-            background: #22c55e;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 32px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .print-btn:hover {
-            opacity: 0.9;
         }
 
         .certificate-print-page {
@@ -59,7 +39,6 @@
             height: 794px;
             background: #ffffff;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
         }
 
         .certificate-bg {
@@ -85,6 +64,10 @@
         }
 
         @media print {
+            .no-print {
+                display: none !important;
+            }
+
             html, body {
                 width: 297mm;
                 height: 210mm;
@@ -92,13 +75,6 @@
                 padding: 0 !important;
                 background: #ffffff !important;
                 overflow: hidden !important;
-            }
-
-            .no-print,
-            .print-toolbar,
-            button,
-            .btn {
-                display: none !important;
             }
 
             .certificate-print-page {
@@ -143,10 +119,6 @@
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
-    <div class="print-toolbar no-print">
-        <button onclick="window.print()" class="print-btn">Print</button>
-    </div>
-
     @if($canvasData && is_array($canvasData) && count($canvasData) > 0 && $fileUrl && $isImage)
     <div class="certificate-print-page">
         <div class="certificate-canvas">
@@ -184,12 +156,11 @@
     @endif
 
     <script>
-        window.onload = function () {
-            var params = new URLSearchParams(window.location.search);
-            if (params.get('print') === '1') {
-                setTimeout(function () { window.print(); }, 500);
-            }
-        };
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                window.print();
+            }, 500);
+        });
     </script>
 </body>
 </html>

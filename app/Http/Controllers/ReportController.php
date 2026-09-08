@@ -36,7 +36,7 @@ class ReportController extends Controller
 
         $topStudents = (clone $studentsBase)
             ->orderBy('total_points', 'desc')
-            ->take(5)
+            ->take(Auth::user()->isTeacher() ? 3 : 10)
             ->get();
 
         return view('pages.reports', compact(
@@ -368,5 +368,282 @@ class ReportController extends Controller
         }
 
         return view('pages.admin-activities', compact('teacherGroups', 'teachers', 'gradeLevels'));
+    }
+
+    // ==================== PRINT METHODS ====================
+
+    private function applyTeacherScope($query)
+    {
+        return $query->whereHas('enrollments', function ($q) {
+            $q->where('teacher_id', Auth::id())->where('status', 'active');
+        });
+    }
+
+    public function printTopStudents()
+    {
+        $isTeacher = Auth::user()->isTeacher();
+
+        $query = Student::whereNotIn('status', ['Archived', 'archived']);
+
+        if ($isTeacher) {
+            $this->applyTeacherScope($query);
+        }
+
+        $topStudents = $query
+            ->orderBy('total_points', 'desc')
+            ->take($isTeacher ? 3 : 10)
+            ->get();
+
+        $title = $isTeacher ? 'Top 3 Students Report' : 'Top 10 Overall Students Report';
+
+        return view('pages.reports.print.top-students', compact('topStudents', 'title', 'isTeacher'));
+    }
+
+    public function printStudentRanking(Request $request)
+    {
+        if (Auth::user()->isTeacher()) {
+            return $this->printTeacherStudentRanking($request);
+        }
+
+        $baseQuery = Student::whereNotIn('status', ['Archived', 'archived']);
+        $baseQuery->visibleTo(Auth::user());
+
+        if ($gradeLevel = $request->get('grade_level')) {
+            $baseQuery->where('grade_level', $gradeLevel);
+        }
+        if ($gender = $request->get('gender')) {
+            $baseQuery->where('gender', $gender);
+        }
+        if ($search = $request->get('search')) {
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('student_id', 'like', "%{$search}%")
+                  ->orWhere('lrn', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('grade_level', 'like', "%{$search}%")
+                  ->orWhere('gender', 'like', "%{$search}%");
+            });
+        }
+
+        [$startDate, $endDate] = $this->getQuarterDateRange($request->get('quarter'));
+
+        if ($startDate && $endDate) {
+            $baseQuery->withSum(['bottleCollections as bottles_collected' => function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('collection_date', [$startDate, $endDate]);
+            }], 'bottle_count');
+        } else {
+            $baseQuery->withSum('bottleCollections as bottles_collected', 'bottle_count');
+        }
+
+        $students = $baseQuery->orderBy('full_name')->get();
+
+        return view('pages.reports.print.student-report', [
+            'students' => $students,
+            'title' => 'Student Report',
+            'isTeacher' => false,
+        ]);
+    }
+
+    private function printTeacherStudentRanking(Request $request)
+    {
+        $query = Student::whereNotIn('status', ['Archived', 'archived'])
+            ->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query
+            ->with('enrollments')
+            ->withSum('bottleCollections as total_bottles', 'bottle_count')
+            ->withCount('claims as total_claims')
+            ->withMax('bottleCollections as latest_collection_date', 'collection_date')
+            ->orderByDesc('total_points')
+            ->orderByDesc('total_bottles')
+            ->get();
+
+        return view('pages.reports.print.student-report', [
+            'students' => $students,
+            'title' => 'Student Ranking Report',
+            'isTeacher' => true,
+        ]);
+    }
+
+    public function printBottleCollection(Request $request)
+    {
+        $isTeacher = Auth::user()->isTeacher();
+
+        $baseQuery = BottleCollection::with('student');
+
+        if ($isTeacher) {
+            $baseQuery->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        if ($day = $request->get('day')) {
+            $baseQuery->whereDay('collection_date', $day);
+        }
+        if ($month = $request->get('month')) {
+            $monthNames = [
+                'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
+                'May' => 5, 'June' => 6, 'July' => 7, 'August' => 8,
+                'September' => 9, 'October' => 10, 'November' => 11, 'December' => 12
+            ];
+            $monthNum = is_numeric($month) ? $month : ($monthNames[$month] ?? null);
+            if ($monthNum) {
+                $baseQuery->whereMonth('collection_date', $monthNum);
+            }
+        }
+        if ($year = $request->get('year')) {
+            $baseQuery->whereYear('collection_date', $year);
+        }
+        if ($quarter = $request->get('quarter')) {
+            [$startDate, $endDate] = $this->getQuarterDateRange($quarter);
+            if ($startDate && $endDate) {
+                $baseQuery->whereBetween('collection_date', [$startDate, $endDate]);
+            }
+        }
+        if ($search = $request->get('search')) {
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('bottle_count', 'like', "%{$search}%")
+                  ->orWhereDate('collection_date', $search)
+                  ->orWhereTime('collection_time', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($search) {
+                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                                   ->orWhere('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $collections = $baseQuery->orderBy('collection_date', 'desc')->get();
+
+        return view('pages.reports.print.bottle-collection', [
+            'collections' => $collections,
+            'title' => 'Bottle Collection Report',
+            'isTeacher' => $isTeacher,
+        ]);
+    }
+
+    public function printItemClaims(Request $request)
+    {
+        $query = Student::whereNotIn('status', ['Archived', 'archived'])
+            ->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query
+            ->with('enrollments')
+            ->with('claims')
+            ->withCount('claims as total_claims')
+            ->withSum('claims as total_points_used', 'points_deducted')
+            ->withMax('claims as latest_claim_date', 'claim_date')
+            ->orderByDesc('total_claims')
+            ->get();
+
+        return view('pages.reports.print.item-claims', [
+            'students' => $students,
+            'title' => 'Item Claims Report',
+        ]);
+    }
+
+    public function printStudentActivities(Request $request)
+    {
+        $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+
+        $teacherFilter = $request->get('teacher_id');
+        $gradeLevel = $request->get('grade_level');
+        $search = $request->get('search');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $teachers = User::where('role', 'teacher')
+            ->where('status', 'active')
+            ->when($teacherFilter, function ($q) use ($teacherFilter) {
+                $q->where('id', $teacherFilter);
+            })
+            ->orderBy('name')
+            ->get();
+
+        $teacherGroups = [];
+        foreach ($teachers as $teacher) {
+            $students = Student::whereNotIn('status', ['Archived', 'archived'])
+                ->whereTeacher($teacher->id)
+                ->when($gradeLevel, function ($q) use ($gradeLevel) {
+                    $q->where('grade_level', $gradeLevel);
+                })
+                ->when($search, function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('lrn', 'like', "%{$search}%")
+                           ->orWhere('student_id', 'like', "%{$search}%")
+                           ->orWhere('full_name', 'like', "%{$search}%")
+                           ->orWhere('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%");
+                    });
+                })
+                ->with('enrollments')
+                ->withSum(['bottleCollections as total_bottles' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('collection_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('collection_date', '<=', $dateTo);
+                    });
+                }], 'bottle_count')
+                ->withCount(['claims as total_claims' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
+                }])
+                ->withMax(['bottleCollections as latest_collection_date' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('collection_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('collection_date', '<=', $dateTo);
+                    });
+                }], 'collection_date')
+                ->withMax(['claims as latest_claim_date' => function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
+                }], 'claim_date')
+                ->orderByDesc('total_points')
+                ->orderByDesc('total_bottles')
+                ->get();
+
+            $teacherGroups[] = [
+                'teacher' => $teacher,
+                'students' => $students,
+            ];
+        }
+
+        return view('pages.reports.print.student-activities', [
+            'teacherGroups' => $teacherGroups,
+            'title' => 'Student Activities Report',
+        ]);
     }
 }

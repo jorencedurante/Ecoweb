@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Auth\Events\PasswordReset;
 use App\Mail\SendOtpMail;
 use App\Models\User;
@@ -116,9 +117,9 @@ class AuthController extends Controller
 
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
-            \Log::info('OTP email sent successfully to: ' . $user->email);
+            Log::info('OTP email sent successfully to: ' . $user->email);
         } catch (\Exception $e) {
-            \Log::error('OTP email failed during registration: ' . $e->getMessage());
+            Log::error('OTP email failed during registration: ' . $e->getMessage());
             $user->delete();
             return redirect()->route('register')
                 ->withInput()
@@ -210,9 +211,9 @@ class AuthController extends Controller
 
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
-            \Log::info('OTP email sent successfully to: ' . $user->email);
+            Log::info('OTP email sent successfully to: ' . $user->email);
         } catch (\Exception $e) {
-            \Log::error('OTP email failed on resend: ' . $e->getMessage());
+            Log::error('OTP email failed on resend: ' . $e->getMessage());
             $user->update([
                 'email_verification_code' => null,
                 'email_verification_expires_at' => null,

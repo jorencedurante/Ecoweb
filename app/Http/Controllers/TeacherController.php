@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
@@ -81,9 +82,9 @@ class TeacherController extends Controller
 
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
-            \Log::info('OTP email sent successfully to: ' . $user->email);
+            Log::info('OTP email sent successfully to: ' . $user->email);
         } catch (\Exception $e) {
-            \Log::error('OTP email failed on account creation: ' . $e->getMessage());
+            Log::error('OTP email failed on account creation: ' . $e->getMessage());
             $user->delete();
             return redirect()->back()->withInput()->withErrors(['email' => 'Unable to send verification email. Please check the mail server settings or try again later.']);
         }

@@ -25,12 +25,12 @@
                 <h3>Create Super Admin</h3>
                 <p class="subtitle">Set up your system administrator account</p>
                 @if(session('error'))
-                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
+                    <div role="alert" style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
                         {{ session('error') }}
                     </div>
                 @endif
                 @if($errors->any())
-                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
+                    <div role="alert" style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -39,35 +39,35 @@
                 <form method="POST" action="{{ route('setup.store') }}">
                     @csrf
                     <div class="form-group">
-                        <label>Full Name</label>
+                        <label for="setup-name">Full Name</label>
                         <div class="input-wrapper">
-                            <input type="text" name="name" placeholder="Enter full name" value="{{ old('name') }}" required autofocus>
+                            <input type="text" id="setup-name" name="name" placeholder="Enter full name" value="{{ old('name') }}" required autofocus>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Username</label>
+                        <label for="setup-username">Username</label>
                         <div class="input-wrapper">
-                            <input type="text" name="username" placeholder="Choose a username" value="{{ old('username') }}" required>
+                            <input type="text" id="setup-username" name="username" placeholder="Choose a username" value="{{ old('username') }}" required>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Email</label>
+                        <label for="setup-email">Email</label>
                         <div class="input-wrapper">
-                            <input type="email" name="email" placeholder="Enter email address" value="{{ old('email') }}" required>
+                            <input type="email" id="setup-email" name="email" placeholder="Enter email address" value="{{ old('email') }}" required>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
+                        <label for="setup-password">Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password" id="password" placeholder="Create a password (min. 8 characters)" required>
-                            <button type="button" class="password-toggle" data-target="password" aria-label="Show or hide password">👁</button>
+                            <input type="password" id="setup-password" name="password" placeholder="Create a password (min. 8 characters)" required>
+                            <button type="button" class="password-toggle" data-target="setup-password" aria-label="Show or hide password">👁</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Confirm Password</label>
+                        <label for="setup-password-confirmation">Confirm Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password_confirmation" id="password_confirmation" placeholder="Confirm password" required>
-                            <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show or hide confirm password">👁</button>
+                            <input type="password" id="setup-password-confirmation" name="password_confirmation" placeholder="Confirm password" required>
+                            <button type="button" class="password-toggle" data-target="setup-password-confirmation" aria-label="Show or hide confirm password">👁</button>
                         </div>
                     </div>
                     <div class="password-confirm-alert" style="display: none;">

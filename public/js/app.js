@@ -278,24 +278,3 @@ function initPagination() {
         });
     });
 }
-
-// ---------- View Report / Back Navigation ----------
-function viewReport(url) {
-    // Placeholder navigation - in real app this would navigate to route
-    window.location.href = url;
-}
-
-// ---------- Archive / Delete (Placeholder) ----------
-function archiveStudent(studentId) {
-    if (confirm('Are you sure you want to archive this student?')) {
-        // TODO: Send archive request to backend
-        alert(`Student ${studentId} archived! (Placeholder - no database connected)`);
-    }
-}
-
-function archiveTeacher(teacherId) {
-    if (confirm('Are you sure you want to remove this teacher?')) {
-        // TODO: Send delete request to backend
-        alert(`Teacher ${teacherId} removed! (Placeholder - no database connected)`);
-    }
-}

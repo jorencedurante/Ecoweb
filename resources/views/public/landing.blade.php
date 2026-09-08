@@ -74,7 +74,7 @@
             </div>
             <div class="search-card-right">
                 <form method="GET" action="{{ route('student.lookup') }}" class="student-search-form">
-                    <input type="text" name="lrn" placeholder="Enter your LRN" value="{{ request('lrn') }}" required>
+                    <input type="text" name="lrn" placeholder="Enter your LRN" value="{{ request('lrn') }}" required aria-label="Enter your LRN">
                     <button type="submit">🔍 Search</button>
                 </form>
             </div>
@@ -107,13 +107,13 @@
         </section>
     @elseif(session('error'))
         <section class="preview-section">
-            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;">
+            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;" role="alert">
                 <p style="font-size:15px;font-weight:500;">{{ session('error') }}</p>
             </div>
         </section>
     @elseif($errors->any())
         <section class="preview-section">
-            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;">
+            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;" role="alert">
                 <p style="font-size:15px;font-weight:500;">{{ $errors->first('lrn') }}</p>
             </div>
         </section>
@@ -127,13 +127,13 @@
 
     @if(session('success'))
         <section class="preview-section">
-            <div class="public-alert success">{{ session('success') }}</div>
+            <div class="public-alert success" role="status">{{ session('success') }}</div>
         </section>
     @endif
 
     @if($errors->any())
         <section class="preview-section">
-            <div class="public-alert error">{{ $errors->first() }}</div>
+            <div class="public-alert error" role="alert">{{ $errors->first() }}</div>
         </section>
     @endif
 
@@ -145,8 +145,9 @@
         <div class="ts-grid">
             <div class="ts-card">
                 <div class="ts-card-title">📅 Current Quarter</div>
+                <div class="table-responsive">
                 <table class="ts-table">
-                    <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
+                    <thead><tr><th scope="col">Rank</th><th scope="col">Student Name</th><th scope="col">Points</th><th scope="col">Bottle Collections</th></tr></thead>
                     <tbody>
                         @forelse($currentQuarterTopStudents as $index => $student)
                             <tr>
@@ -160,11 +161,13 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
             <div class="ts-card">
                 <div class="ts-card-title">📅 Previous Quarter</div>
+                <div class="table-responsive">
                 <table class="ts-table">
-                    <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
+                    <thead><tr><th scope="col">Rank</th><th scope="col">Student Name</th><th scope="col">Points</th><th scope="col">Bottle Collections</th></tr></thead>
                     <tbody>
                         @forelse($previousQuarterTopStudents as $index => $student)
                             <tr>
@@ -178,6 +181,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </section>

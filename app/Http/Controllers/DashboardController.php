@@ -4,12 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Models\BottleCollection;
-use App\Models\Teacher;
 use App\Models\User;
 use App\Models\CertificateAward;
 use App\Models\StudentClaim;
 use App\Models\ClaimItem;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller

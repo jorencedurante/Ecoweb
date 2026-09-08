@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class AccountSettingsController extends Controller
 {
@@ -49,9 +50,13 @@ class AccountSettingsController extends Controller
 
             try {
                 Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-                \Log::info('Email change OTP sent to old email: ' . $oldEmail);
-            } catch (\Exception $e) {
-                \Log::error('Email change OTP failed: ' . $e->getMessage());
+                Log::info('Email change OTP sent to old email: ' . $oldEmail);
+            } catch (\Throwable $e) {
+                Log::error('Email change OTP sending failed', [
+                    'user_id' => auth()->id(),
+                    'email' => auth()->user()->email,
+                    'error' => $e->getMessage(),
+                ]);
                 $user->update([
                     'email_change_otp' => null,
                     'email_change_otp_expires_at' => null,
@@ -165,9 +170,13 @@ class AccountSettingsController extends Controller
 
         try {
             Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-            \Log::info('Email change OTP resent to old email: ' . $oldEmail);
-        } catch (\Exception $e) {
-            \Log::error('Email change OTP resend failed: ' . $e->getMessage());
+            Log::info('Email change OTP resent to old email: ' . $oldEmail);
+        } catch (\Throwable $e) {
+            Log::error('Email change OTP sending failed', [
+                'user_id' => auth()->id(),
+                'email' => auth()->user()->email,
+                'error' => $e->getMessage(),
+            ]);
             $user->update([
                 'email_change_otp' => null,
                 'email_change_otp_expires_at' => null,

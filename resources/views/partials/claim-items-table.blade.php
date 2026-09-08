@@ -1,15 +1,16 @@
 <div class="table-wrapper">
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Item Name</th>
-                <th>Description</th>
-                <th>Points Required</th>
-                <th>Quantity</th>
-                <th>Status</th>
-                <th>Created By</th>
-                <th>Actions</th>
+                <th scope="col">#</th>
+                <th scope="col">Item Name</th>
+                <th scope="col">Description</th>
+                <th scope="col">Points Required</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created By</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -24,7 +25,7 @@
                 <td><span style="color:{{ $displayStatus === 'Available' ? 'var(--green)' : 'var(--gray)' }};">{{ $displayStatus }}</span></td>
                 <td>{{ $i->creator->name ?? 'System' }}</td>
                 <td class="action-buttons">
-                    <button type="button" class="btn-edit-item" title="Edit Item"
+                    <button type="button" class="btn-edit-item" title="Edit Item" aria-label="Edit"
                         data-id="{{ $i->id }}"
                         data-name="{{ $i->item_name }}"
                         data-description="{{ $i->description }}"
@@ -40,6 +41,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
     @if($claimItems->hasPages())
     <div class="pagination">
         <span class="page-info">Showing {{ $claimItems->firstItem() }} to {{ $claimItems->lastItem() }} of {{ $claimItems->total() }} entries</span>

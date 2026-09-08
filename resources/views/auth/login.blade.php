@@ -25,10 +25,10 @@
                 <h3>Login to Your Account</h3>
                 <p class="subtitle">Enter your credentials to continue</p>
                 @if(session('success'))
-                    <div class="auto-dismiss-alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
                 @endif
                 @if($errors->any())
-                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -37,16 +37,16 @@
                 <form method="POST" action="{{ route('login.submit') }}">
                     @csrf
                     <div class="form-group">
-                        <label>Email or Username</label>
+                        <label for="login">Email or Username</label>
                         <div class="input-wrapper">
-                            <input type="text" name="login" placeholder="Enter email or username" value="{{ old('login') }}" required autofocus>
+                            <input type="text" id="login" name="login" placeholder="Enter email or username" value="{{ old('login') }}" required autofocus>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
+                        <label for="password-login">Password</label>
                         <div class="input-wrapper">
-                            <input type="password" name="password" placeholder="Enter your password" required>
-                            <button type="button" class="toggle-pw">👁</button>
+                            <input type="password" id="password-login" name="password" placeholder="Enter your password" required>
+                            <button type="button" class="toggle-pw" aria-label="Toggle password visibility">👁</button>
                         </div>
                     </div>
                     <div class="checkbox-row">

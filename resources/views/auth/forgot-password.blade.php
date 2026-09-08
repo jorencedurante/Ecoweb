@@ -25,10 +25,10 @@
                 <h3>Reset Password</h3>
                 <p class="subtitle">Enter your registered email address</p>
                 @if(session('success'))
-                    <div class="auto-dismiss-alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(0,200,83,0.08);border:1px solid #22c55e;color:#166534;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:16px;">{{ session('success') }}</div>
                 @endif
                 @if($errors->any())
-                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -37,9 +37,9 @@
                 <form method="POST" action="{{ route('password.email') }}">
                     @csrf
                     <div class="form-group">
-                        <label>Email Address</label>
+                        <label for="forgot-email">Email Address</label>
                         <div class="input-wrapper">
-                            <input type="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required autofocus>
+                            <input type="email" id="forgot-email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required autofocus>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Send Password Reset Link</button>

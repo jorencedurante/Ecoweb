@@ -25,7 +25,7 @@
                 <h3>Set New Password</h3>
                 <p class="subtitle">Enter your new password below</p>
                 @if($errors->any())
-                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -35,23 +35,23 @@
                     @csrf
                     <input type="hidden" name="token" value="{{ $token }}">
                     <div class="form-group">
-                        <label>Email Address</label>
+                        <label for="reset-email">Email Address</label>
                         <div class="input-wrapper">
-                            <input type="email" name="email" placeholder="Enter your email" value="{{ old('email', $email ?? '') }}" required autofocus>
+                            <input type="email" id="reset-email" name="email" placeholder="Enter your email" value="{{ old('email', $email ?? '') }}" required autofocus>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>New Password</label>
+                        <label for="reset-password">New Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password" id="password" placeholder="New password (min. 8 characters)" required>
-                            <button type="button" class="password-toggle" data-target="password" aria-label="Show or hide password">👁</button>
+                            <input type="password" name="password" id="reset-password" placeholder="New password (min. 8 characters)" required>
+                            <button type="button" class="password-toggle" data-target="reset-password" aria-label="Toggle password visibility">👁</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Confirm New Password</label>
+                        <label for="reset-password-confirmation">Confirm New Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password_confirmation" id="password_confirmation" placeholder="Confirm new password" required>
-                            <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show or hide confirm password">👁</button>
+                            <input type="password" name="password_confirmation" id="reset-password-confirmation" placeholder="Confirm new password" required>
+                            <button type="button" class="password-toggle" data-target="reset-password-confirmation" aria-label="Toggle password visibility">👁</button>
                         </div>
                     </div>
                     <div class="password-confirm-alert" style="display: none;">

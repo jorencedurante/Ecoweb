@@ -25,7 +25,7 @@
                 <h3>Create Your Account</h3>
                 <p class="subtitle">Fill in the details to get started</p>
                 @if($errors->any())
-                    <div class="auto-dismiss-alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
+                    <div class="auto-dismiss-alert" role="alert" style="background:rgba(239,83,80,0.08);border:1px solid var(--red);color:var(--red-dark);padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;">
                         @foreach($errors->all() as $error)
                             <div>{{ $error }}</div>
                         @endforeach
@@ -34,44 +34,44 @@
                 <form method="POST" action="{{ route('register.submit') }}">
                     @csrf
                     <div class="form-group">
-                        <label>Full Name</label>
+                        <label for="register-name">Full Name</label>
                         <div class="input-wrapper">
-                            <input type="text" name="name" placeholder="Enter your full name" value="{{ old('name') }}" required autofocus>
+                            <input type="text" id="register-name" name="name" placeholder="Enter your full name" value="{{ old('name') }}" required autofocus>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Username</label>
+                        <label for="register-username">Username</label>
                         <div class="input-wrapper">
-                            <input type="text" name="username" placeholder="Choose a username" value="{{ old('username') }}" required>
+                            <input type="text" id="register-username" name="username" placeholder="Choose a username" value="{{ old('username') }}" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="email">Email</label>
                         <div class="input-wrapper">
-                            <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required>
+                            <input type="email" id="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required aria-describedby="email-error">
                         </div>
                         @error('email')
-                            <small style="color:var(--red);font-size:12px;margin-top:4px;display:block;">{{ $message }}</small>
+                            <small id="email-error" style="color:var(--red);font-size:12px;margin-top:4px;display:block;">{{ $message }}</small>
                         @enderror
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
+                        <label for="register-password">Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password" id="password" placeholder="Create a password (min. 8 characters)" required>
-                            <button type="button" class="password-toggle" data-target="password" aria-label="Show or hide password">👁</button>
+                            <input type="password" name="password" id="register-password" placeholder="Create a password (min. 8 characters)" required>
+                            <button type="button" class="password-toggle" data-target="register-password" aria-label="Toggle password visibility">👁</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Confirm Password</label>
+                        <label for="register-password-confirmation">Confirm Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="password_confirmation" id="password_confirmation" placeholder="Confirm your password" required>
-                            <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show or hide confirm password">👁</button>
+                            <input type="password" name="password_confirmation" id="register-password-confirmation" placeholder="Confirm your password" required>
+                            <button type="button" class="password-toggle" data-target="register-password-confirmation" aria-label="Toggle password visibility">👁</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Position</label>
+                        <label for="register-position">Position</label>
                         <div class="input-wrapper">
-                            <input type="text" name="position" placeholder="Example: Teacher 1 or Teacher 2" value="{{ old('position') }}">
+                            <input type="text" id="register-position" name="position" placeholder="Example: Teacher 1 or Teacher 2" value="{{ old('position') }}">
                         </div>
                     </div>
                     <div class="password-confirm-alert" style="display: none;">

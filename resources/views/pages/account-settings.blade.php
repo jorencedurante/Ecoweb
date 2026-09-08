@@ -36,11 +36,11 @@
                 @method('PUT')
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" name="name" value="{{ old('name', $user->name) }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
+                    <input type="text" name="name" value="{{ old('name', $user->name) }}" aria-label="Full name" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
                 </div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" name="email" value="{{ old('email', $user->email) }}" data-original-email="{{ $user->email }}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
+                    <input type="email" name="email" value="{{ old('email', $user->email) }}" data-original-email="{{ $user->email }}" aria-label="Email" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:#FAFAFA;" required>
                     @if(is_null($user->email_verified_at))
                         <div style="background:rgba(255,193,7,0.12);border:1px solid var(--yellow);color:#856404;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:8px;">
                             Your email address is not verified yet.
@@ -92,22 +92,22 @@
                 <div class="form-group">
                     <label>Current Password</label>
                     <div class="password-field-wrapper">
-                        <input type="password" name="current_password" id="current_password" placeholder="Enter current password" required>
-                        <button type="button" class="password-toggle" data-target="current_password" aria-label="Show or hide current password">👁</button>
+                        <input type="password" name="current_password" id="account-settings-current-password" placeholder="Enter current password" aria-label="Current password" required>
+                        <button type="button" class="password-toggle" data-target="account-settings-current-password" aria-label="Show or hide current password">👁</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>New Password</label>
                     <div class="password-field-wrapper">
-                        <input type="password" name="password" id="password" placeholder="Enter new password (min. 8 characters)" required>
-                        <button type="button" class="password-toggle" data-target="password" aria-label="Show or hide new password">👁</button>
+                        <input type="password" name="password" id="account-settings-password" placeholder="Enter new password (min. 8 characters)" aria-label="New password" required>
+                        <button type="button" class="password-toggle" data-target="account-settings-password" aria-label="Show or hide new password">👁</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Confirm New Password</label>
                     <div class="password-field-wrapper">
-                        <input type="password" name="password_confirmation" id="password_confirmation" placeholder="Confirm new password" required>
-                        <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show or hide confirm password">👁</button>
+                        <input type="password" name="password_confirmation" id="account-settings-password-confirmation" placeholder="Confirm new password" aria-label="Confirm new password" required>
+                        <button type="button" class="password-toggle" data-target="account-settings-password-confirmation" aria-label="Show or hide confirm password">👁</button>
                     </div>
                 </div>
                 <div class="password-confirm-alert" style="display: none;">

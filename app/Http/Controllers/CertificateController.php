@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CertificateAward;
 use App\Models\CertificateTemplate;
+use App\Models\Achievement;
 use App\Models\Student;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
@@ -50,7 +51,12 @@ class CertificateController extends Controller
         }
         $awards = $query->latest()->paginate(10)->withQueryString();
 
-        return view('pages.certificate', compact('awards'));
+        $quests = Achievement::whereNull('student_id')
+            ->with('creator')
+            ->latest()
+            ->get();
+
+        return view('pages.certificate', compact('awards', 'quests'));
     }
 
     public function store(Request $request)

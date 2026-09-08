@@ -11,7 +11,6 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\AdminActivityController;
-use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\AchievementController;
@@ -66,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
         // Claims / Rewards (admin & super admin only)
         Route::middleware('admin.only')->group(function () {
             Route::get('/claims', [ClaimController::class, 'index'])->name('claims.index');
+            Route::get('/claims/search-students', [ClaimController::class, 'searchStudents'])->name('claims.searchStudents');
             Route::post('/claim-items', [ClaimController::class, 'storeItem'])->name('claim-items.store');
             Route::put('/claim-items/{claimItem}', [ClaimController::class, 'updateItem'])->name('claim-items.update');
             Route::post('/claims', [ClaimController::class, 'claimItem'])->name('claims.store');
@@ -75,6 +75,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/claims/pending', fn() => redirect()->route('claims.index'))->name('claims.pending');
             Route::patch('/claims/{claim}/approve', [ClaimController::class, 'approve'])->name('claims.approve');
             Route::patch('/claims/{claim}/reject', [ClaimController::class, 'reject'])->name('claims.reject');
+            Route::patch('/claims/student/{student}/archive-all', [ClaimController::class, 'archiveAllByStudent'])->name('claims.archiveAllByStudent');
+            Route::patch('/claims/{claim}/archive', [ClaimController::class, 'archive'])->name('claims.archive');
         });
 
         // Students
@@ -117,6 +119,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/bottle-report', [ReportController::class, 'bottleReport'])->name('admin.bottle-report');
         Route::get('/admin-activities', [ReportController::class, 'adminActivities'])->name('admin.admin-activities');
 
+        // Reports - Print routes
+        Route::get('/reports/print/top-students', [ReportController::class, 'printTopStudents'])->name('reports.top-students.print');
+        Route::get('/reports/print/student-ranking', [ReportController::class, 'printStudentRanking'])->name('reports.student-ranking.print');
+        Route::get('/reports/print/bottle-collection', [ReportController::class, 'printBottleCollection'])->name('reports.bottle-collection.print');
+        Route::get('/reports/print/item-claims', [ReportController::class, 'printItemClaims'])->name('reports.item-claims.print');
+        Route::get('/reports/print/student-activities', [ReportController::class, 'printStudentActivities'])->name('reports.student-activities.print');
+
         // Account Settings (all authenticated users)
         Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
@@ -132,22 +141,19 @@ Route::middleware(['auth'])->group(function () {
             // System Settings
             Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.settings');
             Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
-            Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
             Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
         });
 
         // QR Code
         Route::get('/qrcode', [QrCodeController::class, 'index'])->name('admin.qrcode');
+        Route::get('/qrcode/search-students', [QrCodeController::class, 'searchStudents'])->name('qrcode.searchStudents');
         Route::post('/qrcode/generate', [QrCodeController::class, 'generate'])->name('admin.qrcode.generate');
         Route::get('/qrcode/{qrCode}/download', [QrCodeController::class, 'download'])->name('admin.qrcode.download');
         Route::get('/qrcode/{qrCode}/print', [QrCodeController::class, 'printPdf'])->name('admin.qrcode.print');
 
-        // Achievements
-        Route::get('/achievements', [AchievementController::class, 'index'])->name('admin.achievements.index');
-        Route::post('/achievements', [AchievementController::class, 'store'])->name('admin.achievements.store');
-        Route::put('/achievements/{achievement}', [AchievementController::class, 'update'])->name('admin.achievements.update');
-
-        // Legacy routes (keep existing PageController routes working)
-        Route::get('/students-filtered', [StudentController::class, 'index'])->name('admin.students-filtered');
+        // Achievement Quests (managed from the Certificate Award module; Admin/Super Admin only)
+        Route::post('/certificate/achievement-quests', [AchievementController::class, 'store'])->name('achievement-quests.store');
+        Route::put('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'update'])->name('achievement-quests.update');
+        Route::delete('/certificate/achievement-quests/{achievement}', [AchievementController::class, 'destroy'])->name('achievement-quests.destroy');
     });
 });

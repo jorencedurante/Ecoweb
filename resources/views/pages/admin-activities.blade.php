@@ -16,14 +16,14 @@
     @if(auth()->user()->isTeacher())
         {{-- ==================== TEACHER: ITEM CLAIMS ==================== --}}
         <div class="filter-card">
-            <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
                 <i class="fas fa-filter"></i> Filters
-            </div>
+            </button>
             <div class="filter-body">
                 <form method="GET" action="{{ route('admin.admin-activities') }}" class="filter-form">
                     <div class="filter-search">
                         <label>Search</label>
-                        <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}">
+                        <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN">
                     </div>
                     <div class="filter-search">
                         <label>&nbsp;</label>
@@ -40,19 +40,21 @@
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Item Claims</h4>
+                <a href="{{ route('reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
+            <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th>Rank</th>
-                        <th>Student Name</th>
-                        <th>LRN</th>
-                        <th>Grade Level</th>
-                        <th>Section</th>
-                        <th>Total Item Claims</th>
-                        <th>Total Points Used</th>
-                        <th>Claimed Items</th>
-                        <th>Latest Claim Date</th>
+                        <th scope="col">Rank</th>
+                        <th scope="col">Student Name</th>
+                        <th scope="col">LRN</th>
+                        <th scope="col">Grade Level</th>
+                        <th scope="col">Section</th>
+                        <th scope="col">Total Item Claims</th>
+                        <th scope="col">Total Points Used</th>
+                        <th scope="col">Claimed Items</th>
+                        <th scope="col">Latest Claim Date</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -81,6 +83,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
             <div class="pagination">
                 <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
                 <div class="page-btns">
@@ -93,14 +96,14 @@
     @else
         {{-- ==================== ADMIN / SUPER ADMIN: STUDENT ACTIVITIES ==================== --}}
         <div class="filter-card">
-            <div class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">
+            <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
                 <i class="fas fa-filter"></i> Filters
-            </div>
+            </button>
             <div class="filter-body">
                 <form method="GET" action="{{ route('admin.admin-activities') }}" class="filter-form">
                     <div class="filter-search">
                         <label>Teacher</label>
-                        <select name="teacher_id">
+                        <select name="teacher_id" aria-label="Filter by teacher">
                             <option value="">All Teachers</option>
                             @foreach($teachers as $t)
                                 <option value="{{ $t->id }}" {{ request('teacher_id') == $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
@@ -109,7 +112,7 @@
                     </div>
                     <div class="filter-search">
                         <label>Grade Level</label>
-                        <select name="grade_level">
+                        <select name="grade_level" aria-label="Filter by grade level">
                             <option value="">Grade Level</option>
                             @foreach($gradeLevels as $gl)
                                 <option value="{{ $gl }}" {{ request('grade_level') == $gl ? 'selected' : '' }}>{{ $gl }}</option>
@@ -118,15 +121,15 @@
                     </div>
                     <div class="filter-search">
                         <label>Search</label>
-                        <input type="text" name="search" placeholder="Search student..." value="{{ request('search') }}">
+                        <input type="text" name="search" placeholder="Search student..." value="{{ request('search') }}" aria-label="Search students">
                     </div>
                     <div class="filter-search">
                         <label>Date From</label>
-                        <input type="date" name="date_from" value="{{ request('date_from') }}">
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" aria-label="Filter from date">
                     </div>
                     <div class="filter-search">
                         <label>Date To</label>
-                        <input type="date" name="date_to" value="{{ request('date_to') }}">
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" aria-label="Filter to date">
                     </div>
                     <div class="filter-controls">
                         <button class="btn btn-filter" type="submit">Filter</button>
@@ -136,23 +139,28 @@
             </div>
         </div>
 
+        <div style="margin-bottom:16px;">
+            <a href="{{ route('reports.student-activities.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print All Teachers Report</a>
+        </div>
+
         @forelse($teacherGroups as $group)
         <div class="table-container" style="margin-bottom:24px;">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Teacher: {{ $group['teacher']->name }}</h4>
             </div>
+            <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th>Rank</th>
-                        <th>Student Name</th>
-                        <th>LRN</th>
-                        <th>Grade Level</th>
-                        <th>Section</th>
-                        <th>Total Bottles</th>
-                        <th>Total Points</th>
-                        <th>Total Claims</th>
-                        <th>Latest Activity</th>
+                        <th scope="col">Rank</th>
+                        <th scope="col">Student Name</th>
+                        <th scope="col">LRN</th>
+                        <th scope="col">Grade Level</th>
+                        <th scope="col">Section</th>
+                        <th scope="col">Total Bottles</th>
+                        <th scope="col">Total Points</th>
+                        <th scope="col">Total Claims</th>
+                        <th scope="col">Latest Activity</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -179,17 +187,20 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
         @empty
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Student Activities</h4>
             </div>
+            <div class="table-responsive">
             <table>
                 <tbody>
                     <tr><td style="text-align:center;padding:30px;color:var(--text-light);">No teacher summaries found for the selected filters.</td></tr>
                 </tbody>
             </table>
+            </div>
         </div>
         @endforelse
     @endif
