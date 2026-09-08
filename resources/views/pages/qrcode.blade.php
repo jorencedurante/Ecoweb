@@ -18,8 +18,8 @@
                 </div>
                 <div class="student-search-wrapper">
                     <label>Select Student</label>
-                    <input type="text" id="qrStudentSearch" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" aria-label="Select student">
-                    <input type="hidden" name="student_id" id="selectedQrStudentId">
+                    <input type="text" id="qrStudentSearchInput" class="student-search-input" placeholder="Search student by name, LRN, or Student ID..." autocomplete="off" aria-label="Select student">
+                    <input type="hidden" name="student_id" id="qrSelectedStudentId">
                     <div id="qrStudentSearchResults" class="student-search-results"></div>
                     @error('student_id')
                         <div class="field-error" role="alert">{{ $message }}</div>
@@ -130,79 +130,104 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('qrStudentSearch');
-    const hiddenId = document.getElementById('selectedQrStudentId');
-    const resultsBox = document.getElementById('qrStudentSearchResults');
-    if (!searchInput || !hiddenId || !resultsBox) return;
-    let searchTimeout = null;
+    console.log('QR STUDENT SEARCH SCRIPT LOADED');
 
-    searchInput.addEventListener('input', function () {
-        const query = this.value.trim();
-        hiddenId.value = '';
-        clearTimeout(searchTimeout);
-        if (query.length < 1) {
+    var input = document.getElementById('qrStudentSearchInput');
+    var resultsBox = document.getElementById('qrStudentSearchResults');
+    var hiddenInput = document.getElementById('qrSelectedStudentId');
+
+    if (!input || !resultsBox || !hiddenInput) {
+        console.error('QR student search elements missing', {
+            input: input,
+            resultsBox: resultsBox,
+            hiddenInput: hiddenInput
+        });
+        return;
+    }
+
+    var searchUrl = '{{ route("qrcode.searchStudents") }}';
+
+    input.addEventListener('input', function () {
+        var query = input.value.trim();
+
+        console.log('QR input event:', query);
+
+        hiddenInput.value = '';
+
+        if (query.length < 2) {
             resultsBox.innerHTML = '';
+            resultsBox.classList.remove('show');
             resultsBox.style.display = 'none';
             return;
         }
-        searchTimeout = setTimeout(function () {
-            const searchUrl = '{{ route("qrcode.searchStudents") }}?search=' + encodeURIComponent(query);
-            console.log('QR student search URL:', searchUrl);
-            console.log('QR student search results container:', resultsBox);
-            fetch(searchUrl, {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin'
-            })
-                .then(response => {
-                    console.log('QR student search HTTP status:', response.status, response.statusText);
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status + ' ' + response.statusText);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('QR student search raw response:', data);
-                    const students = Array.isArray(data) ? data : (data.data || data.students || []);
-                    console.log('QR student search parsed students:', students);
+
+        fetch(searchUrl + '?search=' + encodeURIComponent(query), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function (response) {
+            console.log('QR search status:', response.status);
+
+            if (!response.ok) {
+                throw new Error('QR student search request failed');
+            }
+
+            return response.json();
+        })
+        .then(function (students) {
+            console.log('QR search JSON:', students);
+
+            resultsBox.innerHTML = '';
+
+            if (!Array.isArray(students) || students.length === 0) {
+                resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
+                resultsBox.classList.add('show');
+                resultsBox.style.display = 'block';
+                return;
+            }
+
+            students.forEach(function (student) {
+                var name = student.name || 'Unnamed Student';
+                var lrn = student.lrn || student.student_id || 'No LRN';
+                var grade = student.grade_level || '';
+
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'student-search-result-item';
+                button.innerHTML = '<strong>' + name + '</strong><small>LRN: ' + lrn + (grade ? ' &middot; ' + grade : '') + '</small>';
+
+                button.addEventListener('click', function () {
+                    input.value = name;
+                    hiddenInput.value = student.id;
+
                     resultsBox.innerHTML = '';
-                    if (!students.length) {
-                        console.log('QR student search: no results');
-                        resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
-                        resultsBox.style.display = 'block';
-                        return;
-                    }
-                    console.log('QR student search: rendering', students.length, 'results');
-                    students.forEach(s => {
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'student-search-item';
-                        btn.innerHTML = '<strong>' + s.name + '</strong> — LRN: ' + (s.lrn ?? 'N/A');
-                        btn.addEventListener('click', function () {
-                            searchInput.value = s.name + ' — LRN: ' + (s.lrn ?? 'N/A');
-                            hiddenId.value = s.id;
-                            resultsBox.innerHTML = '';
-                            resultsBox.style.display = 'none';
-                            const err = document.querySelector('.student-search-wrapper .field-error');
-                            if (err) err.style.display = 'none';
-                        });
-                        resultsBox.appendChild(btn);
-                    });
-                    resultsBox.style.display = 'block';
-                    console.log('QR student search: dropdown displayed');
-                })
-                .catch(function (error) {
-                    console.error('QR student search error:', error.message, error);
-                    resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
-                    resultsBox.style.display = 'block';
+                    resultsBox.classList.remove('show');
+                    resultsBox.style.display = 'none';
+
+                    console.log('Selected QR student:', student);
                 });
-        }, 300);
+
+                resultsBox.appendChild(button);
+            });
+
+            resultsBox.classList.add('show');
+            resultsBox.style.display = 'block';
+        })
+        .catch(function (error) {
+            console.error('QR student search frontend error:', error);
+            resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
+            resultsBox.classList.add('show');
+            resultsBox.style.display = 'block';
+        });
     });
 
-    document.addEventListener('click', function (e) {
-        if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.student-search-wrapper')) {
+            resultsBox.classList.remove('show');
             resultsBox.style.display = 'none';
         }
     });
