@@ -186,7 +186,7 @@
             <div class="card-title-area">
                 <h3>Claim Items</h3>
             </div>
-            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter">
+            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route('claims.index') }}#claim-items-section">
                 <input type="text" name="claim_item_search" value="{{ request('claim_item_search') }}" placeholder="Search item name..." aria-label="Search items">
 
                 <select name="claim_item_status" aria-label="Filter by status">
@@ -200,11 +200,11 @@
                 <input type="number" name="claim_item_max_points" value="{{ request('claim_item_max_points') }}" placeholder="Max points" aria-label="Maximum points">
 
                 <button type="submit" class="btn-filter">Filter</button>
-                <button type="button" id="clearClaimItemsFilter" class="btn-clear">Clear</button>
+                <a href="{{ route('claims.index') }}#claim-items-section" class="btn-clear">Clear</a>
             </form>
         </div>
         <div id="claimItemsTableContainer">
-            @include('partials.claim-items-table', ['claimItems' => $items])
+            @include('partials.claim-items-table', ['claimItems' => $claimItems])
         </div>
     </div>
 
