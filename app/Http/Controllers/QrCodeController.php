@@ -31,7 +31,8 @@ class QrCodeController extends Controller
                 $q->where('qr_type', 'like', "%{$search}%")
                   ->orWhere('qr_value', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                      $studentQuery->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
                                    ->orWhere('lrn', 'like', "%{$search}%")
                                    ->orWhere('student_id', 'like', "%{$search}%");
                   })
