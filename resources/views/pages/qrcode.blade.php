@@ -146,7 +146,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         searchTimeout = setTimeout(function () {
-            fetch('{{ route("qrcode.searchStudents") }}?search=' + encodeURIComponent(query), {
+            const searchUrl = '{{ route("qrcode.searchStudents") }}?search=' + encodeURIComponent(query);
+            console.log('QR student search URL:', searchUrl);
+            console.log('QR student search results container:', resultsBox);
+            fetch(searchUrl, {
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
@@ -154,21 +157,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'same-origin'
             })
                 .then(response => {
+                    console.log('QR student search HTTP status:', response.status, response.statusText);
                     if (!response.ok) {
-                        console.error('QR student search HTTP error:', response.status);
-                        throw new Error('HTTP ' + response.status);
+                        throw new Error('HTTP ' + response.status + ' ' + response.statusText);
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log('QR student search raw response:', data);
                     const students = Array.isArray(data) ? data : (data.data || data.students || []);
-                    console.log('QR student search results:', students);
+                    console.log('QR student search parsed students:', students);
                     resultsBox.innerHTML = '';
                     if (!students.length) {
+                        console.log('QR student search: no results');
                         resultsBox.innerHTML = '<div class="student-search-empty">No students found.</div>';
                         resultsBox.style.display = 'block';
                         return;
                     }
+                    console.log('QR student search: rendering', students.length, 'results');
                     students.forEach(s => {
                         const btn = document.createElement('button');
                         btn.type = 'button';
@@ -185,9 +191,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         resultsBox.appendChild(btn);
                     });
                     resultsBox.style.display = 'block';
+                    console.log('QR student search: dropdown displayed');
                 })
                 .catch(function (error) {
-                    console.error('QR student search error:', error);
+                    console.error('QR student search error:', error.message, error);
                     resultsBox.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
                     resultsBox.style.display = 'block';
                 });

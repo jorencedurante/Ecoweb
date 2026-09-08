@@ -118,7 +118,7 @@
         </div>
 
         {{-- Claim Item Form --}}
-        <div class="card">
+        <div class="card" style="overflow: visible;">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Claim Item for Student</h4>
                 <form method="POST" action="{{ route('claims.store') }}">
@@ -522,7 +522,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             searchTimeout = setTimeout(function () {
-                fetch('{{ route("claims.searchStudents") }}?search=' + encodeURIComponent(query), {
+                const searchUrl = '{{ route("claims.searchStudents") }}?search=' + encodeURIComponent(query);
+                console.log('Claim student search URL:', searchUrl);
+                console.log('Claim student search results container:', studentSearchResults);
+                fetch(searchUrl, {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -530,21 +533,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     credentials: 'same-origin'
                 })
                     .then(response => {
+                        console.log('Claim student search HTTP status:', response.status, response.statusText);
                         if (!response.ok) {
-                            console.error('Claim student search HTTP error:', response.status);
-                            throw new Error('HTTP ' + response.status);
+                            throw new Error('HTTP ' + response.status + ' ' + response.statusText);
                         }
                         return response.json();
                     })
                     .then(data => {
+                        console.log('Claim student search raw response:', data);
                         const students = Array.isArray(data) ? data : (data.data || data.students || []);
-                        console.log('Claim student search results:', students);
+                        console.log('Claim student search parsed students:', students);
                         studentSearchResults.innerHTML = '';
                         if (!students.length) {
+                            console.log('Claim student search: no results');
                             studentSearchResults.innerHTML = '<div class="student-search-empty">No students found.</div>';
                             studentSearchResults.style.display = 'block';
                             return;
                         }
+                        console.log('Claim student search: rendering', students.length, 'results');
                         students.forEach(student => {
                             const resultButton = document.createElement('button');
                             resultButton.type = 'button';
@@ -563,9 +569,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             studentSearchResults.appendChild(resultButton);
                         });
                         studentSearchResults.style.display = 'block';
+                        console.log('Claim student search: dropdown displayed');
                     })
                     .catch(function (error) {
-                        console.error('Claim student search error:', error);
+                        console.error('Claim student search error:', error.message, error);
                         studentSearchResults.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
                         studentSearchResults.style.display = 'block';
                     });
