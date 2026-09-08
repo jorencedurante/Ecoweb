@@ -76,10 +76,6 @@
             {!! $qrSvg !!}
         </div>
         <h2 class="student-name">{{ $qrCode->student->full_name ?? $qrCode->student_name }}</h2>
-        <p class="qr-label">QR Type</p>
-        <p style="font-size:14px;font-weight:600;color:#1f2937;margin-bottom:10px;">{{ ucfirst(str_replace('_', ' ', $qrCode->qr_type)) }}</p>
-        <p class="qr-label">QR Value</p>
-        <div class="qr-value">{{ $qrValue }}</div>
         <div class="print-actions">
             <button type="button" onclick="window.print()" style="padding:10px 24px;background:#22C55E;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin-right:6px;">🖨 Print</button>
             <button type="button" onclick="window.close()" style="padding:10px 24px;background:#EF4444;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>
