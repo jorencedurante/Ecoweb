@@ -85,40 +85,52 @@ class ClaimController extends Controller
             });
         }
 
-        if ($request->filled('claim_search')) {
-            $search = $request->claim_search;
-            $claimsQuery->where(function ($q) use ($search) {
-                $q->where('item_name', 'like', "%{$search}%")
-                  ->orWhere('remarks', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('first_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%")
-                                   ->orWhere('lrn', 'like', "%{$search}%");
+        if ($request->filled('history_search')) {
+            $historySearch = $request->history_search;
+            $claimsQuery->where(function ($q) use ($historySearch) {
+                $q->where('item_name', 'like', "%{$historySearch}%")
+                  ->orWhere('remarks', 'like', "%{$historySearch}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('students', 'first_name')) {
+                          $studentQuery->where('first_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'middle_name')) {
+                          $studentQuery->orWhere('middle_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'last_name')) {
+                          $studentQuery->orWhere('last_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'lrn')) {
+                          $studentQuery->orWhere('lrn', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'student_id')) {
+                          $studentQuery->orWhere('student_id', 'like', "%{$historySearch}%");
+                      }
                   })
-                  ->orWhereHas('admin', function ($adminQuery) use ($search) {
-                      $adminQuery->where('name', 'like', "%{$search}%");
+                  ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$historySearch}%");
+                      }
+                  })
+                  ->orWhereHas('admin', function ($adminQuery) use ($historySearch) {
+                      $adminQuery->where('name', 'like', "%{$historySearch}%");
                   });
             });
         }
 
-        if ($request->filled('claim_student_id')) {
-            $claimsQuery->where('student_id', $request->claim_student_id);
+        if ($request->filled('history_item')) {
+            $claimsQuery->where('claim_item_id', $request->history_item);
         }
 
-        if ($request->filled('claim_item_id')) {
-            $claimsQuery->where('claim_item_id', $request->claim_item_id);
+        if ($request->filled('history_date_from')) {
+            $claimsQuery->whereDate('claim_date', '>=', $request->history_date_from);
         }
 
-        if ($request->filled('date_from')) {
-            $claimsQuery->whereDate('claim_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $claimsQuery->whereDate('claim_date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('claimed_by')) {
-            $claimsQuery->where('claimed_by', $request->claimed_by);
+        if ($request->filled('history_date_to')) {
+            $claimsQuery->whereDate('claim_date', '<=', $request->history_date_to);
         }
 
         $allClaims = $claimsQuery->latest('claim_date')->get();
@@ -579,40 +591,52 @@ class ClaimController extends Controller
             });
         }
 
-        if ($request->filled('claim_search')) {
-            $search = $request->claim_search;
-            $claims->where(function ($q) use ($search) {
-                $q->where('item_name', 'like', "%{$search}%")
-                  ->orWhere('remarks', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('first_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%")
-                                   ->orWhere('lrn', 'like', "%{$search}%");
+        if ($request->filled('history_search')) {
+            $historySearch = $request->history_search;
+            $claims->where(function ($q) use ($historySearch) {
+                $q->where('item_name', 'like', "%{$historySearch}%")
+                  ->orWhere('remarks', 'like', "%{$historySearch}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('students', 'first_name')) {
+                          $studentQuery->where('first_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'middle_name')) {
+                          $studentQuery->orWhere('middle_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'last_name')) {
+                          $studentQuery->orWhere('last_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'lrn')) {
+                          $studentQuery->orWhere('lrn', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('students', 'student_id')) {
+                          $studentQuery->orWhere('student_id', 'like', "%{$historySearch}%");
+                      }
                   })
-                  ->orWhereHas('admin', function ($adminQuery) use ($search) {
-                      $adminQuery->where('name', 'like', "%{$search}%");
+                  ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$historySearch}%");
+                      }
+                  })
+                  ->orWhereHas('admin', function ($adminQuery) use ($historySearch) {
+                      $adminQuery->where('name', 'like', "%{$historySearch}%");
                   });
             });
         }
 
-        if ($request->filled('claim_student_id')) {
-            $claims->where('student_id', $request->claim_student_id);
+        if ($request->filled('history_item')) {
+            $claims->where('claim_item_id', $request->history_item);
         }
 
-        if ($request->filled('claim_item_id')) {
-            $claims->where('claim_item_id', $request->claim_item_id);
+        if ($request->filled('history_date_from')) {
+            $claims->whereDate('claim_date', '>=', $request->history_date_from);
         }
 
-        if ($request->filled('date_from')) {
-            $claims->whereDate('claim_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $claims->whereDate('claim_date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('claimed_by')) {
-            $claims->where('claimed_by', $request->claimed_by);
+        if ($request->filled('history_date_to')) {
+            $claims->whereDate('claim_date', '<=', $request->history_date_to);
         }
 
         $allClaims = $claims->latest('claim_date')->get();

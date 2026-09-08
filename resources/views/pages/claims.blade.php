@@ -199,12 +199,12 @@
                 <h3>Claim History</h3>
             </div>
             <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter">
-                <input type="text" name="claim_search" value="{{ request('claim_search') }}" placeholder="Search student, item, claimed by..." aria-label="Search claims">
+                <input type="text" name="history_search" value="{{ request('history_search') }}" placeholder="Search student, item, claimed by..." aria-label="Search claims">
 
-                <select name="claim_item_id" aria-label="Filter by item">
+                <select name="history_item" aria-label="Filter by item">
                     <option value="">All Items</option>
                     @foreach($allClaimItems as $item)
-                        <option value="{{ $item->id }}" {{ request('claim_item_id') == $item->id ? 'selected' : '' }}>
+                        <option value="{{ $item->id }}" {{ request('history_item') == $item->id ? 'selected' : '' }}>
                             {{ $item->item_name }}
                         </option>
                     @endforeach
@@ -212,12 +212,12 @@
 
                 <div class="filter-field">
                     <label>Date From</label>
-                    <input type="date" name="date_from" value="{{ request('date_from') }}" aria-label="Date from">
+                    <input type="date" name="history_date_from" value="{{ request('history_date_from') }}" aria-label="Date from">
                 </div>
 
                 <div class="filter-field">
                     <label>Date To</label>
-                    <input type="date" name="date_to" value="{{ request('date_to') }}" aria-label="Date to">
+                    <input type="date" name="history_date_to" value="{{ request('history_date_to') }}" aria-label="Date to">
                 </div>
 
                 <button type="submit" class="btn-filter">Filter</button>
