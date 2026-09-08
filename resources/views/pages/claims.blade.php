@@ -231,8 +231,25 @@
             <div class="card-title-area">
                 <h3>Claim History</h3>
             </div>
-            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter">
-                <input type="text" name="history_search" value="{{ request('history_search') }}" placeholder="Search student, item, claimed by..." aria-label="Search claims">
+            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter" method="GET" action="{{ route('claims.index') }}#claim-history-section">
+                <div class="history-search-wrapper">
+                    <input
+                        type="text"
+                        id="claimHistorySearchInput"
+                        name="history_search"
+                        value="{{ request('history_search') }}"
+                        placeholder="Search student, LRN, or item..."
+                        autocomplete="off"
+                        aria-label="Search claim history"
+                    >
+                    <input
+                        type="hidden"
+                        id="claimHistorySelectedValue"
+                        name="history_selected"
+                        value="{{ request('history_selected') }}"
+                    >
+                    <div id="claimHistorySearchResults" class="history-search-results"></div>
+                </div>
 
                 <select name="history_item" aria-label="Filter by item">
                     <option value="">All Items</option>
@@ -254,7 +271,7 @@
                 </div>
 
                 <button type="submit" class="btn-filter">Filter</button>
-                <button type="button" id="clearClaimHistoryFilter" class="btn-clear">Clear</button>
+                <a href="{{ route('claims.index') }}#claim-history-section" id="clearClaimHistoryFilter" class="btn-clear">Clear</a>
             </form>
         </div>
         <div id="claimHistoryTableContainer">
@@ -563,6 +580,46 @@ $claimItemsSearchData = $claimItemsForSearch->map(function ($item) {
 <script>
 const claimItemsSearchData = @json($claimItemsSearchData);
 </script>
+@php
+$claimHistorySearchData = collect()
+    ->merge($studentsForHistorySearch->map(function ($student) {
+        $studentName = $student->full_name
+            ?? trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+
+        return [
+            'type' => 'student',
+            'label' => $studentName ?: 'Unnamed Student',
+            'value' => $studentName ?: '',
+            'subtitle' => 'Student · LRN: ' . ($student->lrn ?? $student->student_id ?? 'N/A') . ' · ' . ($student->grade_level ?? $student->grade ?? ''),
+            'searchable' => trim(
+                ($studentName ?? '') . ' ' .
+                ($student->lrn ?? '') . ' ' .
+                ($student->student_id ?? '') . ' ' .
+                ($student->grade_level ?? $student->grade ?? '')
+            ),
+        ];
+    }))
+    ->merge($itemsForHistorySearch->map(function ($item) {
+        $itemName = $item->item_name ?? $item->name ?? 'Unnamed Item';
+
+        return [
+            'type' => 'item',
+            'label' => $itemName,
+            'value' => $itemName,
+            'subtitle' => 'Item · ' . (($item->points_required ?? $item->points ?? 0) . ' pts') . ' · ' . ($item->status ?? ''),
+            'searchable' => trim(
+                ($itemName ?? '') . ' ' .
+                ($item->description ?? '') . ' ' .
+                ($item->status ?? '')
+            ),
+        ];
+    }))
+    ->values()
+    ->toArray();
+@endphp
+<script>
+const claimHistorySearchData = @json($claimHistorySearchData);
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var pointsBox = document.getElementById('studentPointsBox');
@@ -762,6 +819,85 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // --- Claim History Search ---
+    var historyInput = document.getElementById('claimHistorySearchInput');
+    var historyResults = document.getElementById('claimHistorySearchResults');
+    var historyHiddenInput = document.getElementById('claimHistorySelectedValue');
+
+    function closeHistoryResults() {
+        historyResults.innerHTML = '';
+        historyResults.classList.remove('show');
+    }
+
+    function renderHistoryResults(results) {
+        historyResults.innerHTML = '';
+
+        if (!results.length) {
+            historyResults.innerHTML = '<div class="history-search-empty">No matching student or item found.</div>';
+            historyResults.classList.add('show');
+            return;
+        }
+
+        results.slice(0, 12).forEach(function (result) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'history-search-result-item';
+
+            button.innerHTML =
+                '<strong>' + result.label + '</strong>' +
+                '<small>' + (result.subtitle || '') + '</small>';
+
+            button.addEventListener('click', function () {
+                historyInput.value = result.value || result.label;
+                if (historyHiddenInput) {
+                    historyHiddenInput.value = result.value || result.label;
+                }
+                closeHistoryResults();
+            });
+
+            historyResults.appendChild(button);
+        });
+
+        historyResults.classList.add('show');
+    }
+
+    if (historyInput) {
+        historyInput.addEventListener('input', function () {
+            var search = historyInput.value.trim().toLowerCase();
+
+            if (historyHiddenInput) {
+                historyHiddenInput.value = '';
+            }
+
+            if (search.length < 1) {
+                closeHistoryResults();
+                return;
+            }
+
+            var filtered = claimHistorySearchData.filter(function (result) {
+                return (
+                    String(result.label || '').toLowerCase().includes(search) ||
+                    String(result.subtitle || '').toLowerCase().includes(search) ||
+                    String(result.searchable || '').toLowerCase().includes(search)
+                );
+            });
+
+            renderHistoryResults(filtered);
+        });
+
+        historyInput.addEventListener('focus', function () {
+            if (historyInput.value.trim().length > 0) {
+                historyInput.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.history-search-wrapper')) {
+            closeHistoryResults();
+        }
+    });
+
     // --- AJAX Filtering ---
     var claimItemsForm = document.getElementById('claimItemsFilterForm');
     var claimHistoryForm = document.getElementById('claimHistoryFilterForm');
@@ -794,12 +930,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Claim Items form submits normally via GET to claims.index (no AJAX interception)
 
-    if (claimHistoryForm && claimHistoryContainer) {
-        claimHistoryForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            submitFilter(claimHistoryForm, claimHistoryContainer, '{{ route("claims.history.filter") }}');
-        });
-    }
+    // Claim History form submits normally via GET to claims.index (no AJAX interception)
 
     // --- Edit Item Modal (event delegation for AJAX-refreshed rows) ---
     var editModal = document.getElementById('editItemModal');
