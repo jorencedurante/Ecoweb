@@ -91,7 +91,8 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                      $studentQuery->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
                                    ->orWhere('lrn', 'like', "%{$search}%");
                   })
                   ->orWhereHas('admin', function ($adminQuery) use ($search) {
@@ -584,7 +585,8 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
+                      $studentQuery->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
                                    ->orWhere('lrn', 'like', "%{$search}%");
                   })
                   ->orWhereHas('admin', function ($adminQuery) use ($search) {
