@@ -16,10 +16,12 @@ class BottleScanController extends Controller
         $validated = $request->validate([
             'lrn' => 'required|string',
             'bottle_count' => 'required|integer|min:1',
+            'points' => 'required|integer|min:1',
         ]);
 
         $lrn = trim((string) $validated['lrn']);
         $bottleCount = (int) $validated['bottle_count'];
+        $pointsEarned = (int) $validated['points'];
 
         Log::info('Bottle scan request received', [
             'lrn' => $lrn,
@@ -57,8 +59,6 @@ class BottleScanController extends Controller
                     ($student->last_name ?? '')
                 ),
             ]);
-
-            $pointsEarned = $bottleCount;
 
             DB::transaction(function () use ($student, $lrn, $bottleCount, $pointsEarned) {
                 $now = now('Asia/Manila');
