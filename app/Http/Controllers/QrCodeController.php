@@ -143,9 +143,12 @@ class QrCodeController extends Controller
 
         $fileName = 'student-' . Str::slug($studentName) . '-qr-code.svg';
 
-        return response($svgContent)
-            ->header('Content-Type', 'image/svg+xml')
-            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        return response($svgContent, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     public function printPdf(QrCode $qrCode)
