@@ -121,11 +121,31 @@ class QrCodeController extends Controller
 
     public function download(QrCode $qrCode)
     {
-        if (!$qrCode->qr_image_path || !Storage::disk('public')->exists($qrCode->qr_image_path)) {
-            return back()->withErrors(['qr' => 'QR code file not found.']);
-        }
+        $qrCode->load('student');
 
-        return Storage::disk('public')->download($qrCode->qr_image_path);
+        $student = $qrCode->student;
+        $studentName = $student
+            ? trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name)
+            : ($qrCode->student_name ?? 'Student');
+        $lrn = $student->lrn ?? '';
+
+        $qrValue = "LRN: {$lrn}\nName: {$studentName}";
+
+        $qrCodeObj = new QrCodeGenerator(
+            data: $qrValue,
+            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            size: 400,
+            margin: 20,
+        );
+        $writer = new SvgWriter();
+        $result = $writer->write($qrCodeObj);
+        $svgContent = $result->getString();
+
+        $fileName = 'student-' . Str::slug($studentName) . '-qr-code.svg';
+
+        return response($svgContent)
+            ->header('Content-Type', 'image/svg+xml')
+            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
     }
 
     public function printPdf(QrCode $qrCode)
