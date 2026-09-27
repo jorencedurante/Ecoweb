@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print QR Code - EcoCollect</title>
+    <title>QR Code</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -53,16 +53,33 @@
         .print-actions {
             margin-top: 18px;
         }
+        .print-note {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #9ca3af;
+            text-align: center;
+        }
+        .no-print {
+            display: block;
+        }
         @media print {
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .no-print,
+            button,
+            .print-btn,
+            .close-btn,
             .print-actions {
                 display: none !important;
+                visibility: hidden !important;
             }
-            body {
-                background: #ffffff !important;
-            }
-            .qr-print-card {
-                box-shadow: none;
-                margin: 0 auto;
+            @page {
+                margin: 0;
             }
         }
     </style>
@@ -76,10 +93,11 @@
             {!! $qrSvg !!}
         </div>
         <h2 class="student-name">{{ $qrCode->student->full_name ?? $qrCode->student_name }}</h2>
-        <div class="print-actions">
+        <div class="print-actions no-print">
             <button type="button" onclick="window.print()" style="padding:10px 24px;background:#22C55E;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin-right:6px;">🖨 Print</button>
             <button type="button" onclick="window.close()" style="padding:10px 24px;background:#EF4444;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>
         </div>
+        <p class="print-note no-print">For clean printing, open More settings and uncheck Headers and footers.</p>
     </div>
 </body>
 </html>
