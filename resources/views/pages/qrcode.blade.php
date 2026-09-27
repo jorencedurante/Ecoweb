@@ -54,7 +54,6 @@
                 <p class="qr-student-name">Student: {{ $qrCode->student->full_name ?? $qrCode->student_name ?? 'Student not found' }}</p>
                 <p class="qr-value-text">QR Value: {!! nl2br(e($qrCode->qr_value)) !!}</p>
                 <div class="qr-actions">
-                    <a href="{{ route('admin.qrcode.download', $qrCode->id) }}" class="btn-download-qr" aria-label="Download QR code">⬇ Download QR Code</a>
                     <a href="{{ route('admin.qrcode.print', $qrCode->id) }}" class="btn-print-qr" target="_blank" aria-label="Print QR code">🖨 Print QR Code</a>
                 </div>
             @else
@@ -119,7 +118,6 @@
                         <td>{{ $qr->created_at->format('Y-m-d') }}</td>
                         <td>
                             <div class="table-action-btns">
-                                <a href="{{ route('admin.qrcode.download', $qr->id) }}" class="action-icon-btn view" title="Download" aria-label="Download QR code">⬇</a>
                                 <a href="{{ route('admin.qrcode.print', $qr->id) }}" class="action-icon-btn achievements" title="Print" target="_blank" aria-label="Print QR code">🖨</a>
                             </div>
                         </td>

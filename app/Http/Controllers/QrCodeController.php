@@ -85,6 +85,15 @@ class QrCodeController extends Controller
 
         $qrValue = "LRN: " . $student->lrn . "\nName: " . $student->full_name;
 
+        $existingQr = QrCode::where('student_id', $student->id)
+            ->orWhere('qr_value', $qrValue)
+            ->first();
+
+        if ($existingQr) {
+            return redirect()->route('admin.qrcode')
+                ->with('info', 'QR code already generated for this student.');
+        }
+
         $fileName = 'student-lrn-' . Str::slug($student->full_name) . '-' . time() . '.svg';
         $filePath = 'qr_codes/' . $fileName;
 
