@@ -2335,8 +2335,26 @@ body.public-landing-page {
 .ts-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .ts-trophy { font-size: 28px; }
 .ts-header h2 { font-size: 20px; font-weight: 700; color: var(--text-dark); margin: 0; }
-.ts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.ts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    width: 100%;
+}
+.ts-grid > * { min-width: 0; max-width: 100%; }
+.ts-card { min-width: 0; max-width: 100%; overflow: hidden; }
 .ts-card-title { font-size: 14px; font-weight: 600; color: var(--text-dark); margin-bottom: 12px; }
+.ts-card .table-responsive {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+}
+.ts-card .table-responsive table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
 .ts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ts-table th {
     text-align: left;
@@ -2344,14 +2362,26 @@ body.public-landing-page {
     text-transform: uppercase;
     color: var(--text-muted);
     font-weight: 600;
-    padding: 8px 6px;
+    padding: 10px 8px;
     border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 .ts-table td {
-    padding: 8px 6px;
+    padding: 10px 8px;
     border-bottom: 1px solid var(--border-light);
     color: var(--text-dark);
+    vertical-align: middle;
 }
+.ts-table th:nth-child(1),
+.ts-table td:nth-child(1) { width: 11%; }
+.ts-table th:nth-child(2),
+.ts-table td:nth-child(2) { width: 43%; overflow-wrap: anywhere; }
+.ts-table th:nth-child(3),
+.ts-table td:nth-child(3) { width: 18%; }
+.ts-table th:nth-child(4),
+.ts-table td:nth-child(4) { width: 28%; }
 .ts-table tr:last-child td { border-bottom: none; }
 .ts-name { font-weight: 600; }
 .rank-badge {
@@ -2515,7 +2545,7 @@ body.public-landing-page {
     .hero-illustration { height: 240px; }
     .search-card { flex-direction: column; text-align: center; }
     .search-card-right { min-width: 0; width: 100%; }
-    .ts-grid { grid-template-columns: 1fr; }
+    .ts-grid { grid-template-columns: minmax(0, 1fr); }
     .features-grid { grid-template-columns: 1fr 1fr; }
 }
 
@@ -4097,3 +4127,107 @@ button,
     outline-offset: -3px;
 }
 
+
+/* ===== Available Items: reward card stock, points and totals ===== */
+.reward-stock.out-of-stock {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.reward-total-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #f0fdf4;
+    border: 1px solid #dcfce7;
+    color: #166534;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.reward-total-box strong {
+    color: #16a34a;
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.reward-form-hint {
+    min-height: 16px;
+    margin: 8px 0 0;
+    color: #b91c1c;
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.reward-claim-form button:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+}
+
+.reward-input-group input:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* ===== Public Items: student available points lookup ===== */
+.points-balance-panel {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    background: #f0fdf4;
+}
+
+.points-balance-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.points-balance-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.points-balance-label {
+    color: #15803d;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.points-balance-value {
+    margin-left: auto;
+    color: #16a34a;
+    font-size: 17px;
+    font-weight: 950;
+}
+
+.points-shortfall {
+    margin: 8px 0 0;
+    color: #b91c1c;
+    font-size: 12.5px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.points-status {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.points-status.points-status-error {
+    color: #b91c1c;
+}

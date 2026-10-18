@@ -9,6 +9,7 @@ use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ClaimController extends Controller
 {
@@ -434,44 +435,69 @@ class ClaimController extends Controller
             return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
         }
 
-        $quantity = $claim->quantity ?? 1;
-        $totalPointsRequired = $item->points_required * $quantity;
+        try {
+            $quantity = DB::transaction(function () use ($claim) {
+                $lockedClaim = StudentClaim::whereKey($claim->id)->lockForUpdate()->first();
 
-        if ($item->quantity < $quantity || $item->status !== 'Available') {
-            return back()->withErrors(['claim' => 'Not enough item stock available. Only ' . $item->quantity . ' left.']);
-        }
+                if (!$lockedClaim || $lockedClaim->status !== 'Pending') {
+                    throw ValidationException::withMessages([
+                        'claim' => 'This claim request is no longer pending.',
+                    ]);
+                }
 
-        if (($student->total_points ?? 0) < $totalPointsRequired) {
-            return back()->withErrors(['claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.']);
-        }
+                $item = ClaimItem::whereKey($lockedClaim->claim_item_id)->lockForUpdate()->first();
+                $student = Student::whereKey($lockedClaim->student_id)->lockForUpdate()->first();
 
-        DB::transaction(function () use ($claim, $student, $item, $quantity, $totalPointsRequired) {
-            $pointsBefore = $student->total_points ?? 0;
-            $pointsAfter = $pointsBefore - $totalPointsRequired;
+                if (!$student || !$item) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Invalid claim request.',
+                    ]);
+                }
 
-            $student->update([
-                'total_points' => $pointsAfter,
-            ]);
+                $quantity = max(1, (int) $lockedClaim->quantity);
+                $totalPointsRequired = (int) $item->points_required * $quantity;
+                $remainingQuantity = (int) $item->quantity - $quantity;
 
-            $item->decrement('quantity', $quantity);
-            $item->refresh();
+                if ($item->status !== 'Available' || $remainingQuantity < 0) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Not enough item stock available. Only ' . max(0, (int) $item->quantity) . ' left.',
+                    ]);
+                }
 
-            if ($item->quantity <= 0) {
-                $item->update([
-                    'status' => 'Unavailable',
+                $pointsBefore = (int) ($student->total_points ?? 0);
+
+                if ($pointsBefore < $totalPointsRequired) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.',
+                    ]);
+                }
+
+                $pointsAfter = $pointsBefore - $totalPointsRequired;
+
+                $student->update([
+                    'total_points' => $pointsAfter,
                 ]);
-            }
 
-            $claim->update([
-                'points_deducted' => $totalPointsRequired,
-                'points_before' => $pointsBefore,
-                'points_after' => $pointsAfter,
-                'status' => 'Approved',
-                'claimed_by' => Auth::id(),
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-            ]);
-        });
+                $item->update([
+                    'quantity' => $remainingQuantity,
+                    'status' => $remainingQuantity <= 0 ? 'Unavailable' : 'Available',
+                ]);
+
+                $lockedClaim->update([
+                    'points_deducted' => $totalPointsRequired,
+                    'points_before' => $pointsBefore,
+                    'points_after' => $pointsAfter,
+                    'status' => 'Approved',
+                    'claimed_by' => Auth::id(),
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                ]);
+
+                return $quantity;
+            });
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
 
         AdminActivity::create([
             'user_id' => Auth::id(),

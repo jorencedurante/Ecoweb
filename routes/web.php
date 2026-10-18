@@ -28,11 +28,12 @@ Route::get('/items', [PublicController::class, 'items'])->name('public.items');
 Route::get('/student-lookup', [PublicController::class, 'studentLookup'])->name('student.lookup');
 Route::get('/student/{lrn}/details', [PublicController::class, 'studentDetails'])->name('landing.student.details');
 Route::post('/items/request-claim', [PublicController::class, 'requestItemClaim'])->name('public.items.request');
+Route::get('/items/points', [PublicController::class, 'points'])->name('public.items.points');
 
 // Guest routes (redirect authenticated users to dashboard)
 Route::middleware('guest')->group(function () {
-    Route::get('/admin/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/admin/login', [AuthController::class, 'login'])->name('login.submit');
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.submit');

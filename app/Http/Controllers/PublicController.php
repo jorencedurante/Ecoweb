@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\ClaimItem;
 use App\Models\StudentClaim;
+use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 class PublicController extends Controller
 {
@@ -22,11 +24,80 @@ class PublicController extends Controller
     public function items()
     {
         $availableItems = ClaimItem::where('status', 'Available')
-            ->where('quantity', '>', 0)
             ->orderBy('item_name')
             ->get();
 
         return view('public.items', compact('availableItems'));
+    }
+
+    public function points(Request $request)
+    {
+        $validated = $request->validate([
+            'lrn' => 'required|string|max:50',
+        ]);
+
+        if ($this->pointsLookupLimitExceeded($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many requests. Please try again in a minute.',
+            ], 429);
+        }
+
+        try {
+            $student = Student::where('lrn', trim($validated['lrn']))
+                ->whereNotIn('status', ['Archived', 'archived'])
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student LRN not found.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'available_points' => (int) ($student->total_points ?? 0),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to check points. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Public rate limit for the points lookup (30 requests per IP per minute).
+     *
+     * Uses the file cache store on purpose: the throttle middleware relies on
+     * the database cache table, which does not exist in every environment
+     * this project runs against (local + Railway). Rate limiting must never
+     * be able to break the lookup itself, so limiter failures fail open.
+     */
+    private function pointsLookupLimitExceeded(Request $request): bool
+    {
+        try {
+            $cache = Cache::store('file');
+            $key = 'items-points-lookup:' . sha1((string) $request->ip());
+            $now = time();
+
+            $record = $cache->get($key);
+
+            if (!is_array($record) || (int) ($record['expires_at'] ?? 0) < $now) {
+                $record = ['count' => 0, 'expires_at' => $now + 60];
+            }
+
+            $record['count']++;
+
+            $cache->put($key, $record, 61);
+
+            return $record['count'] > 30;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     public function studentLookup(Request $request)
@@ -96,19 +167,20 @@ class PublicController extends Controller
         }
 
         $quantity = (int) $validated['quantity'];
+
+        if ($item->quantity < $quantity) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors(['quantity' => 'Not enough stock available. Only ' . $item->quantity . ' piece(s) left for this item.'])
+                ->withInput();
+        }
+
         $totalPointsRequired = $item->points_required * $quantity;
 
         if (($student->total_points ?? 0) < $totalPointsRequired) {
             return redirect()
                 ->route('public.items')
-                ->withErrors(['claim_item_id' => 'You do not have enough points for this quantity. Required: ' . number_format($totalPointsRequired) . ' pts.'])
-                ->withInput();
-        }
-
-        if ($item->quantity < $quantity) {
-            return redirect()
-                ->route('public.items')
-                ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
+                ->withErrors(['claim_item_id' => 'Insufficient points. You need ' . number_format($totalPointsRequired) . ' points for this request.'])
                 ->withInput();
         }
 
@@ -121,17 +193,17 @@ class PublicController extends Controller
             $newQuantity = $existingPending->quantity + $quantity;
             $newTotalPoints = $item->points_required * $newQuantity;
 
-            if (($student->total_points ?? 0) < $newTotalPoints) {
-                return redirect()
-                    ->route('public.items')
-                    ->withErrors(['claim_item_id' => 'You do not have enough points to increase this request. Required: ' . number_format($newTotalPoints) . ' pts.'])
-                    ->withInput();
-            }
-
             if ($item->quantity < $newQuantity) {
                 return redirect()
                     ->route('public.items')
-                    ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
+                    ->withErrors(['quantity' => 'Not enough stock available. Only ' . $item->quantity . ' piece(s) left for this item.'])
+                    ->withInput();
+            }
+
+            if (($student->total_points ?? 0) < $newTotalPoints) {
+                return redirect()
+                    ->route('public.items')
+                    ->withErrors(['claim_item_id' => 'Insufficient points. You need ' . number_format($newTotalPoints) . ' points for this request.'])
                     ->withInput();
             }
 
@@ -201,9 +273,9 @@ class PublicController extends Controller
             ->withSum(['bottleCollections as quarter_points' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
                 $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
             }], 'points_earned')
-            ->withSum(['bottleCollections as quarter_bottles' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
+            ->withCount(['bottleCollections as quarter_bottles' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
                 $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
-            }], 'bottle_count')
+            }])
             ->where('status', '!=', 'Archived')
             ->orderByDesc('quarter_points')
             ->orderByDesc('quarter_bottles')
@@ -216,9 +288,9 @@ class PublicController extends Controller
             ->withSum(['bottleCollections as prev_points' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
                 $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
             }], 'points_earned')
-            ->withSum(['bottleCollections as prev_bottles' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
+            ->withCount(['bottleCollections as prev_bottles' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
                 $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
-            }], 'bottle_count')
+            }])
             ->where('status', '!=', 'Archived')
             ->orderByDesc('prev_points')
             ->orderByDesc('prev_bottles')
@@ -229,7 +301,7 @@ class PublicController extends Controller
 
         if ($currentQuarterTopStudents->isEmpty()) {
             $currentQuarterTopStudents = Student::query()
-                ->withSum('bottleCollections as total_bottles_collected', 'bottle_count')
+                ->withCount('bottleCollections as total_bottles_collected')
                 ->where('status', '!=', 'Archived')
                 ->orderByDesc('total_points')
                 ->orderByDesc('total_bottles_collected')

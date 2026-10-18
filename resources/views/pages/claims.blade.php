@@ -21,6 +21,7 @@
                         <th scope="col">Student</th>
                         <th scope="col">LRN</th>
                         <th scope="col">Item Requested</th>
+                        <th scope="col">Qty</th>
                         <th scope="col">Points Required</th>
                         <th scope="col">Student Points</th>
                         <th scope="col">Request Date</th>
@@ -36,6 +37,7 @@
                             <td><strong>{{ $claim->student->full_name ?? 'Student not found' }}</strong></td>
                             <td>{{ $claim->student->lrn ?? 'N/A' }}</td>
                             <td>{{ $claim->item_name }}</td>
+                            <td>{{ $claim->quantity ?? 1 }}</td>
                             <td>{{ $claim->points_deducted }}</td>
                             <td>{{ $claim->student->total_points ?? 0 }}</td>
                             <td>{{ $claim->created_at ? $claim->created_at->format('M d, Y') : 'N/A' }}</td>
@@ -58,7 +60,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" style="text-align:center;padding:30px;color:var(--text-light);">No pending item claims.</td>
+                                <td colspan="10" style="text-align:center;padding:30px;color:var(--text-light);">No pending item claims.</td>
                         </tr>
                     @endforelse
                 </tbody>
