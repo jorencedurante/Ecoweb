@@ -176,7 +176,7 @@
             <div class="rc-body">
                 <div class="summary-row">
                     <div class="summary-item">
-                        <div class="si-value">{{ $student->bottleCollections->sum('bottle_count') }}</div>
+                        <div class="si-value">{{ $student->bottleCollections->count() }}</div>
                         <div class="si-label">Total Bottles</div>
                     </div>
                     <div class="summary-item">
