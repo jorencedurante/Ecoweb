@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Auth\Events\PasswordReset;
 use App\Mail\SendOtpMail;
 use App\Models\User;
-use App\Models\Teacher;
 use App\Models\AdminActivity;
 
 class AuthController extends Controller
@@ -99,20 +98,11 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $role,
-            'position' => $validated['position'],
+            'position' => $validated['position'] ?? null,
             'status' => 'active',
             'email_verified_at' => null,
             'email_verification_code' => Hash::make($otp),
             'email_verification_expires_at' => now()->addMinutes(10),
-        ]);
-
-        Teacher::create([
-            'admin_id' => 'ADM' . str_pad($user->id, 3, '0', STR_PAD_LEFT),
-            'user_id' => $user->id,
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'position' => $validated['position'],
-            'status' => 'active',
         ]);
 
         try {

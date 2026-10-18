@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Teacher;
 use App\Models\AdminActivity;
 use App\Mail\SendOtpMail;
 use Illuminate\Http\Request;
@@ -66,19 +65,6 @@ class TeacherController extends Controller
         $validated['email_verification_expires_at'] = now()->addMinutes(10);
 
         $user = User::create($validated);
-
-        if ($user->role === 'teacher') {
-            Teacher::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'admin_id' => 'ADM' . str_pad($user->id, 3, '0', STR_PAD_LEFT),
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'position' => $validated['position'] ?? 'Teacher',
-                    'status' => $validated['status'] ?? 'active',
-                ]
-            );
-        }
 
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
