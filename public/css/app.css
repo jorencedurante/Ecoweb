@@ -2340,6 +2340,8 @@ body.public-landing-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 .ts-grid > * { min-width: 0; max-width: 100%; }
 .ts-card { min-width: 0; max-width: 100%; overflow: hidden; }
