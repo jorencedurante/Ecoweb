@@ -12,6 +12,30 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust the reverse proxy that terminates TLS in front of the app
+        // (Railway's edge does this) so Laravel honours the X-Forwarded-Proto,
+        // X-Forwarded-Host and X-Forwarded-For headers and therefore detects
+        // the original https:// request. Without this, form actions and other
+        // generated URLs fall back to http:// behind the proxy.
+        //
+        // This callback can run before the config/ and .env files are loaded,
+        // so only real process environment variables can be read here. The
+        // same rules live in config/trustedproxy.php, which Laravel also
+        // consults at request time (that path covers values defined in .env).
+        //
+        // Locally there is no proxy in front of the app, so nothing is
+        // trusted by default and http:// development keeps working unchanged.
+        $trustedProxies = env('TRUSTED_PROXIES');
+
+        if ($trustedProxies === null || $trustedProxies === '') {
+            $trustedProxies = str_starts_with((string) env('APP_URL'), 'https://')
+                || env('RAILWAY_ENVIRONMENT_NAME') !== null
+                    ? '*'
+                    : null;
+        }
+
+        $middleware->trustProxies(at: $trustedProxies);
+
         $middleware->redirectUsersTo(function () {
             return route('admin.dashboard');
         });
