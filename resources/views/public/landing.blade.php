@@ -6,7 +6,7 @@
     <title>EcoCollect - Smart Waste Management for Schools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
     <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
     <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
@@ -97,7 +97,7 @@
                 <div class="preview-stats">
                     <div class="preview-stat"><div class="ps-value">{{ number_format($student->bottleCollections->sum('points_earned')) }}</div><div class="ps-label">Total Points</div></div>
                     <div class="ps-divider"></div>
-                    <div class="preview-stat"><div class="ps-value">{{ $student->bottleCollections->sum('bottle_count') }}</div><div class="ps-label">Bottle Collections</div></div>
+                    <div class="preview-stat"><div class="ps-value">{{ number_format($student->bottleCollections->count()) }}</div><div class="ps-label">Bottle Collections</div></div>
                     <div class="ps-divider"></div>
                     <div class="preview-stat"><div class="ps-value">{{ $student->earnedAchievements->count() }}</div><div class="ps-label">Achievements</div></div>
                     <div class="ps-divider"></div>
