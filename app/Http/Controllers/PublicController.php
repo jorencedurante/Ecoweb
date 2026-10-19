@@ -6,6 +6,12 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\ClaimItem;
 use App\Models\StudentClaim;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PublicController extends Controller
 {
@@ -22,11 +28,80 @@ class PublicController extends Controller
     public function items()
     {
         $availableItems = ClaimItem::where('status', 'Available')
-            ->where('quantity', '>', 0)
             ->orderBy('item_name')
             ->get();
 
         return view('public.items', compact('availableItems'));
+    }
+
+    public function points(Request $request)
+    {
+        $validated = $request->validate([
+            'lrn' => 'required|string|max:50',
+        ]);
+
+        if ($this->pointsLookupLimitExceeded($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many requests. Please try again in a minute.',
+            ], 429);
+        }
+
+        try {
+            $student = Student::where('lrn', trim($validated['lrn']))
+                ->whereNotIn('status', ['Archived', 'archived'])
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student LRN not found.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'available_points' => (int) ($student->total_points ?? 0),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to check points. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Public rate limit for the points lookup (30 requests per IP per minute).
+     *
+     * Uses the file cache store on purpose: the throttle middleware relies on
+     * the database cache table, which does not exist in every environment
+     * this project runs against (local + Railway). Rate limiting must never
+     * be able to break the lookup itself, so limiter failures fail open.
+     */
+    private function pointsLookupLimitExceeded(Request $request): bool
+    {
+        try {
+            $cache = Cache::store('file');
+            $key = 'items-points-lookup:' . sha1((string) $request->ip());
+            $now = time();
+
+            $record = $cache->get($key);
+
+            if (!is_array($record) || (int) ($record['expires_at'] ?? 0) < $now) {
+                $record = ['count' => 0, 'expires_at' => $now + 60];
+            }
+
+            $record['count']++;
+
+            $cache->put($key, $record, 61);
+
+            return $record['count'] > 30;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     public function studentLookup(Request $request)
@@ -73,96 +148,188 @@ class PublicController extends Controller
             'lrn' => 'required|string',
             'claim_item_id' => 'required|exists:claim_items,id',
             'quantity' => 'required|integer|min:1',
+            'request_token' => 'nullable|string|max:64',
         ]);
 
-        $student = Student::where('lrn', $validated['lrn'])
-            ->whereNotIn('status', ['Archived', 'archived'])
-            ->first();
+        $token = $validated['request_token'] ?? null;
 
-        if (!$student) {
-            return redirect()
-                ->route('public.items')
-                ->withErrors(['lrn' => 'Student record not found.'])
-                ->withInput();
-        }
+        // A retried or double-clicked submission carries the same token as the
+        // original request, so it must never reserve anything twice.
+        if ($token) {
+            $existingClaim = StudentClaim::where('request_token', $token)->first();
 
-        $item = ClaimItem::findOrFail($validated['claim_item_id']);
-
-        if ($item->status !== 'Available' || $item->quantity <= 0) {
-            return redirect()
-                ->route('public.items')
-                ->withErrors(['claim_item_id' => 'This item is currently unavailable.'])
-                ->withInput();
-        }
-
-        $quantity = (int) $validated['quantity'];
-        $totalPointsRequired = $item->points_required * $quantity;
-
-        if (($student->total_points ?? 0) < $totalPointsRequired) {
-            return redirect()
-                ->route('public.items')
-                ->withErrors(['claim_item_id' => 'You do not have enough points for this quantity. Required: ' . number_format($totalPointsRequired) . ' pts.'])
-                ->withInput();
-        }
-
-        if ($item->quantity < $quantity) {
-            return redirect()
-                ->route('public.items')
-                ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
-                ->withInput();
-        }
-
-        $existingPending = StudentClaim::where('student_id', $student->id)
-            ->where('claim_item_id', $item->id)
-            ->where('status', 'Pending')
-            ->first();
-
-        if ($existingPending) {
-            $newQuantity = $existingPending->quantity + $quantity;
-            $newTotalPoints = $item->points_required * $newQuantity;
-
-            if (($student->total_points ?? 0) < $newTotalPoints) {
+            if ($existingClaim) {
                 return redirect()
                     ->route('public.items')
-                    ->withErrors(['claim_item_id' => 'You do not have enough points to increase this request. Required: ' . number_format($newTotalPoints) . ' pts.'])
-                    ->withInput();
+                    ->with('success', $this->reservationSuccessMessage($existingClaim))
+                    ->withInput(['lrn' => $validated['lrn']]);
+            }
+        }
+
+        try {
+            $result = DB::transaction(function () use ($validated, $token) {
+                // Lock ordering is always student first, then item
+                // (the approval/rejection flows follow the same order).
+                $student = Student::where('lrn', trim($validated['lrn']))
+                    ->whereNotIn('status', ['Archived', 'archived'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$student) {
+                    throw ValidationException::withMessages([
+                        'lrn' => 'Student record not found.',
+                    ]);
+                }
+
+                // Same-token resubmission that waited on the student lock.
+                if ($token && StudentClaim::where('request_token', $token)->exists()) {
+                    return ['duplicate' => true];
+                }
+
+                $item = ClaimItem::whereKey($validated['claim_item_id'])->lockForUpdate()->first();
+
+                if (!$item) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'This item is currently unavailable.',
+                    ]);
+                }
+
+                if ($item->status !== 'Available' || $item->quantity <= 0) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'This item is currently unavailable.',
+                    ]);
+                }
+
+                $quantity = (int) $validated['quantity'];
+
+                if ($item->quantity < $quantity) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'Not enough stock available. Only ' . $item->quantity . ' piece(s) left for this item.',
+                    ]);
+                }
+
+                $totalPointsRequired = (int) $item->points_required * $quantity;
+                $pointsBefore = (int) ($student->total_points ?? 0);
+
+                if ($pointsBefore < $totalPointsRequired) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'Insufficient points. You need ' . number_format($totalPointsRequired) . ' points for this request.',
+                    ]);
+                }
+
+                $existingPending = StudentClaim::where('student_id', $student->id)
+                    ->where('claim_item_id', $item->id)
+                    ->where('status', 'Pending')
+                    ->exists();
+
+                if ($existingPending) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'You already have a pending request for this item. Please wait for it to be approved or rejected before submitting another.',
+                    ]);
+                }
+
+                $pointsAfter = $pointsBefore - $totalPointsRequired;
+                $remainingStock = (int) $item->quantity - $quantity;
+
+                // Conditional atomic updates: the balance can never go below
+                // zero and the stock can never go negative, even under
+                // concurrent requests.
+                $pointsReserved = Student::whereKey($student->id)
+                    ->where('total_points', '>=', $totalPointsRequired)
+                    ->update(['total_points' => $pointsAfter]);
+
+                if ($pointsReserved === 0) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'Insufficient points. You need ' . number_format($totalPointsRequired) . ' points for this request.',
+                    ]);
+                }
+
+                $stockReserved = ClaimItem::whereKey($item->id)
+                    ->where('quantity', '>=', $quantity)
+                    ->update([
+                        'quantity' => $remainingStock,
+                        'status' => $remainingStock <= 0 ? 'Unavailable' : 'Available',
+                    ]);
+
+                if ($stockReserved === 0) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'Not enough stock available. Only ' . $item->quantity . ' piece(s) left for this item.',
+                    ]);
+                }
+
+                $claim = StudentClaim::create([
+                    'student_id' => $student->id,
+                    'claim_item_id' => $item->id,
+                    'quantity' => $quantity,
+                    'item_name' => $item->item_name,
+                    'points_deducted' => $totalPointsRequired,
+                    'points_before' => $pointsBefore,
+                    'points_after' => $pointsAfter,
+                    'claim_date' => now()->toDateString(),
+                    'claimed_by' => null,
+                    'remarks' => 'Requested from public Items page',
+                    'status' => 'Pending',
+                    'is_reserved' => true,
+                    'request_token' => $token,
+                ]);
+
+                return [
+                    'duplicate' => false,
+                    'claim' => $claim,
+                ];
+            });
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('public.items')
+                ->withErrors($e->errors())
+                ->withInput();
+        } catch (QueryException $e) {
+            // Unique request_token collision: a truly parallel duplicate lost
+            // the race, so its whole transaction (including any deduction)
+            // was rolled back. Report the original submission instead.
+            if ($token && str_contains($e->getMessage(), 'request_token')) {
+                $existingClaim = StudentClaim::where('request_token', $token)->first();
+
+                if ($existingClaim) {
+                    return redirect()
+                        ->route('public.items')
+                        ->with('success', $this->reservationSuccessMessage($existingClaim))
+                        ->withInput(['lrn' => $validated['lrn']]);
+                }
             }
 
-            if ($item->quantity < $newQuantity) {
-                return redirect()
-                    ->route('public.items')
-                    ->withErrors(['claim_item_id' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])
-                    ->withInput();
-            }
-
-            $existingPending->update([
-                'quantity' => $newQuantity,
-                'points_deducted' => $newTotalPoints,
-                'points_after' => ($student->total_points ?? 0) - $newTotalPoints,
-            ]);
+            report($e);
 
             return redirect()
                 ->route('public.items')
-                ->with('success', 'Your pending request has been updated to quantity ' . $newQuantity . '.');
+                ->withErrors(['claim_item_id' => 'Unable to submit your claim request. Please try again.'])
+                ->withInput();
         }
 
-        StudentClaim::create([
-            'student_id' => $student->id,
-            'claim_item_id' => $item->id,
-            'quantity' => $quantity,
-            'item_name' => $item->item_name,
-            'points_deducted' => $totalPointsRequired,
-            'points_before' => $student->total_points ?? 0,
-            'points_after' => ($student->total_points ?? 0) - $totalPointsRequired,
-            'claim_date' => now()->toDateString(),
-            'claimed_by' => null,
-            'remarks' => 'Requested from public Items page',
-            'status' => 'Pending',
-        ]);
+        if (!empty($result['duplicate'])) {
+            $existingClaim = StudentClaim::where('request_token', $token)->first();
+
+            return redirect()
+                ->route('public.items')
+                ->with('success', $this->reservationSuccessMessage($existingClaim))
+                ->withInput(['lrn' => $validated['lrn']]);
+        }
 
         return redirect()
             ->route('public.items')
-            ->with('success', 'Your item claim request (qty: ' . $quantity . ') has been submitted and is pending approval.');
+            ->with('success', $this->reservationSuccessMessage($result['claim']))
+            ->withInput(['lrn' => $validated['lrn']]);
+    }
+
+    private function reservationSuccessMessage(?StudentClaim $claim): string
+    {
+        $points = (int) ($claim->points_deducted ?? 0);
+        $quantity = (int) ($claim->quantity ?? 1);
+
+        return 'Claim request submitted! '
+            . number_format($points) . ' point' . ($points === 1 ? '' : 's')
+            . ' and ' . $quantity . ' item piece' . ($quantity === 1 ? ' has' : 's have')
+            . ' been reserved while awaiting admin approval.';
     }
 
     public function studentDetails($lrn)
@@ -201,9 +368,9 @@ class PublicController extends Controller
             ->withSum(['bottleCollections as quarter_points' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
                 $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
             }], 'points_earned')
-            ->withSum(['bottleCollections as quarter_bottles' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
+            ->withCount(['bottleCollections as quarter_bottles' => function ($query) use ($currentQuarterStart, $currentQuarterEnd) {
                 $query->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
-            }], 'bottle_count')
+            }])
             ->where('status', '!=', 'Archived')
             ->orderByDesc('quarter_points')
             ->orderByDesc('quarter_bottles')
@@ -216,9 +383,9 @@ class PublicController extends Controller
             ->withSum(['bottleCollections as prev_points' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
                 $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
             }], 'points_earned')
-            ->withSum(['bottleCollections as prev_bottles' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
+            ->withCount(['bottleCollections as prev_bottles' => function ($query) use ($previousQuarterStart, $previousQuarterEnd) {
                 $query->whereBetween('collection_date', [$previousQuarterStart, $previousQuarterEnd]);
-            }], 'bottle_count')
+            }])
             ->where('status', '!=', 'Archived')
             ->orderByDesc('prev_points')
             ->orderByDesc('prev_bottles')
@@ -229,7 +396,7 @@ class PublicController extends Controller
 
         if ($currentQuarterTopStudents->isEmpty()) {
             $currentQuarterTopStudents = Student::query()
-                ->withSum('bottleCollections as total_bottles_collected', 'bottle_count')
+                ->withCount('bottleCollections as total_bottles_collected')
                 ->where('status', '!=', 'Archived')
                 ->orderByDesc('total_points')
                 ->orderByDesc('total_bottles_collected')

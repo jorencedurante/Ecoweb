@@ -134,7 +134,7 @@ class StudentController extends Controller
             'last_name' => 'required|string|max:100',
             'grade_level' => 'required|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
             'gender' => 'required|in:Male,Female',
-            'teacher_id' => 'nullable|exists:users,id',
+            'teacher_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')],
         ]);
 
         $fullName = trim(
@@ -206,7 +206,7 @@ class StudentController extends Controller
         ];
 
         if ($user->isAdminLevel()) {
-            $rules['teacher_id'] = 'nullable|exists:users,id';
+            $rules['teacher_id'] = ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')];
         }
 
         $validated = $request->validate($rules);

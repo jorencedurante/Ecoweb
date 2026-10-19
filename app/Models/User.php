@@ -66,14 +66,14 @@ class User extends Authenticatable
         return $this->role === 'teacher';
     }
 
-    public function teacher(): HasOne
-    {
-        return $this->hasOne(Teacher::class, 'user_id');
-    }
-
     public function students(): HasMany
     {
         return $this->hasMany(Student::class, 'teacher_id');
+    }
+
+    public function studentEnrollments(): HasMany
+    {
+        return $this->hasMany(StudentEnrollment::class, 'teacher_id');
     }
 
     public function activities(): HasMany

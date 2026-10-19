@@ -27,6 +27,8 @@ class StudentClaim extends Model
         'is_archived',
         'released_at',
         'released_by',
+        'is_reserved',
+        'request_token',
     ];
 
     protected $casts = [
@@ -34,6 +36,7 @@ class StudentClaim extends Model
         'approved_at' => 'datetime',
         'released_at' => 'datetime',
         'is_archived' => 'boolean',
+        'is_reserved' => 'boolean',
     ];
 
     public function student(): BelongsTo
