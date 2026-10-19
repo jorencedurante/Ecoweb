@@ -414,7 +414,11 @@ class StudentsImport
 
     private function createOrUpdateEnrollment(Student $student, ?int $teacherId, string $gradeLevel, string $fileName): void
     {
-        $teacherId = $teacherId ?? 1;
+        if ($teacherId === null) {
+            // No teacher account is associated with this import, so no class
+            // assignment is created. Admins can assign a teacher afterwards.
+            return;
+        }
 
         try {
             StudentEnrollment::updateOrCreate(

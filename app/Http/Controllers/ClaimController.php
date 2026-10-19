@@ -9,6 +9,7 @@ use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ClaimController extends Controller
 {
@@ -420,9 +421,8 @@ class ClaimController extends Controller
     public function approve(StudentClaim $claim)
     {
         $student = $claim->student;
-        $item = $claim->item;
 
-        if (!$student || !$item) {
+        if (!$student) {
             return back()->withErrors(['claim' => 'Invalid claim request.']);
         }
 
@@ -434,44 +434,86 @@ class ClaimController extends Controller
             return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
         }
 
-        $quantity = $claim->quantity ?? 1;
-        $totalPointsRequired = $item->points_required * $quantity;
+        try {
+            $quantity = DB::transaction(function () use ($claim) {
+                $lockedClaim = StudentClaim::whereKey($claim->id)->lockForUpdate()->first();
 
-        if ($item->quantity < $quantity || $item->status !== 'Available') {
-            return back()->withErrors(['claim' => 'Not enough item stock available. Only ' . $item->quantity . ' left.']);
-        }
+                if (!$lockedClaim || $lockedClaim->status !== 'Pending') {
+                    throw ValidationException::withMessages([
+                        'claim' => 'This claim request is no longer pending.',
+                    ]);
+                }
 
-        if (($student->total_points ?? 0) < $totalPointsRequired) {
-            return back()->withErrors(['claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.']);
-        }
+                $quantity = max(1, (int) $lockedClaim->quantity);
 
-        DB::transaction(function () use ($claim, $student, $item, $quantity, $totalPointsRequired) {
-            $pointsBefore = $student->total_points ?? 0;
-            $pointsAfter = $pointsBefore - $totalPointsRequired;
+                if ($lockedClaim->is_reserved) {
+                    // The points and item pieces were already reserved when the
+                    // request was submitted. Approval must not deduct anything
+                    // again - only the status and approval metadata change.
+                    $lockedClaim->update([
+                        'status' => 'Approved',
+                        'claimed_by' => Auth::id(),
+                        'approved_by' => Auth::id(),
+                        'approved_at' => now(),
+                    ]);
 
-            $student->update([
-                'total_points' => $pointsAfter,
-            ]);
+                    return $quantity;
+                }
 
-            $item->decrement('quantity', $quantity);
-            $item->refresh();
+                // Legacy pending claim created before the reservation workflow:
+                // nothing was reserved yet, so approval deducts exactly once.
+                $student = Student::whereKey($lockedClaim->student_id)->lockForUpdate()->first();
+                $item = ClaimItem::whereKey($lockedClaim->claim_item_id)->lockForUpdate()->first();
 
-            if ($item->quantity <= 0) {
-                $item->update([
-                    'status' => 'Unavailable',
+                if (!$student || !$item) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Invalid claim request.',
+                    ]);
+                }
+
+                $totalPointsRequired = (int) $item->points_required * $quantity;
+                $remainingQuantity = (int) $item->quantity - $quantity;
+
+                if ($item->status !== 'Available' || $remainingQuantity < 0) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Not enough item stock available. Only ' . max(0, (int) $item->quantity) . ' left.',
+                    ]);
+                }
+
+                $pointsBefore = (int) ($student->total_points ?? 0);
+
+                if ($pointsBefore < $totalPointsRequired) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.',
+                    ]);
+                }
+
+                $pointsAfter = $pointsBefore - $totalPointsRequired;
+
+                $student->update([
+                    'total_points' => $pointsAfter,
                 ]);
-            }
 
-            $claim->update([
-                'points_deducted' => $totalPointsRequired,
-                'points_before' => $pointsBefore,
-                'points_after' => $pointsAfter,
-                'status' => 'Approved',
-                'claimed_by' => Auth::id(),
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-            ]);
-        });
+                $item->update([
+                    'quantity' => $remainingQuantity,
+                    'status' => $remainingQuantity <= 0 ? 'Unavailable' : 'Available',
+                ]);
+
+                $lockedClaim->update([
+                    'points_deducted' => $totalPointsRequired,
+                    'points_before' => $pointsBefore,
+                    'points_after' => $pointsAfter,
+                    'status' => 'Approved',
+                    'claimed_by' => Auth::id(),
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                ]);
+
+                return $quantity;
+            });
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -497,12 +539,67 @@ class ClaimController extends Controller
             return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
         }
 
-        $claim->update([
-            'status' => 'Rejected',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'rejected_reason' => $request->rejected_reason,
-        ]);
+        try {
+            $restoredReservation = DB::transaction(function () use ($claim, $request) {
+                $lockedClaim = StudentClaim::whereKey($claim->id)->lockForUpdate()->first();
+
+                if (!$lockedClaim || $lockedClaim->status !== 'Pending') {
+                    throw ValidationException::withMessages([
+                        'claim' => 'This claim request is no longer pending.',
+                    ]);
+                }
+
+                $restoredReservation = false;
+
+                if ($lockedClaim->is_reserved) {
+                    // Refund only what this claim originally reserved - never a
+                    // recalculated amount - and only once (the status flip below
+                    // happens inside this same locked transaction).
+                    $refundPoints = max(0, (int) $lockedClaim->points_deducted);
+                    $refundQuantity = max(0, (int) $lockedClaim->quantity);
+
+                    $student = Student::whereKey($lockedClaim->student_id)->lockForUpdate()->first();
+
+                    if (!$student) {
+                        throw ValidationException::withMessages([
+                            'claim' => 'Invalid claim request.',
+                        ]);
+                    }
+
+                    if ($refundPoints > 0) {
+                        $student->increment('total_points', $refundPoints);
+                    }
+
+                    if ($lockedClaim->claim_item_id && $refundQuantity > 0) {
+                        $item = ClaimItem::whereKey($lockedClaim->claim_item_id)->lockForUpdate()->first();
+
+                        if ($item) {
+                            $restoredQuantity = (int) $item->quantity + $refundQuantity;
+
+                            $item->update([
+                                'quantity' => $restoredQuantity,
+                                'status' => $restoredQuantity <= 0 ? 'Unavailable' : 'Available',
+                            ]);
+                        }
+                    }
+
+                    $restoredReservation = true;
+                }
+
+                // Legacy pending claim: its points and stock were never
+                // reserved, so there is nothing to return.
+                $lockedClaim->update([
+                    'status' => 'Rejected',
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'rejected_reason' => $request->rejected_reason,
+                ]);
+
+                return $restoredReservation;
+            });
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -511,7 +608,12 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return back()->with('success', 'Item claim rejected successfully.');
+        return back()->with(
+            'success',
+            $restoredReservation
+                ? 'Item claim rejected. Reserved points and item pieces have been restored.'
+                : 'Item claim rejected successfully.'
+        );
     }
 
     public function archive(StudentClaim $claim)

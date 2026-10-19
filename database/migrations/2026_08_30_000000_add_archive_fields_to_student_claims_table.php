@@ -9,9 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('student_claims', function (Blueprint $table) {
-            $table->boolean('is_archived')->default(false)->after('status');
-            $table->timestamp('released_at')->nullable()->after('is_archived');
-            $table->unsignedBigInteger('released_by')->nullable()->after('released_at');
+            if (!Schema::hasColumn('student_claims', 'is_archived')) {
+                $table->boolean('is_archived')->default(false)->after('status');
+            }
+            if (!Schema::hasColumn('student_claims', 'released_at')) {
+                $table->timestamp('released_at')->nullable()->after('is_archived');
+            }
+            if (!Schema::hasColumn('student_claims', 'released_by')) {
+                $table->unsignedBigInteger('released_by')->nullable()->after('released_at');
+            }
         });
     }
 

@@ -144,8 +144,8 @@ class Student extends Model
      */
     public function achievementProgressData(): array
     {
-        $totalBottles = $this->bottleCollections()->sum('bottle_count');
-        $totalPoints = $this->total_points ?? $totalBottles;
+        $totalBottles = $this->bottleCollections()->count();
+        $totalPoints = $this->total_points ?? $this->bottleCollections()->sum('points_earned');
 
         $quests = Achievement::whereNull('student_id')
             ->where('status', 'Active')

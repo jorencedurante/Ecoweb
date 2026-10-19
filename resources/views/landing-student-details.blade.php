@@ -33,6 +33,12 @@
 
     <a href="{{ route('landing') }}" style="display:inline-flex;align-items:center;gap:6px;color:#22C55E;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:24px;">← Back to Home</a>
 
+    @php
+        $collectionsCount = $student->bottleCollections->count();
+        $totalBottles = $collectionsCount;
+        $totalPointsEarned = $student->bottleCollections->sum('points_earned');
+    @endphp
+
     {{-- Student Information --}}
     <div style="background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px 32px;margin-bottom:24px;">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
@@ -48,8 +54,8 @@
             <div><span style="font-size:12px;color:#9CA3AF;display:block;">LRN</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->lrn }}</span></div>
             <div><span style="font-size:12px;color:#9CA3AF;display:block;">Grade Level</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->grade_level }}</span></div>
             <div><span style="font-size:12px;color:#9CA3AF;display:block;">Gender</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->gender ?? '—' }}</span></div>
-            <div><span style="font-size:12px;color:#9CA3AF;display:block;">Total Points</span><span style="font-size:15px;font-weight:600;color:#22C55E;">{{ number_format($student->total_points ?? $student->bottleCollections->sum('points_earned')) }}</span></div>
-            <div><span style="font-size:12px;color:#9CA3AF;display:block;">Bottle Collections</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->bottleCollections->sum('bottle_count') }}</span></div>
+            <div><span style="font-size:12px;color:#9CA3AF;display:block;">Total Points</span><span style="font-size:15px;font-weight:600;color:#22C55E;">{{ number_format($student->total_points ?? $totalPointsEarned) }}</span></div>
+            <div><span style="font-size:12px;color:#9CA3AF;display:block;">Bottle Collections</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ number_format($collectionsCount) }}</span></div>
             <div><span style="font-size:12px;color:#9CA3AF;display:block;">Achievements</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->earnedAchievements->count() }}</span></div>
             <div><span style="font-size:12px;color:#9CA3AF;display:block;">Awards / Certificates</span><span style="font-size:15px;font-weight:600;color:#111827;">{{ $student->certificateAwards->count() }}</span></div>
         </div>
@@ -94,14 +100,9 @@
         {{-- Bottle Collection Summary --}}
         <div style="background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:24px 28px;">
             <h4 style="font-size:15px;font-weight:700;color:#111827;margin-bottom:16px;">Bottle Collection Summary</h4>
-            @php
-                $totalBottles = $student->bottleCollections->sum('bottle_count');
-                $totalPointsEarned = $student->bottleCollections->sum('points_earned');
-                $collectionCount = $student->bottleCollections->count();
-            @endphp
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;">
                 <div style="background:rgba(34,197,94,0.08);border-radius:10px;padding:16px 8px;">
-                    <div style="font-size:24px;font-weight:700;color:#22C55E;">{{ $totalBottles }}</div>
+                    <div style="font-size:24px;font-weight:700;color:#22C55E;">{{ number_format($totalBottles) }}</div>
                     <div style="font-size:12px;color:#6B7280;">Total Bottles</div>
                 </div>
                 <div style="background:rgba(0,174,239,0.08);border-radius:10px;padding:16px 8px;">
@@ -109,7 +110,7 @@
                     <div style="font-size:12px;color:#6B7280;">Points Earned</div>
                 </div>
                 <div style="background:rgba(251,191,36,0.08);border-radius:10px;padding:16px 8px;">
-                    <div style="font-size:24px;font-weight:700;color:#FBBF24;">{{ $collectionCount }}</div>
+                    <div style="font-size:24px;font-weight:700;color:#FBBF24;">{{ number_format($collectionsCount) }}</div>
                     <div style="font-size:12px;color:#6B7280;">Collections</div>
                 </div>
             </div>
