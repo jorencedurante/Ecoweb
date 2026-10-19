@@ -251,7 +251,19 @@ trait CreatesApplicationTables
                 $table->text('rejected_reason')->nullable();
                 $table->boolean('is_archived')->default(false);
                 $table->timestamp('released_at')->nullable();
+                $table->boolean('is_reserved')->default(false);
+                $table->string('request_token', 64)->nullable()->unique();
                 $table->timestamps();
+            });
+        } elseif (!Schema::hasColumn('student_claims', 'is_reserved') || !Schema::hasColumn('student_claims', 'request_token')) {
+            Schema::table('student_claims', function (Blueprint $table) {
+                if (!Schema::hasColumn('student_claims', 'is_reserved')) {
+                    $table->boolean('is_reserved')->default(false);
+                }
+
+                if (!Schema::hasColumn('student_claims', 'request_token')) {
+                    $table->string('request_token', 64)->nullable()->unique();
+                }
             });
         }
 

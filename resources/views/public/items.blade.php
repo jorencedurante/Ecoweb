@@ -79,6 +79,7 @@
                     <form method="POST" action="{{ route('public.items.request') }}" class="reward-claim-form">
                         @csrf
                         <input type="hidden" name="claim_item_id" value="{{ $item->id }}">
+                        <input type="hidden" name="request_token" value="{{ \Illuminate\Support\Str::uuid() }}">
                         <label for="claim-lrn-{{ $item->id }}">Student LRN</label>
                         <div class="reward-input-group">
                             <input type="text" id="claim-lrn-{{ $item->id }}" name="lrn" placeholder="Enter your LRN" required value="{{ old('lrn') }}" aria-label="Student LRN">
@@ -318,6 +319,14 @@
         qtyInput.addEventListener('input', refresh);
         qtyInput.addEventListener('change', refresh);
         refresh();
+
+        // When an LRN is already prefilled (e.g. right after a claim request
+        // redirect), fetch the student's current balance right away so the
+        // panel never shows a stale points value.
+        if (lrnInput.value.trim()) {
+            renderLookup('checking');
+            lookupPoints(lrnInput.value.trim());
+        }
     });
 })();
 </script>

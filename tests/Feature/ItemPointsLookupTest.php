@@ -86,17 +86,17 @@ class ItemPointsLookupTest extends TestCase
         $this->lookup($student->lrn)->assertOk()->assertJson(['available_points' => 500]);
         $this->assertSame(500, (int) $student->fresh()->total_points);
 
-        // A pending claim does not reserve points (existing workflow), so the
-        // spendable balance shown stays the same until approval.
+        // A pending claim reserves its points immediately, so the spendable
+        // balance shown drops as soon as the request is submitted.
         $this->post(route('public.items.request'), [
             'lrn' => $student->lrn,
             'claim_item_id' => $item->id,
             'quantity' => 2,
         ])->assertSessionHas('success');
 
-        $this->lookup($student->lrn)->assertOk()->assertJson(['available_points' => 500]);
+        $this->lookup($student->lrn)->assertOk()->assertJson(['available_points' => 300]);
 
-        // After approval the displayed balance follows the claim redemption rules.
+        // Approval keeps the reservation: no second deduction.
         $claim = StudentClaim::where('student_id', $student->id)->where('status', 'Pending')->firstOrFail();
         $this->actingAs($admin)->patch(route('claims.approve', $claim->id))->assertSessionHas('success');
 
