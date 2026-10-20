@@ -410,6 +410,216 @@ class StudentController extends Controller
         return view('pages.student-awards', compact('student', 'awards'));
     }
 
+    public function overview(Student $student)
+    {
+        $this->authorizeStudentAccess($student);
+
+        $user = Auth::user();
+
+        $currentEnrollment = $student->enrollments()
+            ->when($user->isTeacher(), fn ($query) => $query->where('teacher_id', $user->id))
+            ->latest()
+            ->first();
+
+        $totalBottles = (int) $student->bottleCollections()->sum('bottle_count');
+        $totalPoints = (int) ($student->total_points ?? 0);
+        $pointsEarnedSum = (int) $student->bottleCollections()->sum('points_earned');
+        $collectionsTotal = $student->bottleCollections()->count();
+
+        $collectionsQuery = $student->bottleCollections()
+            ->with('recorder:id,name')
+            ->orderByDesc('collection_date')
+            ->orderByDesc('id');
+
+        $recentCollections = (clone $collectionsQuery)->limit(5)->get();
+        $collections = (clone $collectionsQuery)->limit(30)->get();
+
+        $earnedAchievements = $student->earnedAchievements()
+            ->with('quest')
+            ->orderByDesc('awarded_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $earnedQuestIds = $earnedAchievements->pluck('achievement_quest_id')->all();
+
+        $questProgress = Achievement::whereNull('student_id')
+            ->where('status', 'Active')
+            ->get()
+            ->filter(fn ($quest) => $quest->required_bottles > 0 || $quest->points_required > 0)
+            ->map(function ($quest) use ($totalBottles, $totalPoints, $earnedQuestIds) {
+                $usesBottles = $quest->required_bottles > 0;
+                $required = $usesBottles ? (int) $quest->required_bottles : (int) $quest->points_required;
+                $current = $usesBottles ? $totalBottles : $totalPoints;
+
+                $isCompleted = in_array($quest->id, $earnedQuestIds)
+                    || ($quest->required_bottles > 0 && $totalBottles >= $quest->required_bottles)
+                    || ($quest->points_required > 0 && $totalPoints >= $quest->points_required);
+
+                return [
+                    'title' => $quest->title,
+                    'description' => $quest->description,
+                    'badge_name' => $quest->badge_name,
+                    'metric' => $usesBottles ? 'bottles' : 'points',
+                    'required' => $required,
+                    'current' => $current,
+                    'progress' => $required > 0 ? (int) min(100, round(($current / $required) * 100)) : 0,
+                    'completed' => $isCompleted,
+                ];
+            })
+            ->sortBy('required')
+            ->values();
+
+        $nextQuest = $questProgress->firstWhere('completed', false);
+        $achievementProgress = [
+            'current_bottles' => $totalBottles,
+            'current_points' => $totalPoints,
+            'next_goal' => $nextQuest ? [
+                'title' => $nextQuest['title'],
+                'metric' => $nextQuest['metric'],
+                'required' => $nextQuest['required'],
+                'current' => $nextQuest['current'],
+                'remaining' => max(0, $nextQuest['required'] - $nextQuest['current']),
+                'progress' => $nextQuest['progress'],
+            ] : null,
+            'remaining' => $nextQuest ? max(0, $nextQuest['required'] - $nextQuest['current']) : 0,
+            'progress' => $nextQuest['progress'] ?? 0,
+            'quests_total' => count($questProgress),
+        ];
+
+        $awardsQuery = $student->certificateAwards()
+            ->with('teacher:id,name')
+            ->orderByDesc('awarded_date')
+            ->orderByDesc('id');
+
+        $awards = (clone $awardsQuery)->limit(30)->get();
+        $certificateCount = (clone $awardsQuery)->count();
+
+        $mapCollection = fn ($collection) => [
+            'id' => $collection->id,
+            'collection_date' => optional($collection->collection_date)->format('M d, Y'),
+            'collection_time' => $collection->collection_time,
+            'bottle_count' => (int) $collection->bottle_count,
+            'points_earned' => (int) $collection->points_earned,
+            'recorded_by' => $collection->recorder?->name ?? 'System / IoT',
+            // bottle_collections has no status column; "Recorded" is a derived display label.
+            'status' => 'Recorded',
+        ];
+
+        $recentActivity = collect()
+            ->merge($recentCollections->map(fn ($collection) => [
+                'type' => 'collection',
+                'label' => 'Bottle collection',
+                'detail' => $collection->bottle_count . ' bottles • ' . $collection->points_earned . ' points',
+                'date' => optional($collection->collection_date)->format('M d, Y'),
+                'sort' => optional($collection->collection_date)->getTimestamp(),
+            ]))
+            ->merge($earnedAchievements->take(5)->map(fn ($record) => [
+                'type' => 'achievement',
+                'label' => $record->quest?->title ?? 'Achievement earned',
+                'detail' => $record->quest?->badge_name,
+                'date' => optional($record->awarded_date)->format('M d, Y'),
+                'sort' => optional($record->awarded_date)->getTimestamp(),
+            ]))
+            ->merge($awards->take(5)->map(fn ($award) => [
+                'type' => 'certificate',
+                'label' => $award->award_title ?? 'Certificate issued',
+                'detail' => $award->certificate_type,
+                'date' => optional($award->awarded_date)->format('M d, Y'),
+                'sort' => optional($award->awarded_date)->getTimestamp(),
+            ]))
+            ->filter(fn ($item) => $item['date'] !== null)
+            ->sortByDesc('sort')
+            ->take(6)
+            ->map(fn ($item) => collect($item)->except('sort')->all())
+            ->values();
+
+        $initials = collect([$student->first_name, $student->last_name])
+            ->filter()
+            ->map(fn ($part) => mb_strtoupper(mb_substr(trim($part), 0, 1)))
+            ->implode('');
+
+        return response()->json([
+            'student' => [
+                'id' => $student->id,
+                'full_name' => $student->full_name,
+                'initials' => $initials !== '' ? $initials : 'ST',
+                'lrn' => $student->lrn,
+                'student_id' => $student->student_id,
+                'grade_level' => $student->grade_level,
+                'gender' => $student->gender,
+                'status' => $student->status,
+                'qr_code' => $student->qr_code,
+                'birth_date' => optional($student->birth_date)->format('M d, Y'),
+                'age' => $student->age,
+                'mother_tongue' => $student->mother_tongue,
+                'ip_ethnic_group' => $student->ip_ethnic_group,
+                'religion' => $student->religion,
+                'house_street' => $student->house_street,
+                'barangay' => $student->barangay,
+                'municipality_city' => $student->municipality_city,
+                'province' => $student->province,
+                'father_name' => $student->father_name,
+                'mother_maiden_name' => $student->mother_maiden_name,
+                'guardian_name' => $student->guardian_name,
+                'guardian_relationship' => $student->guardian_relationship,
+                'contact_number' => $student->contact_number,
+                'learning_modality' => $student->learning_modality,
+                'remarks' => $student->remarks,
+                'section' => $currentEnrollment?->section,
+                'school_year' => $currentEnrollment?->school_year,
+                'teacher_name' => $student->teacher?->name,
+                'is_archived' => in_array($student->status, ['Archived', 'archived']),
+                'details_url' => route('students.info', $student),
+            ],
+            'summary' => [
+                'total_bottles' => $totalBottles,
+                'total_points' => $totalPoints,
+                'points_earned' => $pointsEarnedSum,
+                'collections_count' => $collectionsTotal,
+                'achievements' => $earnedAchievements->count(),
+                'certificates' => $certificateCount,
+            ],
+            'recent_activity' => $recentActivity,
+            'achievement_progress' => $achievementProgress,
+            'recent_collections' => $recentCollections->map($mapCollection)->values(),
+            'collections' => $collections->map($mapCollection)->values(),
+            'achievements' => [
+                'earned' => $earnedAchievements->map(fn ($record) => [
+                    'id' => $record->id,
+                    'title' => $record->quest?->title ?? 'Achievement',
+                    'description' => $record->quest?->description,
+                    'badge_name' => $record->quest?->badge_name,
+                    'required_bottles' => (int) ($record->quest?->required_bottles ?? 0),
+                    'points_required' => (int) ($record->quest?->points_required ?? 0),
+                    'awarded_date' => optional($record->awarded_date)->format('M d, Y'),
+                ])->values(),
+                'progress' => $questProgress,
+            ],
+            'certificates' => $awards->map(function ($award) use ($user) {
+                $canAccess = ! $user->isTeacher() || $award->teacher_id === $user->id;
+                $hasFile = (bool) ($award->template_file ?? $award->certificate_file ?? $award->template_file_path);
+
+                return [
+                    'id' => $award->id,
+                    'title' => $award->award_title,
+                    'description' => $award->award_description,
+                    'type' => $award->certificate_type,
+                    'school_year' => $award->school_year,
+                    'status' => $award->status,
+                    'awarded_date' => optional($award->awarded_date)->format('M d, Y'),
+                    'teacher_name' => $award->teacher?->name,
+                    'view_url' => $canAccess && $hasFile ? route('admin.certificate.download', $award) : null,
+                    'print_url' => $canAccess ? route('admin.certificate.print', $award) : null,
+                ];
+            })->values(),
+            'meta' => [
+                'collections_returned' => $collections->count(),
+                'collections_total' => $collectionsTotal,
+                'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function import(Request $request)
     {
         $this->ensureCanManageStudents();
