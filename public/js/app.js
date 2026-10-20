@@ -229,12 +229,25 @@ function initQrGeneration() {
 // ---------- Sidebar Active State ----------
 function initSidebarActive() {
     const currentPath = window.location.pathname;
-    document.querySelectorAll('.nav-item').forEach(item => {
+    const items = Array.from(document.querySelectorAll('#sidebar-nav .nav-item'));
+
+    // Pick a single best match (longest matching href) so only one item is highlighted.
+    let best = null;
+    let bestLength = -1;
+
+    items.forEach(item => {
         const href = item.getAttribute('href');
-        if (href && currentPath.includes(href)) {
-            item.classList.add('active');
+        if (!href || href === '#' || href.charAt(0) !== '/') return;
+        if (currentPath.includes(href) && href.length > bestLength) {
+            best = item;
+            bestLength = href.length;
         }
     });
+
+    if (best && !best.classList.contains('active')) {
+        best.classList.add('active');
+        best.setAttribute('aria-current', 'page');
+    }
 }
 
 // ---------- Table Search (Students) ----------
