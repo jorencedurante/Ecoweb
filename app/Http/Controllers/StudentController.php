@@ -12,7 +12,9 @@ use App\Models\StudentEnrollment;
 use App\Imports\StudentsImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use OpenSpout\Writer\XLSX\Writer as XLSXWriter;
 use OpenSpout\Common\Entity\Row;
@@ -54,6 +56,90 @@ class StudentController extends Controller
         }
     }
 
+    /**
+     * Validation rules for every editable student profile field used by the
+     * tabbed Add/Edit Student form. LRN uniqueness and teacher_id are added
+     * by the callers because they differ between store and update.
+     */
+    private function studentProfileRules(): array
+    {
+        return [
+            'first_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'grade_level' => 'required|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
+            'gender' => 'required|in:Male,Female',
+            'birth_date' => 'nullable|date',
+            'section' => 'nullable|string|max:100',
+            'school_year' => 'nullable|string|max:20',
+            'house_street' => 'nullable|string|max:255',
+            'barangay' => 'nullable|string|max:100',
+            'municipality_city' => 'nullable|string|max:100',
+            'province' => 'nullable|string|max:100',
+            'region' => 'nullable|string|max:100',
+            'father_name' => 'nullable|string|max:100',
+            'mother_maiden_name' => 'nullable|string|max:100',
+            'guardian_name' => 'nullable|string|max:100',
+            'guardian_relationship' => 'nullable|string|max:100',
+            'contact_number' => 'nullable|string|max:50',
+            'ip_ethnic_group' => 'nullable|string|max:100',
+            'religion' => 'nullable|string|max:100',
+            'nationality' => 'nullable|string|max:100',
+            'learning_modality' => 'nullable|string|max:100',
+            'remarks' => 'nullable|string|max:2000',
+        ];
+    }
+
+    /**
+     * Profile columns that are stored on the students row (everything except
+     * section/school_year, which live on student_enrollments).
+     */
+    private function studentProfilePayload(array $validated): array
+    {
+        return collect($validated)
+            ->except(['lrn', 'teacher_id', 'section', 'school_year'])
+            ->map(fn ($value) => $value === '' ? null : $value)
+            ->all();
+    }
+
+    /**
+     * Create or update the enrollment row that links this student to a teacher.
+     * The existing row (latest for that teacher) is updated in place so no
+     * duplicate assignment records are created, and an existing enrollment's
+     * status is preserved so editing never reactivates archived records.
+     */
+    private function syncEnrollment(Student $student, int $teacherId, array $validated): void
+    {
+        $enrollment = $student->enrollments()
+            ->where('teacher_id', $teacherId)
+            ->latest('id')
+            ->first();
+
+        if (!$enrollment) {
+            $enrollment = new StudentEnrollment([
+                'student_id' => $student->id,
+                'teacher_id' => $teacherId,
+                'status' => 'active',
+            ]);
+        }
+
+        if (array_key_exists('grade_level', $validated)) {
+            $enrollment->grade_level = $validated['grade_level'];
+        }
+        if (array_key_exists('section', $validated)) {
+            $enrollment->section = ($validated['section'] ?? '') !== '' ? $validated['section'] : null;
+        }
+        if (array_key_exists('school_year', $validated)) {
+            $enrollment->school_year = ($validated['school_year'] ?? '') !== '' ? $validated['school_year'] : null;
+        }
+
+        if (!$enrollment->exists) {
+            $enrollment->imported_by = Auth::id();
+        }
+
+        $enrollment->save();
+    }
+
     public function index(Request $request)
     {
         $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
@@ -81,7 +167,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->latest()->paginate(10)->withQueryString();
+        $students = $query->with('enrollments')->latest()->paginate(10)->withQueryString();
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
         $teachers = User::where('role', 'teacher')->where('status', 'active')->orderBy('name')->get();
 
@@ -127,15 +213,31 @@ class StudentController extends Controller
 
         $user = Auth::user();
 
-        $validated = $request->validate([
-            'lrn' => 'required|unique:students,lrn',
-            'first_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'grade_level' => 'required|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
-            'gender' => 'required|in:Male,Female',
-            'teacher_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')],
-        ]);
+        $rules = $this->studentProfileRules();
+        $rules['lrn'] = 'required|string|max:50|unique:students,lrn';
+        $rules['teacher_id'] = ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($validator)
+                ->with(['open_modal' => 'add']);
+        }
+
+        $validated = $validator->validated();
+
+        // A teacher is always assigned to themselves; they can never enroll a
+        // student into another teacher's class. Super Admin may still pass an
+        // optional teacher_id (backend only — the form has no teacher dropdown).
+        $teacherId = null;
+        if ($user->isTeacher()) {
+            $teacherId = $user->id;
+        } elseif ($user->isSuperAdmin() && !empty($validated['teacher_id'])) {
+            $teacherId = (int) $validated['teacher_id'];
+        }
+        unset($validated['teacher_id']);
 
         $fullName = trim(
             $validated['first_name'] . ' ' .
@@ -144,41 +246,37 @@ class StudentController extends Controller
         );
 
         $nextId = (Student::max('id') ?? 0) + 1;
+        $payload = $this->studentProfilePayload($validated);
 
-        if ($user->isTeacher()) {
-            $validated['teacher_id'] = $user->id;
-        } elseif (!$user->isAdminLevel()) {
-            $validated['teacher_id'] = null;
-        }
-
-        $student = Student::create([
-            'student_id' => 'STU' . str_pad($nextId, 3, '0', STR_PAD_LEFT),
-            'lrn' => $validated['lrn'],
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'],
-            'full_name' => $fullName,
-            'grade_level' => $validated['grade_level'],
-            'gender' => $validated['gender'],
-            'qr_code' => 'QR-' . $validated['lrn'],
-            'total_points' => 0,
-            'status' => 'Active',
-        ]);
-
-        $teacherId = $validated['teacher_id'] ?? null;
-        if (!$teacherId && $user->isTeacher()) {
-            $teacherId = $user->id;
-        }
-
-        if ($teacherId) {
-            StudentEnrollment::create([
-                'student_id' => $student->id,
-                'teacher_id' => $teacherId,
+        // Student row and enrollment row are saved together so a failure never
+        // leaves a half-created record behind.
+        $student = DB::transaction(function () use ($validated, $payload, $fullName, $nextId, $teacherId, $user) {
+            $student = Student::create($payload + [
+                'student_id' => 'STU' . str_pad($nextId, 3, '0', STR_PAD_LEFT),
+                'lrn' => $validated['lrn'],
+                'full_name' => $fullName,
                 'grade_level' => $validated['grade_level'],
-                'status' => 'active',
-                'imported_by' => Auth::id(),
+                'gender' => $validated['gender'],
+                'qr_code' => 'QR-' . $validated['lrn'],
+                'total_points' => 0,
+                'status' => 'Active',
+                'teacher_id' => $teacherId,
             ]);
-        }
+
+            if ($teacherId) {
+                StudentEnrollment::create([
+                    'student_id' => $student->id,
+                    'teacher_id' => $teacherId,
+                    'grade_level' => $validated['grade_level'],
+                    'section' => ($validated['section'] ?? '') !== '' ? $validated['section'] : null,
+                    'school_year' => ($validated['school_year'] ?? '') !== '' ? $validated['school_year'] : null,
+                    'status' => 'active',
+                    'imported_by' => Auth::id(),
+                ]);
+            }
+
+            return $student;
+        });
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -196,39 +294,67 @@ class StudentController extends Controller
         $this->authorizeStudentAccess($student);
 
         $user = Auth::user();
-        $rules = [
-            'lrn' => ['required', Rule::unique('students', 'lrn')->ignore($student->id)],
-            'first_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'grade_level' => 'required|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
-            'gender' => 'required|in:Male,Female',
-        ];
+        $rules = $this->studentProfileRules();
+        $rules['lrn'] = ['required', 'string', 'max:50', Rule::unique('students', 'lrn')->ignore($student->id)];
 
         if ($user->isAdminLevel()) {
             $rules['teacher_id'] = ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')];
         }
 
-        $validated = $request->validate($rules);
+        $validator = Validator::make($request->all(), $rules);
 
-        if (!$user->isAdminLevel()) {
-            unset($validated['teacher_id']);
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($validator)
+                ->with([
+                    'open_modal' => 'edit',
+                    'open_modal_student_id' => $student->id,
+                ]);
         }
 
-        $student->update($validated);
+        $validated = $validator->validated();
 
-        if (isset($validated['teacher_id'])) {
-            StudentEnrollment::updateOrCreate(
-                [
-                    'student_id' => $student->id,
-                    'teacher_id' => $validated['teacher_id'],
-                ],
-                [
-                    'grade_level' => $student->grade_level,
-                    'status' => 'active',
-                ]
-            );
+        // Only an explicit super admin submission may reassign the teacher;
+        // teachers can never change a student's class assignment.
+        $newTeacherId = null;
+        $reassignTeacher = false;
+        if ($user->isSuperAdmin() && array_key_exists('teacher_id', $validated)) {
+            $reassignTeacher = true;
+            $newTeacherId = !empty($validated['teacher_id']) ? (int) $validated['teacher_id'] : null;
         }
+        unset($validated['teacher_id']);
+
+        $payload = $this->studentProfilePayload($validated);
+        $payload['full_name'] = trim(
+            ($validated['first_name'] ?? $student->first_name) . ' ' .
+            ($validated['middle_name'] ?? $student->middle_name) . ' ' .
+            ($validated['last_name'] ?? $student->last_name)
+        );
+
+        // Status, teacher assignment, points, and QR code are intentionally
+        // not part of $payload, so editing details never reactivates an
+        // archived student or wipes existing system-managed values.
+        DB::transaction(function () use ($student, $validated, $payload, $user, $reassignTeacher, $newTeacherId) {
+            if ($reassignTeacher) {
+                $payload['teacher_id'] = $newTeacherId;
+            }
+
+            $student->update($payload);
+
+            if ($reassignTeacher && $newTeacherId !== null) {
+                $this->syncEnrollment($student, $newTeacherId, $validated);
+            } elseif ($user->isTeacher()) {
+                $this->syncEnrollment($student, $user->id, $validated);
+            } else {
+                // Super Admin without a teacher change: keep the current
+                // assignment in sync so section / school year stay current.
+                $currentEnrollment = $student->enrollments()->latest('id')->first();
+                if ($currentEnrollment) {
+                    $this->syncEnrollment($student, (int) $currentEnrollment->teacher_id, $validated);
+                }
+            }
+        });
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -558,12 +684,14 @@ class StudentController extends Controller
                 'barangay' => $student->barangay,
                 'municipality_city' => $student->municipality_city,
                 'province' => $student->province,
+                'region' => $student->region,
                 'father_name' => $student->father_name,
                 'mother_maiden_name' => $student->mother_maiden_name,
                 'guardian_name' => $student->guardian_name,
                 'guardian_relationship' => $student->guardian_relationship,
                 'contact_number' => $student->contact_number,
                 'learning_modality' => $student->learning_modality,
+                'nationality' => $student->nationality,
                 'remarks' => $student->remarks,
                 'section' => $currentEnrollment?->section,
                 'school_year' => $currentEnrollment?->school_year,

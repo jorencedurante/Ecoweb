@@ -11,8 +11,8 @@ class Student extends Model
 {
     protected $fillable = [
         'student_id', 'lrn', 'first_name', 'middle_name', 'last_name', 'full_name', 'gender',
-        'birth_date', 'age', 'mother_tongue', 'ip_ethnic_group', 'religion',
-        'house_street', 'barangay', 'municipality_city', 'province',
+        'birth_date', 'age', 'mother_tongue', 'ip_ethnic_group', 'religion', 'nationality',
+        'house_street', 'barangay', 'municipality_city', 'province', 'region',
         'father_name', 'mother_maiden_name', 'guardian_name', 'guardian_relationship',
         'contact_number', 'learning_modality', 'remarks',
         'grade_level', 'qr_code', 'total_points', 'status', 'teacher_id',

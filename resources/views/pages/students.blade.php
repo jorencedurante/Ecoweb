@@ -18,6 +18,26 @@
             ->filter(fn ($filter) => $filter['value'] !== null && $filter['value'] !== '')
             ->values();
         $actionsColClass = Auth::user()->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
+
+        // Field → tab map for the Add/Edit Student form; used to group
+        // validation errors into the tab that contains the failing field.
+        $studentFormTabs = [
+            'basic' => ['first_name', 'middle_name', 'last_name', 'lrn', 'grade_level', 'section', 'school_year', 'birth_date', 'gender'],
+            'address' => ['house_street', 'barangay', 'municipality_city', 'province', 'region'],
+            'family' => ['father_name', 'mother_maiden_name', 'guardian_name', 'guardian_relationship', 'contact_number'],
+            'other' => ['ip_ethnic_group', 'religion', 'nationality', 'learning_modality', 'remarks'],
+        ];
+        $tabErrorMessages = [];
+        foreach ($studentFormTabs as $tabKey => $fields) {
+            $tabErrorMessages[$tabKey] = [];
+            foreach ($fields as $field) {
+                if ($errors->has($field)) {
+                    $tabErrorMessages[$tabKey][] = $errors->first($field);
+                }
+            }
+        }
+        $openModal = session('open_modal');
+        $openModalStudentId = session('open_modal_student_id');
     @endphp
 
     <div class="students-page-wrapper">
@@ -186,6 +206,12 @@
                                 data-student-key="{{ $student->id }}"
                                 data-tab="certificates"><x-icon name="award" :size="16" /></button>
                             @if(Auth::user()->role !== 'admin')
+                            @php
+                                $editEnrollment = $student->enrollments
+                                    ->when(Auth::user()->isTeacher(), fn ($en) => $en->where('teacher_id', Auth::id()))
+                                    ->sortByDesc('id')
+                                    ->first();
+                            @endphp
                             <button type="button" class="action-icon-btn edit" title="Edit Student" aria-label="Edit student" data-modal-target="editStudentModal"
                                 data-id="{{ $student->id }}"
                                 data-lrn="{{ $student->lrn }}"
@@ -194,7 +220,24 @@
                                 data-last="{{ $student->last_name }}"
                                 data-grade="{{ $student->grade_level }}"
                                 data-gender="{{ $student->gender }}"
-                                data-teacher-id="{{ $student->teacher_id }}"><x-icon name="pencil" :size="15" /></button>
+                                data-birth="{{ $student->birth_date ? $student->birth_date->format('Y-m-d') : '' }}"
+                                data-section="{{ $editEnrollment?->section ?? '' }}"
+                                data-school-year="{{ $editEnrollment?->school_year ?? '' }}"
+                                data-house="{{ $student->house_street }}"
+                                data-barangay="{{ $student->barangay }}"
+                                data-municipality="{{ $student->municipality_city }}"
+                                data-province="{{ $student->province }}"
+                                data-region="{{ $student->region }}"
+                                data-father="{{ $student->father_name }}"
+                                data-mother="{{ $student->mother_maiden_name }}"
+                                data-guardian="{{ $student->guardian_name }}"
+                                data-guardian-rel="{{ $student->guardian_relationship }}"
+                                data-contact="{{ $student->contact_number }}"
+                                data-ethnic="{{ $student->ip_ethnic_group }}"
+                                data-religion="{{ $student->religion }}"
+                                data-nationality="{{ $student->nationality }}"
+                                data-modality="{{ $student->learning_modality }}"
+                                data-remarks="{{ $student->remarks }}"><x-icon name="pencil" :size="15" /></button>
                             @if($student->status !== 'Archived')
                             <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
                                 @csrf @method('PATCH')
@@ -361,72 +404,181 @@
 
     <!-- Add Student Modal -->
     <div class="modal-overlay" id="addStudentModal">
-        <div class="modal-content">
+        <div class="modal-content student-form-modal">
             <div class="modal-header">
-                <h3>Add student</h3>
-                <p class="subtitle">Fill in the following information</p>
+                <div>
+                    <h3>Add student</h3>
+                    <p class="subtitle">Fill in the following information</p>
+                </div>
             </div>
-            <form method="POST" action="{{ route('admin.students.store') }}">
+            <form method="POST" action="{{ route('admin.students.store') }}" class="modal-form" data-student-form>
                 @csrf
+                <div class="stu-form-tabs" role="tablist" aria-label="Student form sections">
+                    <button type="button" class="stu-form-tab active" role="tab" id="addTabBasic" data-form-tab="basic" aria-selected="true" aria-controls="addPanelBasic">
+                        <x-icon name="circle-user-round" :size="15" /> Basic Information
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="addTabAddress" data-form-tab="address" aria-selected="false" aria-controls="addPanelAddress" tabindex="-1">
+                        <x-icon name="map-pin" :size="15" /> Address
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="addTabFamily" data-form-tab="family" aria-selected="false" aria-controls="addPanelFamily" tabindex="-1">
+                        <x-icon name="heart-handshake" :size="15" /> Family &amp; Guardian
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="addTabOther" data-form-tab="other" aria-selected="false" aria-controls="addPanelOther" tabindex="-1">
+                        <x-icon name="file-text" :size="15" /> Other Information
+                    </button>
+                </div>
                 <div class="modal-body">
-                    @if($errors->any())
-                    <div style="background:rgba(239,83,80,0.1);border:1px solid var(--red);color:var(--red-dark);padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;" role="alert">
-                        @foreach($errors->all() as $error)<div>• {{ $error }}</div>@endforeach
-                    </div>
-                    @endif
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>First Name</label>
-                            <input type="text" name="first_name" aria-label="First name" placeholder="Enter first name" value="{{ old('first_name') }}" required>
+                    {{-- Basic Information --}}
+                    <div class="stu-form-panel active" role="tabpanel" id="addPanelBasic" data-form-panel="basic" aria-labelledby="addTabBasic">
+                        @if(count($tabErrorMessages['basic']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['basic'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
                         </div>
-                        <div class="form-group">
-                            <label>Middle Name <span class="optional">(Optional)</span></label>
-                            <input type="text" name="middle_name" aria-label="Middle name" placeholder="Enter middle name" value="{{ old('middle_name') }}">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Last Name</label>
-                            <input type="text" name="last_name" aria-label="Last name" placeholder="Enter last name" value="{{ old('last_name') }}" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Student's LRN</label>
-                            <input type="text" name="lrn" aria-label="LRN" placeholder="Enter LRN" value="{{ old('lrn') }}" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Grade Level</label>
-                            <select name="grade_level" aria-label="Grade level">
-                                <option value="">Select grade</option>
-                                @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
-                                    <option value="{{ $g }}" {{ old('grade_level') == $g ? 'selected' : '' }}>{{ $g }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Gender</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="gender" value="Male" aria-label="Gender" {{ old('gender') == 'Male' ? 'checked' : '' }}> Male</label>
-                                <label><input type="radio" name="gender" value="Female" aria-label="Gender" {{ old('gender') == 'Female' ? 'checked' : '' }}> Female</label>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="addFirstName">First Name <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="addFirstName" name="first_name" placeholder="Enter first name" value="{{ old('first_name') }}" required aria-label="First name">
+                            </div>
+                            <div class="form-group">
+                                <label for="addMiddleName">Middle Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addMiddleName" name="middle_name" placeholder="Enter middle name" value="{{ old('middle_name') }}" aria-label="Middle name">
+                            </div>
+                            <div class="form-group">
+                                <label for="addLastName">Last Name <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="addLastName" name="last_name" placeholder="Enter last name" value="{{ old('last_name') }}" required aria-label="Last name">
+                            </div>
+                            <div class="form-group">
+                                <label for="addLrn">Student LRN <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="addLrn" name="lrn" placeholder="Enter student LRN" value="{{ old('lrn') }}" required aria-label="Student's LRN">
+                            </div>
+                            <div class="form-group">
+                                <label for="addGradeLevel">Grade Level <span style="color:var(--red);">*</span></label>
+                                <select id="addGradeLevel" name="grade_level" required aria-label="Grade level">
+                                    <option value="">Select grade</option>
+                                    @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
+                                        <option value="{{ $g }}" {{ old('grade_level') == $g ? 'selected' : '' }}>{{ $g }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="addSection">Section <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addSection" name="section" placeholder="e.g. Rizal" value="{{ old('section') }}" aria-label="Section" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addSchoolYear">School Year <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addSchoolYear" name="school_year" placeholder="2026-2027" value="{{ old('school_year') }}" aria-label="School year" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="addBirthDate">Birth Date <span class="optional">(Optional)</span></label>
+                                <input type="date" id="addBirthDate" name="birth_date" value="{{ old('birth_date') }}" aria-label="Birth date">
+                            </div>
+                            <div class="form-group form-span-2">
+                                <label>Gender <span style="color:var(--red);">*</span></label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="gender" value="Male" aria-label="Male" {{ old('gender') == 'Male' ? 'checked' : '' }}> Male</label>
+                                    <label><input type="radio" name="gender" value="Female" aria-label="Female" {{ old('gender') == 'Female' ? 'checked' : '' }}> Female</label>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
-                    <div class="form-group">
-                        <label>Assign Teacher</label>
-                        <select name="teacher_id" aria-label="Assign teacher">
-                            <option value="">No teacher</option>
-                            @foreach($teachers ?? [] as $teacher)
-                                <option value="{{ $teacher->id }}" {{ old('teacher_id') == $teacher->id ? 'selected' : '' }}>{{ $teacher->name }} ({{ $teacher->email }})</option>
-                            @endforeach
-                        </select>
+
+                    {{-- Address --}}
+                    <div class="stu-form-panel" role="tabpanel" id="addPanelAddress" data-form-panel="address" aria-labelledby="addTabAddress" hidden>
+                        @if(count($tabErrorMessages['address']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['address'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group form-span-2">
+                                <label for="addHouseStreet">House / Street <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addHouseStreet" name="house_street" placeholder="House no. / street" value="{{ old('house_street') }}" aria-label="House or street" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="addBarangay">Barangay <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addBarangay" name="barangay" placeholder="Barangay" value="{{ old('barangay') }}" aria-label="Barangay" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addMunicipality">Municipality / City <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addMunicipality" name="municipality_city" placeholder="Municipality or city" value="{{ old('municipality_city') }}" aria-label="Municipality or city" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addProvince">Province <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addProvince" name="province" placeholder="Province" value="{{ old('province') }}" aria-label="Province" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addRegion">Region <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addRegion" name="region" placeholder="Region" value="{{ old('region') }}" aria-label="Region" maxlength="100">
+                            </div>
+                        </div>
                     </div>
-                    @endif
+
+                    {{-- Family & Guardian --}}
+                    <div class="stu-form-panel" role="tabpanel" id="addPanelFamily" data-form-panel="family" aria-labelledby="addTabFamily" hidden>
+                        @if(count($tabErrorMessages['family']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['family'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="addFatherName">Father's Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addFatherName" name="father_name" placeholder="Father's full name" value="{{ old('father_name') }}" aria-label="Father's name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addMotherMaiden">Mother's Maiden Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addMotherMaiden" name="mother_maiden_name" placeholder="Mother's maiden name" value="{{ old('mother_maiden_name') }}" aria-label="Mother's maiden name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addGuardianName">Guardian Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addGuardianName" name="guardian_name" placeholder="Guardian's full name" value="{{ old('guardian_name') }}" aria-label="Guardian name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addGuardianRelationship">Guardian Relationship <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addGuardianRelationship" name="guardian_relationship" placeholder="e.g. Mother" value="{{ old('guardian_relationship') }}" aria-label="Guardian relationship" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addContactNumber">Contact Number <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addContactNumber" name="contact_number" placeholder="e.g. 09171234567" value="{{ old('contact_number') }}" aria-label="Contact number" maxlength="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Other Information --}}
+                    <div class="stu-form-panel" role="tabpanel" id="addPanelOther" data-form-panel="other" aria-labelledby="addTabOther" hidden>
+                        @if(count($tabErrorMessages['other']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['other'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="addEthnicGroup">Ethnic Group <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addEthnicGroup" name="ip_ethnic_group" placeholder="Ethnic group" value="{{ old('ip_ethnic_group') }}" aria-label="Ethnic group" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addReligion">Religion <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addReligion" name="religion" placeholder="Religion" value="{{ old('religion') }}" aria-label="Religion" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addNationality">Nationality / Citizenship <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addNationality" name="nationality" placeholder="e.g. Filipino" value="{{ old('nationality') }}" aria-label="Nationality or citizenship" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="addLearningModality">Learning Modality <span class="optional">(Optional)</span></label>
+                                <input type="text" id="addLearningModality" name="learning_modality" placeholder="e.g. Face-to-face" value="{{ old('learning_modality') }}" aria-label="Learning modality" maxlength="100">
+                            </div>
+                            <div class="form-group form-span-2">
+                                <label for="addRemarks">Remarks <span class="optional">(Optional)</span></label>
+                                <textarea id="addRemarks" name="remarks" rows="3" placeholder="Additional notes about the student..." aria-label="Remarks">{{ old('remarks') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-modal-close>Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Student</button>
+                    <button type="submit" class="btn btn-success">Save Student</button>
                 </div>
             </form>
         </div>
@@ -434,66 +586,180 @@
 
     <!-- Edit Student Modal -->
     <div class="modal-overlay" id="editStudentModal">
-        <div class="modal-content">
+        <div class="modal-content student-form-modal">
             <div class="modal-header">
-                <h3>Edit student</h3>
-                <p class="subtitle">Fill in the following information</p>
+                <div>
+                    <h3>Edit student</h3>
+                    <p class="subtitle">Update the student's information</p>
+                </div>
             </div>
-            <form method="POST" action="" id="editStudentForm">
+            <form method="POST" action="" id="editStudentForm" class="modal-form" data-student-form>
                 @csrf @method('PUT')
+                <div class="stu-form-tabs" role="tablist" aria-label="Student form sections">
+                    <button type="button" class="stu-form-tab active" role="tab" id="editTabBasic" data-form-tab="basic" aria-selected="true" aria-controls="editPanelBasic">
+                        <x-icon name="circle-user-round" :size="15" /> Basic Information
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="editTabAddress" data-form-tab="address" aria-selected="false" aria-controls="editPanelAddress" tabindex="-1">
+                        <x-icon name="map-pin" :size="15" /> Address
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="editTabFamily" data-form-tab="family" aria-selected="false" aria-controls="editPanelFamily" tabindex="-1">
+                        <x-icon name="heart-handshake" :size="15" /> Family &amp; Guardian
+                    </button>
+                    <button type="button" class="stu-form-tab" role="tab" id="editTabOther" data-form-tab="other" aria-selected="false" aria-controls="editPanelOther" tabindex="-1">
+                        <x-icon name="file-text" :size="15" /> Other Information
+                    </button>
+                </div>
                 <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>First Name</label>
-                            <input type="text" name="first_name" id="editFirstName" aria-label="First name" required>
+                    {{-- Basic Information --}}
+                    <div class="stu-form-panel active" role="tabpanel" id="editPanelBasic" data-form-panel="basic" aria-labelledby="editTabBasic">
+                        @if(count($tabErrorMessages['basic']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['basic'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
                         </div>
-                        <div class="form-group">
-                            <label>Middle Name <span class="optional">(Optional)</span></label>
-                            <input type="text" name="middle_name" id="editMiddleName" aria-label="Middle name">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Last Name</label>
-                            <input type="text" name="last_name" id="editLastName" aria-label="Last name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Student's LRN</label>
-                            <input type="text" name="lrn" id="editLrn" aria-label="LRN" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Grade Level</label>
-                            <select name="grade_level" id="editGradeLevel" aria-label="Grade level">
-                                @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
-                                    <option value="{{ $g }}">{{ $g }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Gender</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="gender" value="Male" id="editGenderMale" aria-label="Gender"> Male</label>
-                                <label><input type="radio" name="gender" value="Female" id="editGenderFemale" aria-label="Gender"> Female</label>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="editFirstName">First Name <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="editFirstName" name="first_name" aria-label="First name" placeholder="Enter first name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editMiddleName">Middle Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editMiddleName" name="middle_name" aria-label="Middle name" placeholder="Enter middle name">
+                            </div>
+                            <div class="form-group">
+                                <label for="editLastName">Last Name <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="editLastName" name="last_name" aria-label="Last name" placeholder="Enter last name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editLrn">Student LRN <span style="color:var(--red);">*</span></label>
+                                <input type="text" id="editLrn" name="lrn" aria-label="LRN" placeholder="Enter student LRN" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editGradeLevel">Grade Level <span style="color:var(--red);">*</span></label>
+                                <select name="grade_level" id="editGradeLevel" aria-label="Grade level" required>
+                                    @foreach(['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'] as $g)
+                                        <option value="{{ $g }}">{{ $g }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editSection">Section <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editSection" name="section" aria-label="Section" placeholder="e.g. Rizal" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editSchoolYear">School Year <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editSchoolYear" name="school_year" aria-label="School year" placeholder="2026-2027" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="editBirthDate">Birth Date <span class="optional">(Optional)</span></label>
+                                <input type="date" id="editBirthDate" name="birth_date" aria-label="Birth date">
+                            </div>
+                            <div class="form-group form-span-2">
+                                <label>Gender <span style="color:var(--red);">*</span></label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="gender" value="Male" id="editGenderMale" aria-label="Male"> Male</label>
+                                    <label><input type="radio" name="gender" value="Female" id="editGenderFemale" aria-label="Female"> Female</label>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
-                    <div class="form-group">
-                        <label>Assign Teacher</label>
-                        <select name="teacher_id" id="editTeacherId" aria-label="Assign teacher">
-                            <option value="">No teacher</option>
-                            @foreach($teachers ?? [] as $teacher)
-                                <option value="{{ $teacher->id }}">{{ $teacher->name }} ({{ $teacher->email }})</option>
-                            @endforeach
-                        </select>
+
+                    {{-- Address --}}
+                    <div class="stu-form-panel" role="tabpanel" id="editPanelAddress" data-form-panel="address" aria-labelledby="editTabAddress" hidden>
+                        @if(count($tabErrorMessages['address']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['address'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group form-span-2">
+                                <label for="editHouseStreet">House / Street <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editHouseStreet" name="house_street" aria-label="House or street" placeholder="House no. / street" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="editBarangay">Barangay <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editBarangay" name="barangay" aria-label="Barangay" placeholder="Barangay" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editMunicipality">Municipality / City <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editMunicipality" name="municipality_city" aria-label="Municipality or city" placeholder="Municipality or city" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editProvince">Province <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editProvince" name="province" aria-label="Province" placeholder="Province" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editRegion">Region <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editRegion" name="region" aria-label="Region" placeholder="Region" maxlength="100">
+                            </div>
+                        </div>
                     </div>
-                    @endif
+
+                    {{-- Family & Guardian --}}
+                    <div class="stu-form-panel" role="tabpanel" id="editPanelFamily" data-form-panel="family" aria-labelledby="editTabFamily" hidden>
+                        @if(count($tabErrorMessages['family']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['family'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="editFatherName">Father's Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editFatherName" name="father_name" aria-label="Father's name" placeholder="Father's full name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editMotherMaiden">Mother's Maiden Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editMotherMaiden" name="mother_maiden_name" aria-label="Mother's maiden name" placeholder="Mother's maiden name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editGuardianName">Guardian Name <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editGuardianName" name="guardian_name" aria-label="Guardian name" placeholder="Guardian's full name" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editGuardianRelationship">Guardian Relationship <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editGuardianRelationship" name="guardian_relationship" aria-label="Guardian relationship" placeholder="e.g. Mother" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editContactNumber">Contact Number <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editContactNumber" name="contact_number" aria-label="Contact number" placeholder="e.g. 09171234567" maxlength="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Other Information --}}
+                    <div class="stu-form-panel" role="tabpanel" id="editPanelOther" data-form-panel="other" aria-labelledby="editTabOther" hidden>
+                        @if(count($tabErrorMessages['other']))
+                        <div class="stu-form-errors" role="alert">
+                            <ul>@foreach($tabErrorMessages['other'] as $tabError)<li>{{ $tabError }}</li>@endforeach</ul>
+                        </div>
+                        @endif
+                        <div class="stu-form-grid">
+                            <div class="form-group">
+                                <label for="editEthnicGroup">Ethnic Group <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editEthnicGroup" name="ip_ethnic_group" aria-label="Ethnic group" placeholder="Ethnic group" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editReligion">Religion <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editReligion" name="religion" aria-label="Religion" placeholder="Religion" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editNationality">Nationality / Citizenship <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editNationality" name="nationality" aria-label="Nationality or citizenship" placeholder="e.g. Filipino" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editLearningModality">Learning Modality <span class="optional">(Optional)</span></label>
+                                <input type="text" id="editLearningModality" name="learning_modality" aria-label="Learning modality" placeholder="e.g. Face-to-face" maxlength="100">
+                            </div>
+                            <div class="form-group form-span-2">
+                                <label for="editRemarks">Remarks <span class="optional">(Optional)</span></label>
+                                <textarea id="editRemarks" name="remarks" rows="3" aria-label="Remarks" placeholder="Additional notes about the student..."></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-modal-close>Cancel</button>
-                    <button type="submit" class="btn btn-success">Save</button>
+                    <button type="submit" class="btn btn-success">Update Student</button>
                 </div>
             </form>
         </div>
@@ -503,37 +769,168 @@
 
 @push('scripts')
 <script>
+window.studentFormOld = @json(old() ?: new stdClass());
+window.studentFormRestore = {
+    modal: @json($openModal),
+    studentId: @json($openModalStudentId),
+    errors: @json(array_keys($errors->toArray()))
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     initStudentToolbar();
+    initStudentFormTabs();
     initStudentOverview();
 
     const editModal = document.getElementById('editStudentModal');
     document.querySelectorAll('[data-modal-target="editStudentModal"]').forEach(btn => {
         btn.addEventListener('click', () => {
-            const id = btn.dataset.id;
-            const lrn = btn.dataset.lrn;
-            const first = btn.dataset.first;
-            const middle = btn.dataset.middle;
-            const last = btn.dataset.last;
-            const grade = btn.dataset.grade;
-            const gender = btn.dataset.gender;
-
-            const teacherId = btn.dataset.teacherId;
-            document.getElementById('editStudentForm').action = '{{ url('/admin/students') }}/' + id;
-            document.getElementById('editFirstName').value = first;
-            document.getElementById('editMiddleName').value = middle || '';
-            document.getElementById('editLastName').value = last;
-            document.getElementById('editLrn').value = lrn;
-            document.getElementById('editGradeLevel').value = grade;
-            if (gender === 'Male') document.getElementById('editGenderMale').checked = true;
-            else document.getElementById('editGenderFemale').checked = true;
-            const editTeacher = document.getElementById('editTeacherId');
-            if (editTeacher) editTeacher.value = teacherId || '';
-
-            editModal.classList.add('show');
+            populateEditStudentForm(btn);
+            if (editModal) editModal.classList.add('show');
         });
     });
+
+    restoreStudentFormAfterErrors();
 });
+
+// ---- Add/Edit Student form tabs ----
+// Panels are only shown/hidden, never re-rendered, so values entered on one
+// tab are kept when the user switches to another tab.
+function initStudentFormTabs() {
+    document.querySelectorAll('[data-student-form]').forEach(form => {
+        const tabs = Array.prototype.slice.call(form.querySelectorAll('.stu-form-tab'));
+        const panels = Array.prototype.slice.call(form.querySelectorAll('.stu-form-panel'));
+
+        const activate = (key) => {
+            tabs.forEach(tab => {
+                const on = tab.dataset.formTab === key;
+                tab.classList.toggle('active', on);
+                tab.setAttribute('aria-selected', on ? 'true' : 'false');
+                tab.tabIndex = on ? 0 : -1;
+            });
+            panels.forEach(panel => {
+                const on = panel.dataset.formPanel === key;
+                panel.classList.toggle('active', on);
+                panel.hidden = !on;
+            });
+        };
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => activate(tab.dataset.formTab));
+            tab.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                e.preventDefault();
+                const index = tabs.indexOf(tab);
+                const next = e.key === 'ArrowRight'
+                    ? (index + 1) % tabs.length
+                    : (index - 1 + tabs.length) % tabs.length;
+                tabs[next].focus();
+                activate(tabs[next].dataset.formTab);
+            });
+        });
+    });
+}
+
+// Populate the Edit Student modal from the row button's data attributes.
+// $studentFormOld (set after a failed validation) wins over the stored values
+// so the user does not lose what they typed.
+function populateEditStudentForm(btn) {
+    const oldData = window.studentFormOld || {};
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = (value === null || value === undefined) ? '' : value;
+    };
+
+    set('editFirstName', 'first_name' in oldData ? oldData.first_name : btn.dataset.first);
+    set('editMiddleName', 'middle_name' in oldData ? oldData.middle_name : btn.dataset.middle);
+    set('editLastName', 'last_name' in oldData ? oldData.last_name : btn.dataset.last);
+    set('editLrn', 'lrn' in oldData ? oldData.lrn : btn.dataset.lrn);
+    set('editGradeLevel', 'grade_level' in oldData ? oldData.grade_level : btn.dataset.grade);
+    set('editSection', 'section' in oldData ? oldData.section : btn.dataset.section);
+    set('editSchoolYear', 'school_year' in oldData ? oldData.school_year : btn.dataset.schoolYear);
+    set('editBirthDate', 'birth_date' in oldData ? oldData.birth_date : btn.dataset.birth);
+    set('editHouseStreet', 'house_street' in oldData ? oldData.house_street : btn.dataset.house);
+    set('editBarangay', 'barangay' in oldData ? oldData.barangay : btn.dataset.barangay);
+    set('editMunicipality', 'municipality_city' in oldData ? oldData.municipality_city : btn.dataset.municipality);
+    set('editProvince', 'province' in oldData ? oldData.province : btn.dataset.province);
+    set('editRegion', 'region' in oldData ? oldData.region : btn.dataset.region);
+    set('editFatherName', 'father_name' in oldData ? oldData.father_name : btn.dataset.father);
+    set('editMotherMaiden', 'mother_maiden_name' in oldData ? oldData.mother_maiden_name : btn.dataset.mother);
+    set('editGuardianName', 'guardian_name' in oldData ? oldData.guardian_name : btn.dataset.guardian);
+    set('editGuardianRelationship', 'guardian_relationship' in oldData ? oldData.guardian_relationship : btn.dataset.guardianRel);
+    set('editContactNumber', 'contact_number' in oldData ? oldData.contact_number : btn.dataset.contact);
+    set('editEthnicGroup', 'ip_ethnic_group' in oldData ? oldData.ip_ethnic_group : btn.dataset.ethnic);
+    set('editReligion', 'religion' in oldData ? oldData.religion : btn.dataset.religion);
+    set('editNationality', 'nationality' in oldData ? oldData.nationality : btn.dataset.nationality);
+    set('editLearningModality', 'learning_modality' in oldData ? oldData.learning_modality : btn.dataset.modality);
+    set('editRemarks', 'remarks' in oldData ? oldData.remarks : btn.dataset.remarks);
+
+    const gender = 'gender' in oldData ? oldData.gender : btn.dataset.gender;
+    const male = document.getElementById('editGenderMale');
+    const female = document.getElementById('editGenderFemale');
+    if (male) male.checked = gender === 'Male';
+    if (female) female.checked = gender === 'Female';
+
+    const form = document.getElementById('editStudentForm');
+    if (form) form.action = '{{ url('/admin/students') }}/' + btn.dataset.id;
+
+    // Reset to the first tab; activateStudentFormTab() re-opens the failing tab.
+    activateStudentFormTab(form, 'basic');
+}
+
+function activateStudentFormTab(form, key) {
+    if (!form) return;
+    form.querySelectorAll('.stu-form-tab').forEach(tab => {
+        const on = tab.dataset.formTab === key;
+        tab.classList.toggle('active', on);
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.tabIndex = on ? 0 : -1;
+    });
+    form.querySelectorAll('.stu-form-panel').forEach(panel => {
+        const on = panel.dataset.formPanel === key;
+        panel.classList.toggle('active', on);
+        panel.hidden = !on;
+    });
+}
+
+// Field → tab map (mirrors the server-side grouping used for error boxes).
+const studentFormFieldTabs = {
+    first_name: 'basic', middle_name: 'basic', last_name: 'basic', lrn: 'basic',
+    grade_level: 'basic', section: 'basic', school_year: 'basic', birth_date: 'basic', gender: 'basic',
+    house_street: 'address', barangay: 'address', municipality_city: 'address', province: 'address', region: 'address',
+    father_name: 'family', mother_maiden_name: 'family', guardian_name: 'family',
+    guardian_relationship: 'family', contact_number: 'family',
+    ip_ethnic_group: 'other', religion: 'other', nationality: 'other',
+    learning_modality: 'other', remarks: 'other',
+};
+
+// After a failed save the page reloads with errors + old input. Re-open the
+// modal the user was working in and jump to the tab with the first error.
+function restoreStudentFormAfterErrors() {
+    const restore = window.studentFormRestore;
+    if (!restore || !restore.modal) return;
+
+    const firstErrorField = (restore.errors || []).find(field => studentFormFieldTabs[field]);
+    const tabKey = firstErrorField ? studentFormFieldTabs[firstErrorField] : 'basic';
+
+    if (restore.modal === 'add') {
+        const addModal = document.getElementById('addStudentModal');
+        if (!addModal) return;
+        addModal.classList.add('show');
+        document.body.classList.add('modal-open');
+        activateStudentFormTab(addModal.querySelector('form[data-student-form]'), tabKey);
+        return;
+    }
+
+    if (restore.modal === 'edit') {
+        const trigger = document.querySelector(
+            '[data-modal-target="editStudentModal"][data-id="' + restore.studentId + '"]'
+        );
+        if (!trigger) return;
+        trigger.click();
+        const form = document.getElementById('editStudentForm');
+        activateStudentFormTab(form, tabKey);
+    }
+}
 
 function initStudentToolbar() {
     const form = document.getElementById('filterForm');
@@ -950,38 +1347,55 @@ function initStudentOverview() {
             ).join('') + '</div>';
         };
 
-        let html = section('Student information', grid([
+        // Full profile sections always show every field; empty values render
+        // as "N/A" instead of hiding the row. Valid values such as 0 are kept.
+        const gridAll = (pairs) =>
+            '<div class="so-info-grid">' + pairs.map((pair) => {
+                const value = pair[1];
+                const display = (value === null || value === undefined || value === '') ? 'N/A' : value;
+                return '<div class="so-info-item">' +
+                    '<span class="so-info-label">' + esc(pair[0]) + '</span>' +
+                    '<span class="so-info-value">' + esc(display) + '</span>' +
+                '</div>';
+            }).join('') + '</div>';
+
+        let html = section('Basic information', gridAll([
             ['Full name', s.full_name],
             ['Student ID', s.student_id],
             ['LRN', s.lrn],
-            ['Grade level', s.grade_level],
+            ['Grade Level', s.grade_level],
             ['Section', s.section],
-            ['School year', s.school_year],
+            ['School Year', s.school_year],
             ['Gender', s.gender],
-            ['Status', s.status],
-            ['QR code', s.qr_code],
-            ['Assigned teacher', s.teacher_name],
-            ['Birth date', s.birth_date],
+            ['Birth Date', s.birth_date],
             ['Age', s.age],
-            ['Mother tongue', s.mother_tongue],
-            ['IP / ethnic group', s.ip_ethnic_group],
-            ['Religion', s.religion],
-            ['Learning modality', s.learning_modality]
+            ['Status', s.status],
+            ['QR Code', s.qr_code],
+            ['Assigned teacher', s.teacher_name],
+            ['Mother tongue', s.mother_tongue]
         ]));
 
-        html += section('Address', grid([
-            ['House no. / street', s.house_street],
+        html += section('Address', gridAll([
+            ['House / Street', s.house_street],
             ['Barangay', s.barangay],
-            ['Municipality / city', s.municipality_city],
-            ['Province', s.province]
+            ['Municipality / City', s.municipality_city],
+            ['Province', s.province],
+            ['Region', s.region]
         ]));
 
-        html += section('Family & guardian', grid([
-            ['Father', s.father_name],
-            ['Mother', s.mother_maiden_name],
-            ['Guardian', s.guardian_name],
-            ['Relationship', s.guardian_relationship],
-            ['Contact number', s.contact_number],
+        html += section('Family & guardian', gridAll([
+            ["Father's Name", s.father_name],
+            ["Mother's Maiden Name", s.mother_maiden_name],
+            ['Guardian Name', s.guardian_name],
+            ['Guardian Relationship', s.guardian_relationship],
+            ['Contact Number', s.contact_number]
+        ]));
+
+        html += section('Other information', gridAll([
+            ['Ethnic Group', s.ip_ethnic_group],
+            ['Religion', s.religion],
+            ['Nationality / Citizenship', s.nationality],
+            ['Learning Modality', s.learning_modality],
             ['Remarks', s.remarks]
         ]));
 
