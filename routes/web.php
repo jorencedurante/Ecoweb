@@ -94,6 +94,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/students/{student}/achievements', [StudentController::class, 'achievements'])->name('students.achievements');
         Route::patch('/students/{student}/achievements/progress', [StudentController::class, 'updateAchievementProgress'])->name('students.achievements.progress.update');
         Route::get('/students/{student}/awards', [StudentController::class, 'awards'])->name('students.awards');
+        Route::get('/students/{student}/overview', [StudentController::class, 'overview'])->name('admin.students.overview');
 
         // Bottle Collection
         Route::get('/bottle-collection', [BottleCollectionController::class, 'index'])->name('admin.bottle-collection');

@@ -91,10 +91,13 @@ function initModals() {
 }
 
 function populateEditModal(studentId) {
-    // TODO: Fetch student records from database
-    const student = mockStudents.find(s => s.id === studentId) || mockStudents[0];
+    // Legacy mock filler — only runs on legacy camelCase forms. The real
+    // Student Management edit modal is populated by the students page script.
     const modal = document.getElementById('editStudentModal');
     if (!modal) return;
+    if (!modal.querySelector('[name="firstName"]')) return;
+
+    const student = mockStudents.find(s => s.id === studentId) || mockStudents[0];
 
     modal.querySelector('[name="firstName"]').value = student.firstName;
     modal.querySelector('[name="middleName"]').value = student.middleName || '';
