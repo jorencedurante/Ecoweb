@@ -29,7 +29,7 @@
         <div class="sidebar-brand">
             <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="admin-sidebar-logo-img" width="38" height="38">
             <span class="brand-text">ECOCOLLECT</span>
-            <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="sidebar-nav">
+            <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true" aria-controls="sidebar-nav">
                 <span class="collapse-icon collapse-icon-expand" aria-hidden="true"><x-icon name="chevrons-left" :size="18" /></span>
                 <span class="collapse-icon collapse-icon-collapse" aria-hidden="true"><x-icon name="chevrons-right" :size="18" /></span>
             </button>

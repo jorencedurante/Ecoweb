@@ -69,10 +69,12 @@ trait CreatesApplicationTables
                 $table->string('mother_tongue', 100)->nullable();
                 $table->string('ip_ethnic_group', 150)->nullable();
                 $table->string('religion', 100)->nullable();
+                $table->string('nationality', 100)->nullable();
                 $table->string('house_street', 255)->nullable();
                 $table->string('barangay', 150)->nullable();
                 $table->string('municipality_city', 150)->nullable();
                 $table->string('province', 150)->nullable();
+                $table->string('region', 100)->nullable();
                 $table->string('father_name', 255)->nullable();
                 $table->string('mother_maiden_name', 255)->nullable();
                 $table->string('guardian_name', 255)->nullable();
