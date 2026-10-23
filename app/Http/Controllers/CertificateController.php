@@ -191,6 +191,7 @@ class CertificateController extends Controller
         }
 
         $rules = [
+            'student_id' => 'nullable|exists:students,id',
             'award_title' => 'nullable|string|max:255',
             'award_description' => 'nullable|string',
             'canvas_data' => 'nullable|string',
@@ -207,6 +208,17 @@ class CertificateController extends Controller
             'award_description' => $validated['award_description'] ?? $award->award_description,
             'canvas_data' => $validated['canvas_data'] !== null ? json_decode($validated['canvas_data'], true) : $award->canvas_data,
         ];
+
+        if ($request->filled('student_id')) {
+            $studentQuery = Student::query();
+            if (Auth::user()->isTeacher()) {
+                $studentQuery->whereHas('enrollments', function ($q) {
+                    $q->where('teacher_id', Auth::id());
+                });
+            }
+            $studentQuery->findOrFail($validated['student_id']);
+            $data['student_id'] = $validated['student_id'];
+        }
 
         if ($request->hasFile('template_file')) {
             $data['template_file'] = $request->file('template_file')->store('certificate-templates', 'public');
