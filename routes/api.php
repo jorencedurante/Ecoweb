@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\BottleScanController;
+use App\Http\Controllers\BottleCollectionController;
 
 Route::get('/ping', function () {
     return response()->json([
@@ -11,3 +12,5 @@ Route::get('/ping', function () {
 });
 
 Route::post('/bottle-scan', [BottleScanController::class, 'store']);
+
+Route::get('/student-points', [BottleCollectionController::class, 'studentPoints']);

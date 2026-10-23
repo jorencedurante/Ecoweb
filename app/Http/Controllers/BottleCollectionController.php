@@ -79,17 +79,27 @@ class BottleCollectionController extends Controller
             }
         }
 
-        if ($search = $request->get('search')) {
+        $search = $request->get('search');
+        $search = is_string($search) ? trim($search) : '';
+
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('bottle_count', 'like', "%{$search}%")
-                  ->orWhereDate('collection_date', $search)
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
                       $studentQuery->where('full_name', 'like', "%{$search}%")
                                    ->orWhere('first_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%");
+                                   ->orWhere('middle_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
+                                   ->orWhere('lrn', 'like', "%{$search}%");
                   });
             });
+        }
+
+        $date = $request->get('date');
+        $date = is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null;
+
+        if ($date !== null) {
+            $query->whereDate('collection_date', $date);
         }
 
         if ($day = $request->get('day')) {
@@ -113,13 +123,45 @@ class BottleCollectionController extends Controller
         }
 
         if ($quarter = $request->get('quarter')) {
-            [$startDate, $endDate] = $this->getQuarterDateRange($quarter);
+            // Quarter is scoped to the selected date's year (or an explicit legacy
+            // year param) so it never mixes records from unrelated years. Without a
+            // year context it falls back to the existing current-year behavior.
+            $yearContext = null;
+
+            if ($date !== null) {
+                $yearContext = (int) substr($date, 0, 4);
+            } elseif (is_string($year) && $year !== '') {
+                $yearContext = (int) $year;
+            }
+
+            [$startDate, $endDate] = $this->getQuarterRange($quarter, $yearContext);
             if ($startDate && $endDate) {
                 $query->whereBetween('collection_date', [$startDate, $endDate]);
             }
         }
 
         return $query;
+    }
+
+    private function getQuarterRange(string $quarter, ?int $year): array
+    {
+        $quarterMonths = [
+            'q1' => [1, 1, 3, 31],
+            'q2' => [4, 1, 6, 30],
+            'q3' => [7, 1, 9, 30],
+            'q4' => [10, 1, 12, 31],
+        ];
+
+        if ($year !== null && isset($quarterMonths[$quarter])) {
+            [$startMonth, $startDay, $endMonth, $endDay] = $quarterMonths[$quarter];
+
+            return [
+                \Carbon\Carbon::create($year, $startMonth, $startDay)->startOfDay(),
+                \Carbon\Carbon::create($year, $endMonth, $endDay)->endOfDay(),
+            ];
+        }
+
+        return $this->getQuarterDateRange($quarter);
     }
 
     public function store(Request $request)
@@ -177,5 +219,33 @@ class BottleCollectionController extends Controller
         ]);
 
         return redirect()->route('admin.bottle-collection')->with('success', 'Bottle collection recorded successfully!');
+    }
+
+    public function studentPoints(Request $request)
+    {
+        $lrn = $request->query('lrn');
+
+        if ($lrn === null || $lrn === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'lrn parameter is required',
+            ], 422);
+        }
+
+        $student = Student::where('lrn', $lrn)->first();
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'student_name' => $student->full_name,
+            'lrn' => $student->lrn,
+            'points' => (int) ($student->total_points ?? 0),
+        ]);
     }
 }
