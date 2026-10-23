@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 
 class AchievementController extends Controller
 {
+    public const MAX_QUESTS = 5;
+
     /**
      * Only Admin and Super Admin can manage achievement quests.
      */
@@ -17,6 +19,11 @@ class AchievementController extends Controller
         if (!Auth::user()->isAdminLevel()) {
             abort(403, 'Only Admin and Super Admin can manage achievement quests.');
         }
+    }
+
+    private function questLimitReached(): bool
+    {
+        return Achievement::whereNull('student_id')->count() >= self::MAX_QUESTS;
     }
 
     private function validatedQuestData(Request $request): array
@@ -44,6 +51,12 @@ class AchievementController extends Controller
     public function store(Request $request)
     {
         $this->authorizeQuestManagement();
+
+        if ($this->questLimitReached()) {
+            return redirect()->route('admin.certificate')
+                ->withInput()
+                ->withErrors(['title' => 'Maximum of ' . self::MAX_QUESTS . ' achievement quests reached. Delete an existing quest before adding a new one.']);
+        }
 
         $achievement = Achievement::create(
             $this->validatedQuestData($request) + ['created_by' => Auth::id()]
