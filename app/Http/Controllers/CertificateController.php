@@ -6,6 +6,7 @@ use App\Models\CertificateAward;
 use App\Models\CertificateTemplate;
 use App\Models\Achievement;
 use App\Models\Student;
+use App\Models\User;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,47 +17,17 @@ class CertificateController extends Controller
 {
     public function index(Request $request)
     {
-        $user = Auth::user();
-
-        $query = CertificateAward::with(['issuer', 'teacher']);
-        if ($user->isTeacher()) {
-            $query->where(function ($q) {
-                $q->where('teacher_id', Auth::id())
-                    ->orWhere('issued_by', Auth::id());
-            });
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('award_title', 'like', "%{$search}%")
-                    ->orWhere('award_description', 'like', "%{$search}%");
-            });
-        }
-        if ($request->filled('award_date')) {
-            $query->whereDate('awarded_date', $request->award_date);
-        }
-        if ($request->filled('month')) {
-            $monthNames = [
-                'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
-                'May' => 5, 'June' => 6, 'July' => 7, 'August' => 8,
-                'September' => 9, 'October' => 10, 'November' => 11, 'December' => 12
-            ];
-            $monthNum = is_numeric($request->month) ? $request->month : ($monthNames[$request->month] ?? null);
-            if ($monthNum) {
-                $query->whereMonth('awarded_date', $monthNum);
-            }
-        }
-        if ($request->filled('year')) {
-            $query->whereYear('awarded_date', $request->year);
-        }
-        $awards = $query->latest()->paginate(10)->withQueryString();
-
         $quests = Achievement::whereNull('student_id')
             ->with('creator')
             ->latest()
             ->get();
 
-        return view('pages.certificate', compact('awards', 'quests'));
+        $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'role', 'position']);
+
+        return view('pages.certificate', compact('quests', 'teachers'));
     }
 
     public function store(Request $request)
@@ -105,24 +76,14 @@ class CertificateController extends Controller
 
     public function create()
     {
-        $user = Auth::user();
-
-        $templates = CertificateTemplate::where('status', 'active')
-            ->where(function ($q) use ($user) {
-                if ($user->isTeacher()) {
-                    $q->where('visibility', 'global')->orWhere('uploaded_by', Auth::id());
-                }
-            })
-            ->orderBy('template_name')
-            ->get();
-
-        return view('pages.certificate-editor', compact('templates'));
+        return redirect()->route('admin.certificate');
     }
 
     public function saveCanvas(Request $request)
     {
         $validated = $request->validate([
             'student_id' => 'nullable|exists:students,id',
+            'adviser_id' => 'nullable|exists:users,id',
             'award_title' => 'nullable|string|max:255',
             'award_description' => 'nullable|string',
             'template_file' => 'required|file|mimes:jpg,jpeg,png|max:10240',
@@ -139,6 +100,11 @@ class CertificateController extends Controller
             $studentQuery->findOrFail($validated['student_id']);
         }
 
+        $adviserName = null;
+        if ($request->filled('adviser_id')) {
+            $adviserName = User::whereKey($validated['adviser_id'])->value('name');
+        }
+
         $templatePath = $request->file('template_file')->store('certificate-templates', 'public');
 
         $award = CertificateAward::create([
@@ -150,6 +116,7 @@ class CertificateController extends Controller
             'awarded_date' => now()->toDateString(),
             'template_file' => $templatePath,
             'canvas_data' => $validated['canvas_data'] ? json_decode($validated['canvas_data'], true) : null,
+            'signed_by' => $adviserName,
             'status' => 'Active',
         ]);
 
