@@ -36,16 +36,15 @@
         .certificate-canvas {
             position: relative;
             width: 1123px;
-            height: 794px;
+            height: auto;
             background: #ffffff;
             overflow: hidden;
         }
 
         .certificate-bg {
-            position: absolute;
-            inset: 0;
+            display: block;
             width: 100%;
-            height: 100%;
+            height: auto;
             object-fit: contain;
             z-index: 1;
         }
@@ -58,12 +57,19 @@
             line-height: 1.2;
         }
 
-        .certificate-student-name-print {
+        .certificate-student-name-print,
+        .certificate-adviser-print {
             position: absolute;
             z-index: 11;
-            transform: translate(-50%, -50%);
-            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            box-sizing: border-box;
+            line-height: 1.15;
+            padding: 2px 8px;
         }
 
         @page {
@@ -96,7 +102,7 @@
 
             .certificate-canvas {
                 width: 297mm !important;
-                height: 210mm !important;
+                height: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 box-shadow: none !important;
@@ -109,7 +115,7 @@
 
             .certificate-bg {
                 width: 100% !important;
-                height: 100% !important;
+                height: auto !important;
                 object-fit: contain !important;
             }
 
@@ -121,11 +127,11 @@
                 white-space: nowrap !important;
             }
 
-            .certificate-student-name-print {
-                display: block !important;
+            .certificate-student-name-print,
+            .certificate-adviser-print {
+                display: flex !important;
                 position: absolute !important;
                 z-index: 11 !important;
-                transform: translate(-50%, -50%) !important;
             }
         }
     </style>
@@ -139,14 +145,29 @@
         <div class="certificate-canvas">
             <img src="{{ $fileUrl }}" alt="Certificate Template" class="certificate-bg">
             @foreach($canvasData as $box)
-            @if(($box['type'] ?? '') === 'student_name')
-            <div class="certificate-student-name-print"
-                 data-width="{{ $box['width'] ?? 70 }}"
-                 data-pref="{{ $box['fontSizePref'] ?? ($box['fontSize'] ?? 40) }}"
-                 data-min="{{ $box['fontSizeMin'] ?? 16 }}"
+            @php
+                $boxType = $box['type'] ?? '';
+                $isNameBox = in_array($boxType, ['student_name', 'adviser_name']);
+                $boxWidth = $box['width'] ?? ($boxType === 'adviser_name' ? 23 : 30);
+                $defaultHeight = $boxType === 'adviser_name' ? 5 : 7;
+                $boxHeight = $box['height'] ?? $defaultHeight;
+                if (isset($box['left'])) {
+                    $boxLeft = $box['left'];
+                    $boxTop = $box['top'] ?? 50;
+                } else {
+                    $boxLeft = ($box['x'] ?? 50) - ($boxWidth / 2);
+                    $boxTop = ($box['y'] ?? 50) - ($boxHeight / 2);
+                }
+                $boxNameClass = $boxType === 'adviser_name' ? 'certificate-adviser-print' : 'certificate-student-name-print';
+            @endphp
+            @if($isNameBox)
+            <div class="{{ $boxNameClass }}"
+                 data-width="{{ $boxWidth }}"
+                 data-pref="{{ $box['fontSizePref'] ?? ($box['fontSize'] ?? ($boxType === 'adviser_name' ? 26 : 40)) }}"
+                 data-min="{{ $box['fontSizeMin'] ?? ($boxType === 'adviser_name' ? 10 : 16) }}"
                  data-family="{{ $box['fontFamily'] ?? 'Georgia' }}"
                  data-bold="{{ !empty($box['fontWeight']) && $box['fontWeight'] !== 'normal' && $box['fontWeight'] !== '400' ? '1' : '0' }}"
-                 style="left:{{ ($box['x'] ?? 50) }}%;top:{{ ($box['y'] ?? 45) }}%;width:{{ ($box['width'] ?? 70) }}%;
+                 style="left:{{ $boxLeft }}%;top:{{ $boxTop }}%;width:{{ $boxWidth }}%;height:{{ $boxHeight }}%;
                         font-family:'{{ $box['fontFamily'] ?? 'Georgia' }}',serif;
                         color:{{ $box['color'] ?? '#1F2937' }};
                         font-weight:{{ $box['fontWeight'] ?? '700' }};
@@ -174,13 +195,13 @@
     </div>
     @elseif($fileUrl)
     <div class="certificate-print-page">
-        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;">
+        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;min-height:794px;">
             <iframe src="{{ $fileUrl }}" style="width:100%;height:100%;border:none;"></iframe>
         </div>
     </div>
     @else
     <div class="certificate-print-page">
-        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;">
+        <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;min-height:794px;">
             <h3 style="color:#9CA3AF;">{{ $award->award_title ?: 'Certificate' }}</h3>
         </div>
     </div>
@@ -189,30 +210,43 @@
     <script>
         (function () {
             var REF_W = 1123;
-            var els = document.querySelectorAll('.certificate-student-name-print');
+            var LINE_HEIGHT = 1.15;
+            var els = document.querySelectorAll('.certificate-student-name-print, .certificate-adviser-print');
 
             function fitAll() {
                 if (!els.length) return;
+                var wrap = document.querySelector('.certificate-canvas');
+                var scale = ((wrap && wrap.clientWidth) || REF_W) / REF_W;
                 var mc = document.createElement('canvas').getContext('2d');
+
                 for (var i = 0; i < els.length; i++) {
                     var el = els[i];
-                    var widthPct = parseFloat(el.getAttribute('data-width')) || 70;
-                    var pref = parseFloat(el.getAttribute('data-pref')) || 40;
-                    var min = parseFloat(el.getAttribute('data-min')) || 16;
+                    var text = el.textContent.trim();
+                    if (!text) continue;
+
+                    var pref = (parseFloat(el.getAttribute('data-pref')) || 40) * scale;
+                    var min = Math.max(1, (parseFloat(el.getAttribute('data-min')) || 16) * scale);
                     var family = el.getAttribute('data-family') || 'Georgia';
                     var weight = el.getAttribute('data-bold') === '1' ? '700' : '400';
-                    var avail = (widthPct / 100) * REF_W - 24;
-                    var text = el.textContent.trim();
-                    var fitted = min;
-                    for (var s = Math.round(pref); s >= min; s--) {
-                        mc.font = weight + ' ' + s + 'px "' + family + '"';
-                        if (mc.measureText(text).width <= avail) { fitted = s; break; }
+
+                    var cs = window.getComputedStyle(el);
+                    var availW = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+                    var availH = el.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+                    if (availW <= 0 || availH <= 0) continue;
+
+                    var size = pref;
+                    var fits = false;
+                    while (size >= min) {
+                        mc.font = weight + ' ' + size + 'px "' + family + '"';
+                        if (mc.measureText(text).width <= availW && size * LINE_HEIGHT <= availH) {
+                            fits = true;
+                            break;
+                        }
+                        size -= 1;
                     }
-                    mc.font = weight + ' ' + min + 'px "' + family + '"';
-                    var fits = mc.measureText(text).width <= avail;
-                    el.style.fontSize = fitted + 'px';
-                    el.style.whiteSpace = fits ? 'nowrap' : 'normal';
-                    el.style.wordBreak = fits ? 'normal' : 'break-word';
+                    if (!fits) size = min;
+
+                    el.style.fontSize = size + 'px';
                 }
             }
 

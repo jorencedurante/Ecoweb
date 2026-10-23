@@ -41,17 +41,13 @@ class CertificateStudentDesignTest extends TestCase
         ]);
     }
 
-    public function test_design_certificate_page_renders_student_search(): void
+    public function test_obsolete_design_certificate_page_redirects_to_certificate_award(): void
     {
         $teacher = $this->createTeacher();
 
         $response = $this->actingAs($teacher)->get(route('admin.certificate.create'));
 
-        $response->assertOk();
-        $response->assertSee('Search student by name or LRN...');
-        $response->assertSee('id="studentSearch"', false);
-        $response->assertSee('nameFontFamily', false);
-        $response->assertSee('nameBoxWidth', false);
+        $response->assertRedirect(route('admin.certificate'));
     }
 
     public function test_teacher_student_search_returns_only_own_class_students(): void
