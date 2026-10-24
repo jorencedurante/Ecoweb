@@ -200,7 +200,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->latest()->paginate(10)->withQueryString();
+        $students = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         $actionsColClass = Auth::user()->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
 
         $filterable = [
