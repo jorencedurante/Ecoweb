@@ -99,6 +99,33 @@ class Student extends Model
     }
 
     /**
+     * Teacher IDs this student is currently assigned to via student_enrollments.
+     *
+     * This is the authoritative teacher-student assignment source; the legacy
+     * students.teacher_id column is not used for quest scoping.
+     */
+    public function currentAssignedTeacherIds()
+    {
+        return $this->enrollments()
+            ->where('status', 'active')
+            ->pluck('teacher_id')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Active global quests created by the student's currently assigned
+     * teacher(s). Quest evaluation must never fall back to quests created
+     * by other teachers, admins, or unowned (NULL created_by) records.
+     */
+    public function assignedActiveQuests()
+    {
+        return Achievement::whereIn('created_by', $this->currentAssignedTeacherIds())
+            ->whereNull('student_id')
+            ->where('status', 'Active');
+    }
+
+    /**
      * Create StudentAchievement records for every active quest the student
      * already qualifies for based on points / bottle count.
      *
@@ -109,9 +136,7 @@ class Student extends Model
         $totalBottles = $this->bottleCollections()->sum('bottle_count');
         $totalPoints = $this->total_points ?? $totalBottles;
 
-        $quests = Achievement::whereNull('student_id')
-            ->where('status', 'Active')
-            ->get();
+        $quests = $this->assignedActiveQuests()->get();
 
         $earnedCount = 0;
 
@@ -144,12 +169,10 @@ class Student extends Model
      */
     public function achievementProgressData(): array
     {
-        $totalBottles = $this->bottleCollections()->count();
+        $totalBottles = (int) $this->bottleCollections()->sum('bottle_count');
         $totalPoints = $this->total_points ?? $this->bottleCollections()->sum('points_earned');
 
-        $quests = Achievement::whereNull('student_id')
-            ->where('status', 'Active')
-            ->get();
+        $quests = $this->assignedActiveQuests()->get();
 
         $earnedQuestIds = $this->earnedAchievements->pluck('achievement_quest_id')->all();
 

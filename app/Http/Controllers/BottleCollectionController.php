@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\BottleCollection;
 use App\Models\Student;
-use App\Models\Achievement;
 use App\Models\StudentAchievement;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
@@ -196,10 +195,10 @@ class BottleCollectionController extends Controller
         // Update student total points: 1 bottle = 1 point
         $student->increment('total_points', $validated['bottle_count']);
 
-        // Auto-award achievement quests
+        // Auto-award achievement quests from the student's assigned teacher only.
         $bottleTotal = $student->bottleCollections()->sum('bottle_count');
         $pointTotal = $student->total_points ?? $bottleTotal;
-        $quests = Achievement::whereNull('student_id')->where('status', 'Active')->get();
+        $quests = $student->assignedActiveQuests()->get();
         foreach ($quests as $quest) {
             $completedByBottles = $quest->required_bottles > 0 && $bottleTotal >= $quest->required_bottles;
             $completedByPoints = $quest->points_required > 0 && $pointTotal >= $quest->points_required;

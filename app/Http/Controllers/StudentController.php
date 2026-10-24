@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Models\User;
-use App\Models\Achievement;
 use App\Models\StudentAchievement;
 use App\Models\CertificateAward;
 use App\Models\AdminActivity;
@@ -423,8 +422,7 @@ class StudentController extends Controller
     {
         $this->authorizeStudentAccess($student);
 
-        $quests = Achievement::whereNull('student_id')
-            ->where('status', 'Active')
+        $quests = $student->assignedActiveQuests()
             ->latest()
             ->get();
 
@@ -568,8 +566,7 @@ class StudentController extends Controller
 
         $earnedQuestIds = $earnedAchievements->pluck('achievement_quest_id')->all();
 
-        $questProgress = Achievement::whereNull('student_id')
-            ->where('status', 'Active')
+        $questProgress = $student->assignedActiveQuests()
             ->get()
             ->filter(fn ($quest) => $quest->required_bottles > 0 || $quest->points_required > 0)
             ->map(function ($quest) use ($totalBottles, $totalPoints, $earnedQuestIds) {
@@ -723,9 +720,14 @@ class StudentController extends Controller
                 ])->values(),
                 'progress' => $questProgress,
             ],
-            'certificates' => $awards->map(function ($award) use ($user) {
-                $canAccess = ! $user->isTeacher() || $award->teacher_id === $user->id;
-                $hasFile = (bool) ($award->template_file ?? $award->certificate_file ?? $award->template_file_path);
+            'certificates' => $awards->map(function ($award) use ($user, $student) {
+                $canAccess = ! $user->isTeacher()
+                    || (int) $award->teacher_id === (int) $user->id
+                    || $student->enrollments()
+                        ->where('teacher_id', $user->id)
+                        ->where('status', 'active')
+                        ->exists();
+                $hasFinal = $award->hasFinalCertificateFile();
 
                 return [
                     'id' => $award->id,
@@ -736,8 +738,8 @@ class StudentController extends Controller
                     'status' => $award->status,
                     'awarded_date' => optional($award->awarded_date)->format('M d, Y'),
                     'teacher_name' => $award->teacher?->name,
-                    'view_url' => $canAccess && $hasFile ? route('admin.certificate.download', $award) : null,
-                    'print_url' => $canAccess ? route('admin.certificate.print', $award) : null,
+                    'view_url' => $canAccess && $hasFinal ? route('admin.certificate.download', $award) : null,
+                    'print_url' => $canAccess && $award->canRenderCertificate() ? route('admin.certificate.print', $award) : null,
                 ];
             })->values(),
             'meta' => [

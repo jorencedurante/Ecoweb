@@ -17,7 +17,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         Storage::fake('public');
     }
 
-    public function test_admin_sees_auto_generated_certificate_and_limited_quest_ui(): void
+    public function test_admin_sees_certificate_with_monitoring_counter_and_no_quest_management(): void
     {
         $admin = $this->createAdmin();
 
@@ -30,7 +30,9 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertSee('Search and Select Student', false);
         $response->assertSee('Select Teacher / Adviser', false);
         $response->assertSee('adviserSelect', false);
-        $response->assertSee('Add Achievement Quest', false);
+        // Admin is view-only: no quest management controls.
+        $response->assertDontSee('Add Achievement Quest', false);
+        $response->assertSee('Monitoring', false);
 
         for ($i = 1; $i <= 5; $i++) {
             Achievement::create([
@@ -45,7 +47,8 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.certificate'));
 
         $response->assertOk();
-        $response->assertSee('Maximum of 5 achievement quests reached', false);
+        $response->assertSee('Monitoring', false);
+        $response->assertDontSee('Maximum of 5 achievement quests reached', false);
         $response->assertDontSee('>+ Add Achievement Quest<', false);
     }
 
@@ -117,6 +120,31 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertSee('Print Preview', false);
     }
 
+    public function test_optional_drag_positioning_and_reset_control(): void
+    {
+        $admin = $this->createAdmin();
+
+        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+
+        $response->assertOk();
+        // reset button sits below Font Settings in the left column
+        $response->assertSee('id="resetNamePositionsBtn"', false);
+        $response->assertSee('Reset Name Positions', false);
+        $response->assertSeeInOrder(['Font Settings', 'Reset Name Positions']);
+        // pointer-event drag plumbing on the existing overlays
+        $response->assertSee('setPointerCapture', false);
+        $response->assertSee('pointercancel', false);
+        $response->assertSee('studentPosOverride', false);
+        $response->assertSee('adviserPosOverride', false);
+        $response->assertSee('effectiveCfg', false);
+        // default automatic alignment stays the source position
+        $response->assertSee('centerX: studentLineCenterX', false);
+        $response->assertSee('centerX: adviserLineCenterX', false);
+        // hidden until hover/active so the preview stays clean
+        $response->assertSee('touch-action: none', false);
+        $response->assertSee('cursor: move', false);
+    }
+
     public function test_obsolete_create_route_redirects_to_certificate_award(): void
     {
         $admin = $this->createAdmin();
@@ -126,9 +154,9 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertRedirect(route('admin.certificate'));
     }
 
-    public function test_backend_blocks_sixth_quest(): void
+    public function test_backend_blocks_sixth_quest_per_teacher(): void
     {
-        $admin = $this->createAdmin();
+        $teacher = $this->createTeacher();
 
         for ($i = 1; $i <= 5; $i++) {
             Achievement::create([
@@ -136,11 +164,11 @@ class CertificateAwardAutoGenerateTest extends TestCase
                 'milestone' => 'Points',
                 'points_required' => 5,
                 'status' => 'Active',
-                'created_by' => $admin->id,
+                'created_by' => $teacher->id,
             ]);
         }
 
-        $response = $this->actingAs($admin)->post(route('achievement-quests.store'), [
+        $response = $this->actingAs($teacher)->post(route('achievement-quests.store'), [
             'title' => 'Sixth Quest',
             'requirement_type' => 'points',
             'required_value' => 10,
@@ -149,7 +177,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
 
         $response->assertRedirect(route('admin.certificate'));
         $response->assertSessionHasErrors('title');
-        $this->assertSame(5, Achievement::whereNull('student_id')->count());
+        $this->assertSame(5, Achievement::whereNull('student_id')->where('created_by', $teacher->id)->count());
         $this->assertDatabaseMissing('achievements', ['title' => 'Sixth Quest']);
     }
 

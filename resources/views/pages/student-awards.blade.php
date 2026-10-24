@@ -26,7 +26,7 @@
         @forelse($awards as $award)
         <div class="award-card">
             <div class="card-icon">🏅</div>
-            <h4>{{ $award->certificate_title ?? $award->award_title }}</h4>
+            <h4>{{ $award->award_title }}</h4>
             <div class="award-meta">
                 {{ $award->certificate_type ?? 'Certificate' }}
                 @if($award->school_year) · S.Y. {{ $award->school_year }} @endif
@@ -50,12 +50,12 @@
             <div style="margin-top:6px;font-size:12px;color:var(--text-light);font-style:italic;">{{ $award->remarks }}</div>
             @endif
             <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-                @php $filePath = $award->template_file ?? $award->certificate_file ?? $award->template_file_path; @endphp
-                @if($filePath)
-                <a href="{{ route('admin.certificate.download', $award->id) }}" class="btn btn-view btn-xs" target="_blank">View</a>
-                <a href="{{ route('admin.certificate.download', $award->id) }}" class="btn btn-achievement btn-xs" download>Download</a>
+                @php $hasFinal = $award->hasFinalCertificateFile(); @endphp
+                <a href="{{ route('admin.certificate.print', $award->id) }}" class="btn btn-view btn-xs" target="_blank" rel="noopener">View</a>
+                @if($hasFinal)
+                <a href="{{ route('admin.certificate.download', $award->id) }}" class="btn btn-achievement btn-xs" target="_blank" rel="noopener">Download</a>
                 @endif
-                <a href="{{ route('admin.certificate.print', $award->id) }}" class="btn btn-xs" style="background:#6B7280;color:#fff;" target="_blank">Print</a>
+                <a href="{{ route('admin.certificate.print', $award->id) }}" class="btn btn-xs" style="background:#6B7280;color:#fff;" target="_blank" rel="noopener">Print</a>
             </div>
         </div>
         @empty

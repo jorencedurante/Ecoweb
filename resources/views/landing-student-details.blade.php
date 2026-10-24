@@ -150,7 +150,7 @@
             <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                     <span style="font-size:20px;">{{ $award->certificate_type === 'Certificate' ? '📜' : '🏅' }}</span>
-                    <h5 style="font-size:14px;font-weight:600;color:#111827;">{{ $award->award_title ?? $award->certificate_title ?? $award->title }}</h5>
+                    <h5 style="font-size:14px;font-weight:600;color:#111827;">{{ $award->award_title }}</h5>
                 </div>
                 @if($award->award_description ?? $award->description)
                 <p style="font-size:12px;color:#6B7280;margin-bottom:6px;">{{ $award->award_description ?? $award->description }}</p>
@@ -159,10 +159,14 @@
                     <span>Issued: {{ $award->awarded_date ? $award->awarded_date->format('M d, Y') : ($award->created_at->format('M d, Y')) }}</span>
                     @if($award->certificate_type)<span style="background:rgba(0,174,239,0.1);color:#00AEEF;padding:2px 8px;border-radius:6px;font-weight:600;">{{ $award->certificate_type }}</span>@endif
                 </div>
-                @php $certFilePath = $award->template_file ?? $award->template_file_path; @endphp
-                @if($certFilePath)
+                @php $viewer = $certificateViewers[$award->id] ?? null; @endphp
+                @if($viewer['view_url'] ?? null)
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid #E5E7EB;">
-                    <a href="{{ asset('storage/' . $certFilePath) }}" target="_blank" style="font-size:12px;font-weight:600;color:#22C55E;text-decoration:none;">View Certificate →</a>
+                    <a href="{{ $viewer['view_url'] }}" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:#22C55E;text-decoration:none;">View Certificate →</a>
+                </div>
+                @else
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #E5E7EB;">
+                    <span style="font-size:12px;color:#9CA3AF;">Completed certificate unavailable</span>
                 </div>
                 @endif
             </div>
@@ -211,22 +215,15 @@
 </div>
 
 <footer class="public-footer">
-    <div class="footer-inner">
-        <div class="footer-left">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="footer-logo-img">
-                <div><span style="font-size:16px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span><br><span style="font-size:11px;color:rgba(255,255,255,0.5);">Smart Waste Management for a Cleaner Tomorrow</span></div>
+    <div class="footer-container">
+        <div class="footer-brand">
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="footer-logo-img">
+            <div>
+                <h3><span>ECO</span>COLLECT</h3>
+                <p>Smart Waste Management for a Cleaner Tomorrow</p>
             </div>
         </div>
-        <div class="footer-center">
-            &copy; {{ date('Y') }} EcoCollect. All rights reserved.
-        </div>
-        <div class="footer-right">
-            <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.8);margin-bottom:8px;">Quick Links</div>
-            <a href="{{ route('landing') }}">Home</a>
-            <a href="{{ route('student.lookup') }}">Student Record</a>
-            <a href="{{ route('landing') }}#top-students">Leaderboard</a>
-        </div>
+        <p class="footer-copy">&copy; {{ date('Y') }} EcoCollect. All rights reserved.</p>
     </div>
 </footer>
 

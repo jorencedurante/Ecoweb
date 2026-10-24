@@ -33,7 +33,7 @@
             <div class="stat-icon purple">🏆</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $totalAwards }}</div>
-                <div class="stat-label">Certificates / Awards</div>
+                <div class="stat-label">Certificates</div>
             </div>
         </div>
         <div class="stat-card">
