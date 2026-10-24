@@ -97,7 +97,12 @@
 
                     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
                         <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;">Print Preview</button>
+                        <button type="button" id="awardToStudentBtn" class="btn btn-sm" style="background:#16A34A;color:#fff;padding:10px 24px;">Award to Student</button>
                     </div>
+                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                        <button type="button" id="resetNamePositionsBtn" class="btn btn-sm" style="background:#fff;color:#6B7280;border:1px solid var(--border);padding:10px 18px;" title="Restore the automatic name positions">Reset Name Positions</button>
+                    </div>
+                    <div id="awardStatus" role="status" aria-live="polite" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
                 </div>
 
                 <div class="auto-cert-preview">
@@ -124,9 +129,13 @@
 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:36px;margin-bottom:12px;">
     <div>
         <h4 style="font-size:15px;font-weight:600;">🎯 Achievement Quests</h4>
-        <span style="font-size:12px;color:var(--text-light);">({{ $quests->count() }} of {{ $maxQuests }} quests)</span>
+        @if(Auth::user()->isTeacher())
+            <span style="font-size:12px;color:var(--text-light);">({{ $quests->count() }} of {{ $maxQuests }} quests)</span>
+        @else
+            <span style="font-size:12px;color:var(--text-light);">({{ $quests->count() }} quests — Monitoring)</span>
+        @endif
     </div>
-    @if(Auth::user()->isAdminLevel())
+    @if(Auth::user()->isTeacher())
         @if($quests->count() >= $maxQuests)
             <span class="btn btn-sm" style="background:#E5E7EB;color:#6B7280;cursor:not-allowed;" role="button" aria-disabled="true" title="You can only have up to {{ $maxQuests }} achievement quests.">Maximum of {{ $maxQuests }} achievement quests reached</span>
         @else
@@ -146,7 +155,7 @@
                 <th scope="col">Description</th>
                 <th scope="col">Status</th>
                 <th scope="col">Created By</th>
-                @if(Auth::user()->isAdminLevel())
+                @if(Auth::user()->isTeacher())
                 <th scope="col">Actions</th>
                 @endif
             </tr>
@@ -172,7 +181,7 @@
                     @endif
                 </td>
                 <td>{{ $q->creator->name ?? 'System' }}</td>
-                @if(Auth::user()->isAdminLevel())
+                @if(Auth::user()->isTeacher())
                 <td>
                     <div class="action-btns">
                         <button type="button" class="action-icon-btn edit" title="Edit" aria-label="Edit achievement quest" onclick="openQuestEditModal({{ $q->id }}, '{{ addslashes($q->title) }}', '{{ addslashes($q->description ?? '') }}', '{{ $reqType === 'Bottles' ? 'bottles' : 'points' }}', {{ $reqValue }}, '{{ addslashes($q->badge_name ?? '') }}', '{{ $q->status }}')"><x-icon name="pencil" :size="15" /></button>
@@ -186,7 +195,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="{{ Auth::user()->isAdminLevel() ? 8 : 7 }}" style="text-align:center;color:var(--text-light);padding:30px;">No achievement quests found.</td>
+                <td colspan="{{ Auth::user()->isTeacher() ? 8 : 7 }}" style="text-align:center;color:var(--text-light);padding:30px;">No achievement quests found.</td>
             </tr>
             @endforelse
         </tbody>
@@ -194,7 +203,7 @@
     </div>
 </div>
 
-@if(Auth::user()->isAdminLevel() && $quests->count() < $maxQuests)
+@if(Auth::user()->isTeacher() && $quests->count() < $maxQuests)
 {{-- Add Achievement Quest Modal --}}
 <div id="questAddModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -245,7 +254,7 @@
 </div>
 @endif
 
-@if(Auth::user()->isAdminLevel())
+@if(Auth::user()->isTeacher())
 {{-- Edit Achievement Quest Modal --}}
 <div id="questEditModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -362,12 +371,11 @@
     line-height: 1;
     /* horizontal padding is % of the canvas so editor and print fits match */
     padding: 2px 0.6%;
-    /* outline instead of border: dashed guide without shrinking the text area */
-    outline: 2px dashed rgba(37, 99, 235, 0.6);
-    outline-offset: -2px;
     background: rgba(255, 255, 255, 0.12);
     user-select: none;
     pointer-events: none;
+    /* pointer drag support (mouse + touch) without scrolling the page */
+    touch-action: none;
     z-index: 5;
 }
 .certificate-name-overlay {
@@ -387,6 +395,21 @@
 .certificate-name-overlay.is-visible,
 .certificate-adviser-overlay.is-visible {
     display: block;
+    pointer-events: auto;
+    cursor: move;
+}
+/* subtle dashed feedback only on hover / while dragging — preview stays clean */
+.certificate-name-overlay.is-visible:hover,
+.certificate-adviser-overlay.is-visible:hover,
+.certificate-name-overlay.is-visible.is-dragging,
+.certificate-adviser-overlay.is-visible.is-dragging {
+    outline: 2px dashed rgba(37, 99, 235, 0.6);
+    outline-offset: -2px;
+}
+.certificate-name-overlay.is-dragging,
+.certificate-adviser-overlay.is-dragging {
+    outline-color: rgba(37, 99, 235, 0.95);
+    background: rgba(255, 255, 255, 0.25);
 }
 .font-settings {
     margin-top: 12px;
@@ -554,6 +577,12 @@
     var studentCfg = { centerX: studentLineCenterX, top: 57.3, height: 7, baseline: studentLineY, width: 30, min: 16, color: '#1F2937', weight: '700', centered: true };
     var adviserCfg = { centerX: adviserLineCenterX, top: 87, height: 5.3, baseline: adviserLineY, width: adviserBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
 
+    // Optional manual position overrides set by dragging (% of the image).
+    // null = use the existing automatic alignment (the default).
+    var studentPosOverride = null; // { centerX, baseline }
+    var adviserPosOverride = null;
+    var activeDrag = null;         // overlay currently being dragged
+
     var selectedStudentId = null;
     var selectedStudentName = '';
     var selectedAdviserId = null;
@@ -579,6 +608,19 @@
     function boxLeft(cfg) {
         if (cfg.centered) return cfg.centerX - cfg.width / 2;
         return cfg.left;
+    }
+
+    // Effective position: manual override (from dragging) when present,
+    // otherwise the existing automatic alignment.
+    function effectiveCfg(cfg, override) {
+        if (!override) return cfg;
+        var e = {};
+        for (var k in cfg) {
+            if (Object.prototype.hasOwnProperty.call(cfg, k)) e[k] = cfg[k];
+        }
+        e.centerX = override.centerX;
+        e.baseline = override.baseline;
+        return e;
     }
 
     function applyBoxStyle(box, cfg) {
@@ -710,21 +752,24 @@
     }
 
     function refreshAll() {
+        if (activeDrag) return; // keep the dragged box stable until release
         var warning = '';
 
         if (studentBox && studentBox.classList.contains('is-visible')) {
-            applyBoxStyle(studentBox, studentCfg);
-            var sFit = fitTextToBox(studentBox, { maxSize: studentPreferredFontSize, minSize: studentCfg.min, weight: studentCfg.weight, family: sharedFontFamily });
-            positionBaselineBox(studentBox, studentCfg, sFit.size);
+            var sCfg = effectiveCfg(studentCfg, studentPosOverride);
+            applyBoxStyle(studentBox, sCfg);
+            var sFit = fitTextToBox(studentBox, { maxSize: studentPreferredFontSize, minSize: sCfg.min, weight: sCfg.weight, family: sharedFontFamily });
+            positionBaselineBox(studentBox, sCfg, sFit.size);
             if (!sFit.fits) {
                 warning = 'The student name "' + (studentBox.textContent || '').trim() + '" cannot fit in the certificate name area even at the smallest readable font size. Please check the certificate template.';
             }
         }
 
         if (adviserBox && adviserBox.classList.contains('is-visible')) {
-            applyBoxStyle(adviserBox, adviserCfg);
-            var aFit = fitTextToBox(adviserBox, { maxSize: adviserPreferredFontSize, minSize: adviserCfg.min, weight: adviserCfg.weight, family: sharedFontFamily });
-            positionBaselineBox(adviserBox, adviserCfg, aFit.size);
+            var aCfg = effectiveCfg(adviserCfg, adviserPosOverride);
+            applyBoxStyle(adviserBox, aCfg);
+            var aFit = fitTextToBox(adviserBox, { maxSize: adviserPreferredFontSize, minSize: aCfg.min, weight: aCfg.weight, family: sharedFontFamily });
+            positionBaselineBox(adviserBox, aCfg, aFit.size);
             if (!warning && !aFit.fits) {
                 warning = 'The adviser name "' + (adviserBox.textContent || '').trim() + '" cannot fit above the Class Adviser line even at the smallest readable font size. Please check the certificate template.';
             }
@@ -778,6 +823,9 @@
                 img.style.display = 'block';
                 canvas.classList.add('has-template');
                 if (emptyMessage) emptyMessage.style.display = 'none';
+                // a new template gets fresh automatic positions
+                studentPosOverride = null;
+                adviserPosOverride = null;
                 refreshAll();
             };
             img.src = e.target.result;
@@ -938,6 +986,110 @@
         if (v > 0) { adviserPreferredFontSize = v; refreshAll(); }
     });
 
+    // --- OPTIONAL DRAG POSITIONING (manual override on top of automatic alignment) ---
+    function attachDrag(box, getOverride, setOverride, cfg) {
+        var drag = null;
+
+        box.addEventListener('pointerdown', function (e) {
+            if (activeDrag || !box.classList.contains('is-visible')) return;
+            var text = (box.textContent || '').trim();
+            if (!text) return; // disabled for empty name fields
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+            var canvas = $('certificateCanvas');
+            if (!canvas || !canvas.classList.contains('has-template') || canvas.clientWidth <= 0) return;
+
+            var topStyle = box.style.top || '';
+            if (!topStyle || topStyle.indexOf('%') !== -1) return; // not positioned yet
+            var startTop = parseFloat(topStyle);
+            if (isNaN(startTop)) return;
+
+            var canvasRect = canvas.getBoundingClientRect();
+            var ccs = window.getComputedStyle(canvas);
+            var borderL = parseFloat(ccs.borderLeftWidth) || 0;
+            var borderT = parseFloat(ccs.borderTopWidth) || 0;
+            var boxRect = box.getBoundingClientRect();
+
+            drag = {
+                id: e.pointerId,
+                grabDX: e.clientX - boxRect.left, // pointer offset inside the box
+                grabDY: e.clientY - boxRect.top,
+                canvas: canvas,
+                borderL: borderL,
+                borderT: borderT,
+                canvasW: canvas.clientWidth,
+                canvasH: canvas.clientHeight,
+                boxW: box.offsetWidth,
+                boxH: box.offsetHeight,
+                startTop: startTop,
+                startBaseline: getOverride() ? getOverride().baseline : cfg.baseline,
+                centerX: null,
+                top: null
+            };
+
+            try { box.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+            box.classList.add('is-dragging');
+            activeDrag = box;
+            e.preventDefault(); // block text selection / touch scrolling
+        });
+
+        box.addEventListener('pointermove', function (e) {
+            if (!drag || e.pointerId !== drag.id) return;
+
+            // coordinates relative to the certificate image (canvas padding box)
+            var canvasRect = drag.canvas.getBoundingClientRect();
+            var px = e.clientX - canvasRect.left - drag.borderL;
+            var py = e.clientY - canvasRect.top - drag.borderT;
+
+            // clamp: whole box stays inside the image, never the outer card
+            var left = Math.min(Math.max(px - drag.grabDX, 0), Math.max(0, drag.canvasW - drag.boxW));
+            var top = Math.min(Math.max(py - drag.grabDY, 0), Math.max(0, drag.canvasH - drag.boxH));
+
+            drag.centerX = left + drag.boxW / 2; // translateX(-50%): layout left = center
+            drag.top = top;
+
+            box.style.left = drag.centerX + 'px';
+            box.style.top = top + 'px';
+            e.preventDefault();
+        });
+
+        function endDrag(e) {
+            if (!drag || (e && e.pointerId !== drag.id)) return;
+            var d = drag;
+            drag = null;
+            activeDrag = null;
+            box.classList.remove('is-dragging');
+            try { box.releasePointerCapture(d.id); } catch (err) { /* ignore */ }
+
+            if (d.centerX === null || d.top === null) return; // click without movement
+
+            // convert pixels back to % of the certificate image (responsive coords)
+            var baseline = d.startBaseline + ((d.top - d.startTop) / d.canvasH) * 100;
+            setOverride({
+                centerX: (d.centerX / d.canvasW) * 100,
+                baseline: baseline
+            });
+            refreshAll();
+        }
+
+        box.addEventListener('pointerup', endDrag);
+        box.addEventListener('pointercancel', endDrag);
+    }
+
+    if (studentBox) {
+        attachDrag(studentBox, function () { return studentPosOverride; }, function (v) { studentPosOverride = v; }, studentCfg);
+    }
+    if (adviserBox) {
+        attachDrag(adviserBox, function () { return adviserPosOverride; }, function (v) { adviserPosOverride = v; }, adviserCfg);
+    }
+
+    // --- RESET NAME POSITIONS (clears only the manual overrides) ---
+    $('resetNamePositionsBtn').addEventListener('click', function () {
+        studentPosOverride = null;
+        adviserPosOverride = null;
+        refreshAll();
+    });
+
     // --- COLLECT CANVAS DATA ---
     function collectCanvasData() {
         var data = [];
@@ -945,55 +1097,57 @@
         var canvasH = canvas ? canvas.clientHeight : 0;
 
         if (studentBox && studentBox.classList.contains('is-visible') && selectedStudentId) {
+            var sCfg = effectiveCfg(studentCfg, studentPosOverride);
             var sText = (studentBox.textContent || '').trim();
-            var sFit = fitTextToBox(studentBox, { maxSize: studentPreferredFontSize, minSize: studentCfg.min, weight: studentCfg.weight, family: sharedFontFamily });
-            var sLeft = boxLeft(studentCfg);
-            var sTop = canvasH > 0 ? (studentBox.offsetTop / canvasH) * 100 : studentCfg.top;
-            var sHeight = canvasH > 0 ? (studentBox.offsetHeight / canvasH) * 100 : studentCfg.height;
+            var sFit = fitTextToBox(studentBox, { maxSize: studentPreferredFontSize, minSize: sCfg.min, weight: sCfg.weight, family: sharedFontFamily });
+            var sLeft = boxLeft(sCfg);
+            var sTop = canvasH > 0 ? (studentBox.offsetTop / canvasH) * 100 : sCfg.top;
+            var sHeight = canvasH > 0 ? (studentBox.offsetHeight / canvasH) * 100 : sCfg.height;
             data.push({
                 type: 'student_name',
                 student_id: selectedStudentId,
                 text: sText,
                 left: sLeft,
                 top: sTop,
-                width: studentCfg.width,
+                width: sCfg.width,
                 height: sHeight,
-                baseline: studentCfg.baseline,
-                x: sLeft + studentCfg.width / 2,
+                baseline: sCfg.baseline,
+                x: sLeft + sCfg.width / 2,
                 y: sTop + sHeight / 2,
                 fontSize: sFit.refSize,
                 fontSizePref: studentPreferredFontSize,
-                fontSizeMin: studentCfg.min,
+                fontSizeMin: sCfg.min,
                 fontFamily: sharedFontFamily,
-                color: studentCfg.color,
-                fontWeight: studentCfg.weight,
+                color: sCfg.color,
+                fontWeight: sCfg.weight,
                 textAlign: 'center'
             });
         }
 
         if (adviserBox && adviserBox.classList.contains('is-visible') && selectedAdviserId) {
+            var aCfg = effectiveCfg(adviserCfg, adviserPosOverride);
             var aText = (adviserBox.textContent || '').trim();
-            var aFit = fitTextToBox(adviserBox, { maxSize: adviserPreferredFontSize, minSize: adviserCfg.min, weight: adviserCfg.weight, family: sharedFontFamily });
-            var aLeft = boxLeft(adviserCfg);
-            var aTop = canvasH > 0 ? (adviserBox.offsetTop / canvasH) * 100 : adviserCfg.top;
-            var aHeight = canvasH > 0 ? (adviserBox.offsetHeight / canvasH) * 100 : adviserCfg.height;
+            var aFit = fitTextToBox(adviserBox, { maxSize: adviserPreferredFontSize, minSize: aCfg.min, weight: aCfg.weight, family: sharedFontFamily });
+            var aLeft = boxLeft(aCfg);
+            var aTop = canvasH > 0 ? (adviserBox.offsetTop / canvasH) * 100 : aCfg.top;
+            var aHeight = canvasH > 0 ? (adviserBox.offsetHeight / canvasH) * 100 : aCfg.height;
             data.push({
                 type: 'adviser_name',
                 teacher_id: selectedAdviserId,
                 text: aText,
                 left: aLeft,
                 top: aTop,
-                width: adviserCfg.width,
+                width: aCfg.width,
                 height: aHeight,
-                baseline: adviserCfg.baseline,
-                x: aLeft + adviserCfg.width / 2,
+                baseline: aCfg.baseline,
+                x: aLeft + aCfg.width / 2,
                 y: aTop + aHeight / 2,
                 fontSize: aFit.refSize,
                 fontSizePref: adviserPreferredFontSize,
-                fontSizeMin: adviserCfg.min,
+                fontSizeMin: aCfg.min,
                 fontFamily: sharedFontFamily,
-                color: adviserCfg.color,
-                fontWeight: adviserCfg.weight,
+                color: aCfg.color,
+                fontWeight: aCfg.weight,
                 textAlign: 'center'
             });
         }
@@ -1001,7 +1155,8 @@
         return data;
     }
 
-    // Certificates are generated client-side for Print Preview only — never saved.
+    // Certificates are generated client-side for Print Preview; the Award to
+    // Student button is the only path that persists a certificate.
     document.getElementById('certificateForm').addEventListener('submit', function (e) {
         e.preventDefault();
     });
@@ -1096,6 +1251,196 @@
         printWindow.document.close();
     });
 
+    // --- AWARD TO STUDENT ---
+    var awardBusy = false;
+    var lastAwardedKey = null;
+
+    function showAwardStatus(message, kind) {
+        var el = $('awardStatus');
+        if (!el) return;
+        el.textContent = message;
+        el.style.display = 'block';
+        if (kind === 'success') {
+            el.style.background = 'rgba(0, 200, 83, 0.08)';
+            el.style.border = '1px solid #16A34A';
+            el.style.color = '#166534';
+        } else if (kind === 'info') {
+            el.style.background = 'rgba(107, 114, 128, 0.08)';
+            el.style.border = '1px solid #9CA3AF';
+            el.style.color = '#374151';
+        } else {
+            el.style.background = 'rgba(220, 38, 38, 0.08)';
+            el.style.border = '1px solid #EF4444';
+            el.style.color = '#991B1B';
+        }
+    }
+
+    function awardValidationIssue() {
+        var img = $('certificateBg');
+        var canvas = $('certificateCanvas');
+        if (!img || !img.src || !img.naturalWidth || !canvas || !canvas.classList.contains('has-template')) {
+            return 'Upload a certificate template first.';
+        }
+        if (!selectedStudentId) return 'Search and select a student first.';
+        if (!selectedAdviserId) return 'Select a teacher / adviser first.';
+        if (!studentBox || !studentBox.classList.contains('is-visible') || !(studentBox.textContent || '').trim()) {
+            return 'The student name is not shown on the certificate.';
+        }
+        if (!adviserBox || !adviserBox.classList.contains('is-visible') || !(adviserBox.textContent || '').trim()) {
+            return 'The adviser name is not shown on the certificate.';
+        }
+        var warning = $('certNameWarning');
+        if (warning && !warning.hidden) {
+            return warning.textContent.trim() || 'One of the names does not fit the certificate.';
+        }
+        return null;
+    }
+
+    // Mirrors the server-side fingerprint: student, adviser, template file and
+    // the full rendered layout. Any change means a different certificate.
+    function buildAwardKey() {
+        var file = $('template_file').files[0];
+        var templateSignature = file ? (file.name + '|' + file.size + '|' + file.lastModified) : '';
+        return [
+            String(selectedStudentId || ''),
+            String(selectedAdviserId || ''),
+            templateSignature,
+            JSON.stringify(collectCanvasData())
+        ].join('|');
+    }
+
+    // Bake the template and both rendered names into one final image at the
+    // template's natural resolution, mirroring the on-screen placement.
+    function compositeCertificate() {
+        return new Promise(function (resolve) {
+            try {
+                var img = $('certificateBg');
+                var canvas = $('certificateCanvas');
+                if (!img || !img.naturalWidth || !canvas) { resolve(null); return; }
+
+                var out = document.createElement('canvas');
+                out.width = img.naturalWidth;
+                out.height = img.naturalHeight;
+                var ctx = out.getContext('2d');
+                if (!ctx) { resolve(null); return; }
+                ctx.drawImage(img, 0, 0, out.width, out.height);
+
+                var canvasRect = canvas.getBoundingClientRect();
+                var canvasStyle = window.getComputedStyle(canvas);
+                var borderLeft = parseFloat(canvasStyle.borderLeftWidth) || 0;
+                var borderTop = parseFloat(canvasStyle.borderTopWidth) || 0;
+                var originX = canvasRect.left + borderLeft;
+                var originY = canvasRect.top + borderTop;
+                var scaleX = out.width / Math.max(1, canvas.clientWidth);
+                var scaleY = out.height / Math.max(1, canvas.clientHeight);
+
+                var boxes = [studentBox, adviserBox];
+                for (var i = 0; i < boxes.length; i++) {
+                    var box = boxes[i];
+                    if (!box || !box.classList.contains('is-visible')) continue;
+                    var text = (box.textContent || '').trim();
+                    if (!text) continue;
+
+                    var probe = box.querySelector('.cert-bl-probe');
+                    if (!probe) { resolve(null); return; }
+
+                    var cs = window.getComputedStyle(box);
+                    var fontSize = parseFloat(cs.fontSize);
+                    if (!fontSize) continue;
+
+                    var boxRect = box.getBoundingClientRect();
+                    var centerX = boxRect.left + boxRect.width / 2 - originX;
+                    var baselineY = probe.getBoundingClientRect().bottom - originY;
+
+                    ctx.font = (cs.fontWeight || '400') + ' ' + (fontSize * scaleY) + 'px ' + (cs.fontFamily || 'Georgia');
+                    ctx.fillStyle = cs.color || '#1F2937';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.fillText(text, centerX * scaleX, baselineY * scaleY);
+                }
+
+                if (!out.toBlob) { resolve(null); return; }
+                out.toBlob(function (blob) { resolve(blob); }, 'image/jpeg', 0.98);
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    document.getElementById('awardToStudentBtn').addEventListener('click', function () {
+        if (awardBusy) return;
+
+        refreshAll();
+
+        var issue = awardValidationIssue();
+        if (issue) { showAwardStatus(issue, 'error'); return; }
+
+        var awardKey = buildAwardKey();
+        if (awardKey === lastAwardedKey) {
+            showAwardStatus('This certificate has already been awarded to the student.', 'info');
+            return;
+        }
+
+        var button = this;
+        awardBusy = true;
+        button.disabled = true;
+        button.textContent = 'Awarding...';
+        showAwardStatus('Awarding certificate to the student...', 'info');
+
+        compositeCertificate().then(function (blob) {
+            if (!blob) {
+                showAwardStatus('The certificate preview could not be generated. Please try again.', 'error');
+                return null;
+            }
+
+            var form = new FormData();
+            form.append('student_id', selectedStudentId);
+            form.append('adviser_id', selectedAdviserId);
+            form.append('template_file', $('template_file').files[0]);
+            form.append('generated_file', blob, 'certificate.jpg');
+            form.append('canvas_data', JSON.stringify(collectCanvasData()));
+
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            return fetch('{{ route('admin.certificate.award') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfMeta ? csrfMeta.content : '',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: form
+            }).then(function (response) {
+                return response.json().catch(function () { return {}; }).then(function (payload) {
+                    return { ok: response.ok, payload: payload };
+                });
+            });
+        }).then(function (result) {
+            if (!result) return;
+
+            if (result.ok && result.payload.success) {
+                lastAwardedKey = awardKey;
+                showAwardStatus(
+                    result.payload.message || 'Certificate successfully awarded to the student.',
+                    result.payload.duplicate ? 'info' : 'success'
+                );
+                return;
+            }
+
+            var message = result.payload.message;
+            if (!message && result.payload.errors) {
+                var keys = Object.keys(result.payload.errors);
+                message = keys.length ? result.payload.errors[keys[0]][0] : null;
+            }
+            showAwardStatus(message || 'Could not award the certificate. Please try again.', 'error');
+        }).catch(function () {
+            showAwardStatus('Network error while awarding the certificate. Please try again.', 'error');
+        }).finally(function () {
+            awardBusy = false;
+            button.disabled = false;
+            button.textContent = 'Award to Student';
+        });
+    });
+
     // --- INIT ---
     document.addEventListener('DOMContentLoaded', function () {
         if ($('student_id').value && $('studentSearch').value) {
@@ -1123,7 +1468,7 @@
 })();
 </script>
 
-@if(Auth::user()->isAdminLevel())
+@if(Auth::user()->isTeacher())
 <script>
 function openAddQuestModal() {
     var modal = document.getElementById('questAddModal');

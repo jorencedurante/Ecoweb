@@ -27,6 +27,10 @@ Route::get('/', [PublicController::class, 'landing'])->name('landing');
 Route::get('/items', [PublicController::class, 'items'])->name('public.items');
 Route::get('/student-lookup', [PublicController::class, 'studentLookup'])->name('student.lookup');
 Route::get('/student/{lrn}/details', [PublicController::class, 'studentDetails'])->name('landing.student.details');
+// Public certificate access (scoped signed URLs only; never exposes storage paths)
+Route::get('/certificates/{award}/view', [CertificateController::class, 'publicView'])->middleware('signed')->name('public.certificate.view');
+Route::get('/certificates/{award}/file', [CertificateController::class, 'publicFile'])->middleware('signed')->name('public.certificate.file');
+Route::get('/certificates/{award}/download', [CertificateController::class, 'publicDownload'])->middleware('signed')->name('public.certificate.download');
 Route::post('/items/request-claim', [PublicController::class, 'requestItemClaim'])->name('public.items.request');
 Route::get('/items/points', [PublicController::class, 'points'])->name('public.items.points');
 
@@ -107,11 +111,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/certificate/template', [CertificateController::class, 'storeTemplate'])->name('admin.certificate.template.store');
         Route::get('/certificate/create', [CertificateController::class, 'create'])->name('admin.certificate.create');
         Route::post('/certificate/save-canvas', [CertificateController::class, 'saveCanvas'])->name('admin.certificate.save-canvas');
+        Route::post('/certificate/award', [CertificateController::class, 'award'])->name('admin.certificate.award');
         Route::get('/certificate/{award}/edit', [CertificateController::class, 'edit'])->name('admin.certificate.edit');
         Route::put('/certificate/{award}/update-canvas', [CertificateController::class, 'updateCanvas'])->name('admin.certificate.update-canvas');
         Route::get('/certificate/templates/list', [CertificateController::class, 'templatesList'])->name('admin.certificate.templates.list');
         Route::get('/certificate/{award}/print', [CertificateController::class, 'print'])->name('admin.certificate.print');
         Route::get('/certificate/{award}/download', [CertificateController::class, 'download'])->name('admin.certificate.download');
+        Route::get('/certificate/{award}/file', [CertificateController::class, 'file'])->name('admin.certificate.file');
         Route::patch('/certificate/{award}/archive', [CertificateController::class, 'archive'])->name('admin.certificate.archive');
         Route::delete('/certificate/{award}', [CertificateController::class, 'destroy'])->name('admin.certificate.destroy');
 
