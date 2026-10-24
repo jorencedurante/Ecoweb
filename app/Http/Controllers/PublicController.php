@@ -150,6 +150,7 @@ class PublicController extends Controller
             'claim_item_id' => 'required|exists:claim_items,id',
             'quantity' => 'required|integer|min:1',
             'request_token' => 'nullable|string|max:64',
+            'submitted_card_id' => 'nullable|exists:claim_items,id',
         ]);
 
         $token = $validated['request_token'] ?? null;
@@ -162,8 +163,8 @@ class PublicController extends Controller
             if ($existingClaim) {
                 return redirect()
                     ->route('public.items')
-                    ->with('success', $this->reservationSuccessMessage($existingClaim))
-                    ->withInput(['lrn' => $validated['lrn']]);
+                    ->with('success', $this->reservationSuccessMessage($existingClaim, $validated['submitted_card_id'] ?? null))
+                    ->withInput(['submitted_card_id' => $validated['submitted_card_id'] ?? null]);
             }
         }
 
@@ -215,17 +216,6 @@ class PublicController extends Controller
                 if ($pointsBefore < $totalPointsRequired) {
                     throw ValidationException::withMessages([
                         'claim_item_id' => 'Insufficient points. You need ' . number_format($totalPointsRequired) . ' points for this request.',
-                    ]);
-                }
-
-                $existingPending = StudentClaim::where('student_id', $student->id)
-                    ->where('claim_item_id', $item->id)
-                    ->where('status', 'Pending')
-                    ->exists();
-
-                if ($existingPending) {
-                    throw ValidationException::withMessages([
-                        'claim_item_id' => 'You already have a pending request for this item. Please wait for it to be approved or rejected before submitting another.',
                     ]);
                 }
 
@@ -312,25 +302,30 @@ class PublicController extends Controller
 
             return redirect()
                 ->route('public.items')
-                ->with('success', $this->reservationSuccessMessage($existingClaim))
-                ->withInput(['lrn' => $validated['lrn']]);
+                ->with('success', $this->reservationSuccessMessage($existingClaim, $validated['submitted_card_id'] ?? null))
+                ->withInput(['submitted_card_id' => $validated['submitted_card_id'] ?? null]);
         }
 
         return redirect()
             ->route('public.items')
-            ->with('success', $this->reservationSuccessMessage($result['claim']))
-            ->withInput(['lrn' => $validated['lrn']]);
+            ->with('success', $this->reservationSuccessMessage($result['claim']));
     }
 
-    private function reservationSuccessMessage(?StudentClaim $claim): string
+    private function reservationSuccessMessage(?StudentClaim $claim, ?string $cardId = null): string
     {
         $points = (int) ($claim->points_deducted ?? 0);
         $quantity = (int) ($claim->quantity ?? 1);
 
-        return 'Claim request submitted! '
+        $message = 'Claim request submitted! '
             . number_format($points) . ' point' . ($points === 1 ? '' : 's')
             . ' and ' . $quantity . ' item piece' . ($quantity === 1 ? ' has' : 's have')
             . ' been reserved while awaiting admin approval.';
+
+        if ($cardId) {
+            $message .= ' card_id:' . $cardId;
+        }
+
+        return $message;
     }
 
     public function studentDetails($lrn)
