@@ -506,11 +506,11 @@
     top: 50%;
     transform: translateY(-50%);
     border: none;
-    background: #e5e7eb;
+    background: transparent;
     color: #374151;
     width: 20px;
     height: 20px;
-    border-radius: 50%;
+    border-radius: 0;
     line-height: 1;
     font-size: 14px;
     cursor: pointer;
@@ -518,7 +518,8 @@
     padding: 0;
 }
 .student-clear-btn:hover {
-    background: #d1d5db;
+    background: transparent;
+    color: #111827;
 }
 .student-selected-info {
     margin-top: 6px;

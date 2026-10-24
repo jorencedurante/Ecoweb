@@ -88,7 +88,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Students
         Route::get('/students/search', [StudentController::class, 'search'])->name('admin.students.search');
-        Route::get('/students', [StudentController::class, 'index'])->name('admin.students');
+            Route::get('/students', [StudentController::class, 'index'])->name('admin.students');
+            Route::get('/students/filter', [StudentController::class, 'filterStudents'])->name('admin.students.filter');
         Route::post('/students', [StudentController::class, 'store'])->name('admin.students.store');
         Route::post('/students/import', [StudentController::class, 'import'])->name('admin.students.import');
         Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('admin.students.import.template');
