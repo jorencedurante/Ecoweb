@@ -173,6 +173,55 @@ class StudentController extends Controller
         return view('pages.students', compact('students', 'gradeLevels', 'teachers'));
     }
 
+    public function filterStudents(Request $request)
+    {
+        $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
+        $query->visibleTo(Auth::user());
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('student_id', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('grade_level', 'like', "%{$search}%")
+                  ->orWhere('qr_code', 'like', "%{$search}%");
+            });
+        }
+
+        if (Auth::user()->isAdminLevel()) {
+            if ($gradeLevel = $request->get('grade_level')) {
+                $query->where('grade_level', $gradeLevel);
+            }
+        }
+
+        if ($gender = $request->get('gender')) {
+            $query->where('gender', $gender);
+        }
+
+        $students = $query->latest()->paginate(10)->withQueryString();
+        $actionsColClass = Auth::user()->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
+
+        $filterable = [
+            'search' => 'Search',
+            'grade_level' => 'Grade',
+            'gender' => 'Gender',
+        ];
+        $appliedFilters = collect($filterable)
+            ->map(function ($label, $key) use ($request) {
+                return ['key' => $key, 'label' => $label, 'value' => $request->get($key)];
+            })
+            ->filter(fn ($filter) => $filter['value'] !== null && $filter['value'] !== '')
+            ->values();
+
+        return view('partials.students-table', compact(
+            'students',
+            'appliedFilters',
+            'actionsColClass'
+        ))->render();
+    }
+
     public function archived(Request $request)
     {
         $query = Student::query()->whereIn('status', ['Archived', 'archived']);

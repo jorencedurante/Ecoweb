@@ -77,6 +77,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/claims/history', [ClaimController::class, 'history'])->name('claims.history');
             Route::get('/claims/items/filter', [ClaimController::class, 'filterItems'])->name('claims.items.filter');
             Route::get('/claims/history/filter', [ClaimController::class, 'filterHistory'])->name('claims.history.filter');
+            Route::get('/claims/approved/filter', [ClaimController::class, 'filterApproved'])->name('claims.approved.filter');
+            Route::get('/claims/pending/filter', [ClaimController::class, 'filterPending'])->name('claims.pending.filter');
             Route::get('/claims/pending', fn() => redirect()->route('claims.index'))->name('claims.pending');
             Route::patch('/claims/{claim}/approve', [ClaimController::class, 'approve'])->name('claims.approve');
             Route::patch('/claims/{claim}/reject', [ClaimController::class, 'reject'])->name('claims.reject');
@@ -86,7 +88,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Students
         Route::get('/students/search', [StudentController::class, 'search'])->name('admin.students.search');
-        Route::get('/students', [StudentController::class, 'index'])->name('admin.students');
+            Route::get('/students', [StudentController::class, 'index'])->name('admin.students');
+            Route::get('/students/filter', [StudentController::class, 'filterStudents'])->name('admin.students.filter');
         Route::post('/students', [StudentController::class, 'store'])->name('admin.students.store');
         Route::post('/students/import', [StudentController::class, 'import'])->name('admin.students.import');
         Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('admin.students.import.template');

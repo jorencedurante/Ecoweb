@@ -11,71 +11,8 @@
             <h3>Pending Item Claims</h3>
             <p>Review student item requests before approval.</p>
         </div>
-
-        <div class="table-wrapper">
-            <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">#</th>
-                        <th scope="col">Student</th>
-                        <th scope="col">LRN</th>
-                        <th scope="col">Item Requested</th>
-                        <th scope="col">Qty</th>
-                        <th scope="col">Points Required</th>
-                        <th scope="col">Student Points</th>
-                        <th scope="col">Request Date</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @forelse($pendingClaims as $index => $claim)
-                        <tr>
-                            <td>{{ $pendingClaims->firstItem() + $index }}</td>
-                            <td><strong>{{ $claim->student->full_name ?? 'Student not found' }}</strong></td>
-                            <td>{{ $claim->student->lrn ?? 'N/A' }}</td>
-                            <td>{{ $claim->item_name }}</td>
-                            <td>{{ $claim->quantity ?? 1 }}</td>
-                            <td>{{ $claim->points_deducted }}</td>
-                            <td>{{ $claim->student->total_points ?? 0 }}</td>
-                            <td>{{ $claim->created_at ? $claim->created_at->format('M d, Y') : 'N/A' }}</td>
-                            <td>
-                                <span class="status-badge pending">Pending</span>
-                            </td>
-                            <td class="action-buttons">
-                                <form method="POST" action="{{ route('claims.approve', $claim->id) }}" onsubmit="return confirm('Approve this item claim?');">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="btn-approve" aria-label="Approve claim">Approve</button>
-                                </form>
-
-                                <form method="POST" action="{{ route('claims.reject', $claim->id) }}" onsubmit="return confirm('Reject this item claim?');">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="btn-reject" aria-label="Reject claim">Reject</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                                <td colspan="10" style="text-align:center;padding:30px;color:var(--text-light);">No pending item claims.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-            </div>
-            @if($pendingClaims->hasPages())
-            <div class="pagination" style="padding:12px 16px;">
-                <span class="page-info">Showing {{ $pendingClaims->firstItem() }} to {{ $pendingClaims->lastItem() }} of {{ $pendingClaims->total() }} entries</span>
-                <div class="page-btns">
-                    @for ($i = 1; $i <= $pendingClaims->lastPage(); $i++)
-                        <a href="{{ $pendingClaims->url($i) }}" class="page-btn {{ $pendingClaims->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
-                    @endfor
-                </div>
-            </div>
-            @endif
+        <div id="pendingClaimsSectionContainer">
+            @include('partials.pending-claims-table', ['pendingClaims' => $pendingClaims, 'groupedByStudent' => $pendingClaims->groupBy('student_id')])
         </div>
     </div>
 
@@ -199,13 +136,6 @@
                         autocomplete="off"
                         aria-label="Search claim item"
                     >
-                    <input
-                        type="hidden"
-                        id="claimSelectedItemName"
-                        name="claim_item_selected"
-                        value="{{ request('claim_item_selected') }}"
-                    >
-                    <div id="claimItemSearchResults" class="item-search-results"></div>
                 </div>
 
                 <select name="claim_item_status" aria-label="Filter by status">
@@ -213,13 +143,6 @@
                     <option value="Available" {{ request('claim_item_status') == 'Available' ? 'selected' : '' }}>Available</option>
                     <option value="Unavailable" {{ request('claim_item_status') == 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
                 </select>
-
-                <input type="number" name="claim_item_min_points" value="{{ request('claim_item_min_points') }}" placeholder="Min points" aria-label="Minimum points">
-
-                <input type="number" name="claim_item_max_points" value="{{ request('claim_item_max_points') }}" placeholder="Max points" aria-label="Maximum points">
-
-                <button type="submit" class="btn-filter">Filter</button>
-                <a href="{{ route('claims.index') }}#claim-items-section" id="clearClaimItemsFilter" class="btn-clear">Clear</a>
             </form>
         </div>
         <div id="claimItemsTableContainer">
@@ -244,13 +167,6 @@
                         autocomplete="off"
                         aria-label="Search claim history"
                     >
-                    <input
-                        type="hidden"
-                        id="claimHistorySelectedValue"
-                        name="history_selected"
-                        value="{{ request('history_selected') }}"
-                    >
-                    <div id="claimHistorySearchResults" class="history-search-results"></div>
                 </div>
 
                 <select name="history_item" aria-label="Filter by item">
@@ -262,24 +178,39 @@
                     @endforeach
                 </select>
 
-                <div class="filter-field">
-                    <label>Date From</label>
-                    <input type="date" name="history_date_from" value="{{ request('history_date_from') }}" aria-label="Date from">
+                {{-- Date Range Control --}}
+                <div class="date-range-control" style="display:inline-flex;align-items:center;gap:8px;">
+                    <label style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;">Date Range</label>
+                    <input type="date" name="history_date_from" value="{{ request('history_date_from') }}" aria-label="Start date" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;">
+                    <span style="font-size:12px;color:#6b7280;">to</span>
+                    <input type="date" name="history_date_to" value="{{ request('history_date_to') }}" aria-label="End date" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;">
                 </div>
-
-                <div class="filter-field">
-                    <label>Date To</label>
-                    <input type="date" name="history_date_to" value="{{ request('history_date_to') }}" aria-label="Date to">
-                </div>
-
-                <button type="submit" class="btn-filter">Filter</button>
-                <a href="{{ route('claims.index') }}#claim-history-section" id="clearClaimHistoryFilter" class="btn-clear">Clear</a>
             </form>
         </div>
         <div id="claimHistoryTableContainer">
-            @include('partials.claim-history-table', ['claims' => $claims])
+            @include('partials.claim-history-table', ['claims' => $claims, 'claimHistoryByStudent' => $historyPaginatedByStudent ?? $claimHistoryByStudent])
         </div>
     </div>
+
+    {{-- Claim History Pagination --}}
+    @if(isset($historyHasMorePages) && $historyHasMorePages)
+    <div class="pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
+        <span class="page-info" style="font-size:13px;color:#6b7280;">
+            Student groups {{ (($historyPage - 1) * 10) + 1 }} to {{ min($historyPage * 10, $claimHistoryByStudent->count()) }} of {{ $claimHistoryByStudent->count() }}
+        </span>
+        <div class="page-btns" style="display:flex;gap:4px;">
+            @if ($historyPage > 1)
+                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
+            @endif
+            @for ($i = max(1, $historyPage - 2); $i <= min($historyPage + 2, ceil(($claimHistoryByStudent->count() ?? 0) / 10)); $i++)
+                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+            @endfor
+            @if ($historyHasMorePages)
+                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
+            @endif
+        </div>
+    </div>
+    @endif
 
     {{-- All Item Requests by Student (Admin/Super Admin only) --}}
     @if(in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin']))
@@ -289,7 +220,7 @@
                 <h3>All Item Requests by Student</h3>
                 <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Compiled record of approved item requests for quarterly releasing.</p>
             </div>
-            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;">
+            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;" method="GET" action="{{ route('claims.index') }}#approved-by-student-section" onsubmit="return false;">
                 <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN..." aria-label="Search approved claims">
 
                 <select name="approved_quarter" aria-label="Filter by quarter">
@@ -306,109 +237,11 @@
                         <option value="{{ $y }}" {{ request('approved_year') == $y ? 'selected' : '' }}>{{ $y }}</option>
                     @endfor
                 </select>
-
-                <button type="submit" class="btn-filter">Filter</button>
-                <button type="button" id="clearApprovedByStudentFilter" class="btn-clear">Clear</button>
             </form>
         </div>
 
-        <div id="approvedByStudentContainer" style="padding:16px;">
-            @forelse($approvedClaimsByStudent as $studentId => $claimsGroup)
-                @php
-                    $firstClaim = $claimsGroup->first();
-                    $student = $firstClaim->student;
-                    $totalItems = $claimsGroup->sum('quantity') ?: $claimsGroup->count();
-                    $totalPoints = $claimsGroup->sum('points_deducted');
-                    $latestDate = $claimsGroup->max('claim_date');
-                    $studentName = $student->full_name ?? 'Unknown Student';
-                    $studentLRN = $student->lrn ?? 'N/A';
-                    $studentGrade = $student->grade_level ?? '';
-                    $collapseId = 'approved-student-' . $studentId;
-                @endphp
-                <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;">
-                    <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;flex-wrap:wrap;gap:8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="toggleApprovedStudent('{{ $collapseId }}')">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:700;font-size:14px;color:#111827;">{{ $studentName }}</div>
-                            <div style="font-size:12px;color:#6b7280;margin-top:2px;">
-                                LRN: {{ $studentLRN }}
-                                @if($studentGrade) &middot; {{ $studentGrade }} @endif
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                            <div style="text-align:center;">
-                                <div style="font-size:18px;font-weight:700;color:#111827;">{{ $totalItems }}</div>
-                                <div style="font-size:11px;color:#6b7280;">Items</div>
-                            </div>
-                            <div style="text-align:center;">
-                                <div style="font-size:18px;font-weight:700;color:#ef4444;">{{ number_format($totalPoints) }}</div>
-                                <div style="font-size:11px;color:#6b7280;">Points</div>
-                            </div>
-                            <div style="text-align:center;">
-                                <div style="font-size:12px;color:#6b7280;">{{ $latestDate ? \Carbon\Carbon::parse($latestDate)->format('M d, Y') : 'N/A' }}</div>
-                                <div style="font-size:11px;color:#9ca3af;">Latest</div>
-                            </div>
-                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
-                                View Requests ▼
-                            </button>
-                            <form method="POST" action="{{ route('claims.archiveAllByStudent', $studentId) }}" style="display:inline;" onclick="event.stopPropagation();">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark all approved item requests of {{ addslashes($studentName) }} as released?')">
-                                    Mark All Released
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <div id="{{ $collapseId }}" class="approved-student-details" style="display:none;padding:0;">
-                        <div class="table-responsive">
-                            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                                <thead>
-                                    <tr style="background:#f3f4f6;">
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Before</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points After</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Approved By</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Remarks</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:center;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($claimsGroup as $claim)
-                                    <tr style="border-bottom:1px solid #f3f4f6;">
-                                        <td style="padding:10px 14px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
-                                        <td style="padding:10px 14px;">{{ $claim->quantity ?? 1 }}</td>
-                                        <td style="padding:10px 14px;color:#ef4444;font-weight:600;">-{{ number_format($claim->points_deducted) }}</td>
-                                        <td style="padding:10px 14px;">{{ number_format($claim->points_before) }}</td>
-                                        <td style="padding:10px 14px;color:#22c55e;font-weight:600;">{{ number_format($claim->points_after) }}</td>
-                                        <td style="padding:10px 14px;">{{ $claim->claim_date ? \Carbon\Carbon::parse($claim->claim_date)->format('M d, Y') : 'N/A' }}</td>
-                                        <td style="padding:10px 14px;">{{ $claim->approver->name ?? $claim->admin->name ?? 'System' }}</td>
-                                        <td style="padding:10px 14px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $claim->remarks ?? '—' }}</td>
-                                        <td style="padding:10px 14px;text-align:center;">
-                                            <form method="POST" action="{{ route('claims.archive', $claim->id) }}" style="display:inline;">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark this item request as released and archive it?')">
-                                                    Mark Released
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            @empty
-                <div style="text-align:center;padding:40px 20px;color:#9ca3af;">
-                    <div style="font-size:32px;margin-bottom:8px;">📋</div>
-                    <p style="font-size:14px;font-weight:500;">No approved item requests found.</p>
-                    <p style="font-size:13px;">Approved claims will appear here grouped by student.</p>
-                </div>
-            @endforelse
+        <div id="approvedByStudentContainer">
+            @include('partials.approved-claims-table', ['approvedPaginatedByStudent' => $approvedPaginatedByStudent ?? $approvedClaimsByStudent, 'approvedClaimsByStudent' => $approvedClaimsByStudent, 'approvedHasMorePages' => $approvedHasMorePages ?? null, 'approvedPage' => $approvedPage ?? 1])
         </div>
     </div>
     @endif
@@ -900,39 +733,158 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // --- AJAX Filtering ---
+    // --- AJAX Filtering with AbortController and request sequence tracking ---
     var claimItemsForm = document.getElementById('claimItemsFilterForm');
     var claimHistoryForm = document.getElementById('claimHistoryFilterForm');
     var claimItemsContainer = document.getElementById('claimItemsTableContainer');
     var claimHistoryContainer = document.getElementById('claimHistoryTableContainer');
 
-    function submitFilter(form, container, url) {
-        var formData = new FormData(form);
-        var queryString = new URLSearchParams(formData).toString();
-        container.classList.add('loading');
-        fetch(url + '?' + queryString, {
+    // Global request tracking to prevent stale responses from overwriting newer ones
+    var claimAjaxState = {
+        pendingController: null,
+        currentSequence: 0
+    };
+
+    function abortPendingRequest() {
+        if (claimAjaxState.pendingController) {
+            claimAjaxState.pendingController.abort();
+            claimAjaxState.pendingController = null;
+        }
+    }
+
+    function fetchPartial(url, container) {
+        abortPendingRequest();
+        claimAjaxState.currentSequence++;
+        var seq = claimAjaxState.currentSequence;
+        var controller = new AbortController();
+        claimAjaxState.pendingController = controller;
+
+        if (container) container.classList.add('loading');
+
+        fetch(url, {
             headers: {
                 'Accept': 'text/html',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            signal: controller.signal
         })
         .then(function (response) {
             if (!response.ok) throw new Error('Filter failed');
             return response.text();
         })
         .then(function (html) {
-            container.innerHTML = html;
-            container.classList.remove('loading');
+            if (seq !== claimAjaxState.currentSequence) return; // stale response
+            if (container) container.innerHTML = html;
+            if (container) container.classList.remove('loading');
         })
-        .catch(function () {
-            container.classList.remove('loading');
+        .catch(function (err) {
+            if (seq !== claimAjaxState.currentSequence) return; // stale response
+            if (container) container.classList.remove('loading');
+            if (err.name !== 'AbortError') console.error('Fetch error:', err);
+        })
+        .finally(function () {
+            if (seq === claimAjaxState.currentSequence) {
+                claimAjaxState.pendingController = null;
+            }
         });
     }
 
-    // Claim Items form submits normally via GET to claims.index (no AJAX interception)
+    // --- Claim Items Live Filter (AJAX, debounced) ---
+    var claimItemsFilterForm = document.getElementById('claimItemsFilterForm');
+    var claimItemSearchInput = document.getElementById('claimItemSearchInput');
+    var claimItemsContainer = document.getElementById('claimItemsTableContainer');
+    var claimItemsTimer = null;
 
-    // Claim History form submits normally via GET to claims.index (no AJAX interception)
+    function submitClaimItemsFilter() {
+        if (!claimItemsFilterForm || !claimItemsContainer) return;
+        var formData = new FormData(claimItemsFilterForm);
+        var queryString = new URLSearchParams(formData).toString();
+        var url = '{{ route('claims.items.filter') }}' + '?' + queryString;
+        fetchPartial(url, claimItemsContainer);
+    }
+
+    if (claimItemSearchInput) {
+        claimItemSearchInput.addEventListener('input', function () {
+            clearTimeout(claimItemsTimer);
+            claimItemsTimer = setTimeout(submitClaimItemsFilter, 300);
+        });
+    }
+
+    // Status select - auto filter on change
+    var claimItemStatusSelect = claimItemsFilterForm ? claimItemsFilterForm.querySelector('select[name="claim_item_status"]') : null;
+    if (claimItemStatusSelect) {
+        claimItemStatusSelect.addEventListener('change', function () {
+            clearTimeout(claimItemsTimer);
+            claimItemsTimer = setTimeout(submitClaimItemsFilter, 300);
+        });
+    }
+
+    // --- Pending Item Claims Live Filter (AJAX, debounced) ---
+    var pendingClaimsFilterForm = document.getElementById('pendingClaimsFilterForm');
+    var pendingResultsContainer = document.getElementById('pendingClaimsResults');
+    var pendingTimer = null;
+
+    function submitPendingFilter() {
+        if (!pendingClaimsFilterForm || !pendingResultsContainer) return;
+        var formData = new FormData(pendingClaimsFilterForm);
+        var queryString = new URLSearchParams(formData).toString();
+        var url = '{{ route('claims.pending.filter') }}' + '?' + queryString;
+        fetchPartial(url, pendingResultsContainer);
+    }
+
+    if (pendingClaimsFilterForm) {
+        pendingClaimsFilterForm.querySelectorAll('input[name="pending_student_search"], input[name="pending_item_search"]').forEach(function (input) {
+            input.addEventListener('input', function () {
+                clearTimeout(pendingTimer);
+                pendingTimer = setTimeout(submitPendingFilter, 300);
+            });
+        });
+    }
+
+    // --- Claim History Live Filter (AJAX, debounced) ---
+    var claimHistoryFilterForm = document.getElementById('claimHistoryFilterForm');
+    var claimHistorySearchInput = document.getElementById('claimHistorySearchInput');
+    var claimHistoryTimer = null;
+
+    function submitClaimHistoryFilter() {
+        if (!claimHistoryFilterForm || !claimHistoryContainer) return;
+        var formData = new FormData(claimHistoryFilterForm);
+        var queryString = new URLSearchParams(formData).toString();
+        var url = '{{ route('claims.history.filter') }}' + '?' + queryString;
+        fetchPartial(url, claimHistoryContainer);
+    }
+
+    if (claimHistoryFilterForm && claimHistorySearchInput) {
+        claimHistorySearchInput.addEventListener('input', function () {
+            clearTimeout(claimHistoryTimer);
+            claimHistoryTimer = setTimeout(submitClaimHistoryFilter, 300);
+        });
+
+        // Item select - auto filter on change
+        var claimHistoryItemSelect = claimHistoryFilterForm.querySelector('select[name="history_item"]');
+        if (claimHistoryItemSelect) {
+            claimHistoryItemSelect.addEventListener('change', function () {
+                clearTimeout(claimHistoryTimer);
+                claimHistoryTimer = setTimeout(submitClaimHistoryFilter, 300);
+            });
+        }
+
+        // Date inputs - submit only on Enter keypress (not while typing)
+        var claimHistoryDateFrom = claimHistoryFilterForm.querySelector('input[name="history_date_from"]');
+        var claimHistoryDateTo = claimHistoryFilterForm.querySelector('input[name="history_date_to"]');
+        [claimHistoryDateFrom, claimHistoryDateTo].forEach(function (dateInput) {
+            if (dateInput) {
+                dateInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(claimHistoryTimer);
+                        claimHistoryTimer = setTimeout(submitClaimHistoryFilter, 300);
+                    }
+                });
+            }
+        });
+    }
 
     // --- Edit Item Modal (event delegation for AJAX-refreshed rows) ---
     var editModal = document.getElementById('editItemModal');
@@ -970,45 +922,77 @@ document.addEventListener('DOMContentLoaded', function () {
     var clearClaimItemsFilter = document.getElementById('clearClaimItemsFilter');
     var clearClaimHistoryFilter = document.getElementById('clearClaimHistoryFilter');
 
-    if (clearClaimItemsFilter && claimItemsForm) {
+    if (clearClaimItemsFilter && claimItemsFilterForm) {
         clearClaimItemsFilter.addEventListener('click', function () {
-            claimItemsForm.querySelectorAll('input, select').forEach(function (el) {
+            claimItemsFilterForm.querySelectorAll('input, select').forEach(function (el) {
                 if (el.type === 'hidden') return;
                 if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
                 el.value = '';
             });
-            claimItemsForm.dispatchEvent(new Event('submit'));
+            if (claimItemsTimer) clearTimeout(claimItemsTimer);
+            claimItemsTimer = setTimeout(submitClaimItemsFilter, 300);
         });
     }
 
-    if (clearClaimHistoryFilter && claimHistoryForm) {
+    if (clearClaimHistoryFilter && claimHistoryFilterForm) {
         clearClaimHistoryFilter.addEventListener('click', function () {
-            claimHistoryForm.querySelectorAll('input, select').forEach(function (el) {
+            claimHistoryFilterForm.querySelectorAll('input, select').forEach(function (el) {
                 if (el.type === 'hidden') return;
                 if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
                 el.value = '';
             });
-            claimHistoryForm.dispatchEvent(new Event('submit'));
+            if (claimHistoryTimer) clearTimeout(claimHistoryTimer);
+            claimHistoryTimer = setTimeout(submitClaimHistoryFilter, 300);
         });
     }
 
-    // --- Approved by Student Filters ---
+    // --- Approved by Student Filters (AJAX) ---
     var approvedByStudentForm = document.getElementById('approvedByStudentFilterForm');
     var approvedByStudentContainer = document.getElementById('approvedByStudentContainer');
+    var approvedByStudentTimer = null;
+
+    function submitApprovedFilter() {
+        if (!approvedByStudentForm || !approvedByStudentContainer) return;
+        var formData = new FormData(approvedByStudentForm);
+        var queryString = new URLSearchParams(formData).toString();
+        var url = '{{ route('claims.approved.filter') }}' + '?' + queryString;
+        fetchPartial(url, approvedByStudentContainer);
+    }
 
     if (approvedByStudentForm && approvedByStudentContainer) {
-        approvedByStudentForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            var formData = new FormData(approvedByStudentForm);
-            var queryString = new URLSearchParams(formData).toString();
-            window.location.href = '{{ route("claims.index") }}?' + queryString + '#approved-by-student-section';
+        var approvedSearchInput = approvedByStudentForm.querySelector('input[name="approved_search"]');
+        var approvedQuarterSelect = approvedByStudentForm.querySelector('select[name="approved_quarter"]');
+        var approvedYearSelect = approvedByStudentForm.querySelector('select[name="approved_year"]');
+
+        if (approvedSearchInput) {
+            approvedSearchInput.addEventListener('input', function () {
+                clearTimeout(approvedByStudentTimer);
+                approvedByStudentTimer = setTimeout(submitApprovedFilter, 300);
+            });
+        }
+        if (approvedQuarterSelect) {
+            approvedQuarterSelect.addEventListener('change', submitApprovedFilter);
+        }
+        if (approvedYearSelect) {
+            approvedYearSelect.addEventListener('change', submitApprovedFilter);
+        }
+
+        // Prevent form submission on Enter key (full-page refresh)
+        approvedByStudentForm.addEventListener('submit', function (e) {
+            e.preventDefault();
         });
     }
 
     var clearApprovedByStudentFilter = document.getElementById('clearApprovedByStudentFilter');
     if (clearApprovedByStudentFilter && approvedByStudentForm) {
         clearApprovedByStudentFilter.addEventListener('click', function () {
-            window.location.href = '{{ route("claims.index") }}#approved-by-student-section';
+            approvedByStudentForm.querySelectorAll('input, select').forEach(function (el) {
+                if (el.type === 'hidden') return;
+                if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
+                el.value = '';
+            });
+            clearTimeout(approvedByStudentTimer);
+            approvedByStudentTimer = setTimeout(submitApprovedFilter, 300);
         });
     }
 
@@ -1021,6 +1005,19 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <script>
+function togglePendingStudent(id) {
+    var el = document.getElementById(id);
+    var btn = document.getElementById('btn-' + id);
+    if (!el) return;
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        if (btn) btn.textContent = 'Hide Requests ▲';
+    } else {
+        el.style.display = 'none';
+        if (btn) btn.textContent = 'View Requests ▼';
+    }
+}
+
 function toggleApprovedStudent(id) {
     var el = document.getElementById(id);
     var btn = document.getElementById('btn-' + id);
@@ -1059,5 +1056,68 @@ function toggleClaimHistoryStudent(id) {
         if (btn) btn.textContent = 'View History ▼';
     }
 }
+
 </script>
+<style>
+/* Compact action buttons for pending item claims */
+.action-button-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-approve-icon {
+    background-color: #10b981;
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.btn-approve-icon:hover {
+    background-color: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.btn-reject-icon {
+    background-color: #ef4444;
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.btn-reject-icon:hover {
+    background-color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.action-buttons .btn-approve-icon,
+.action-buttons .btn-reject-icon {
+    color: white;
+    font-weight: 600;
+}
+
+.action-buttons .btn-approve-icon svg,
+.action-buttons .btn-reject-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+</style>
 @endpush

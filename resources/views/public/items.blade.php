@@ -10,6 +10,20 @@
     <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
     <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
+    <style>
+        .public-alert.auto-dismiss {
+            transition: opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease;
+        }
+        .public-alert.auto-dismiss.dismissing {
+            opacity: 0;
+            transform: translateY(-10px);
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            height: 0;
+            overflow: hidden;
+        }
+    </style>
 </head>
 <body class="public-landing-page">
 
@@ -40,7 +54,7 @@
 
     <div class="items-container">
         @if(session('success'))
-            <div class="public-alert success" role="status">{{ session('success') }}</div>
+            <div class="public-alert success auto-dismiss" role="status" id="publicSuccessAlert">{{ session('success') }}</div>
         @endif
 
         @if($errors->any())
@@ -80,9 +94,12 @@
                         @csrf
                         <input type="hidden" name="claim_item_id" value="{{ $item->id }}">
                         <input type="hidden" name="request_token" value="{{ \Illuminate\Support\Str::uuid() }}">
+                        <input type="hidden" name="submitted_card_id" value="{{ $item->id }}">
                         <label for="claim-lrn-{{ $item->id }}">Student LRN</label>
                         <div class="reward-input-group">
-                            <input type="text" id="claim-lrn-{{ $item->id }}" name="lrn" placeholder="Enter your LRN" required value="{{ old('lrn') }}" aria-label="Student LRN">
+                            <input type="text" id="claim-lrn-{{ $item->id }}" name="lrn" 
+                                value="{{ request('submitted_card_id') == $item->id ? old('lrn') : '' }}" 
+                                placeholder="Enter your LRN" required aria-label="Student LRN" data-card-id="{{ $item->id }}">
                         </div>
                         <div class="points-balance-panel js-points-panel" hidden>
                             <div class="points-balance-row">
@@ -95,7 +112,7 @@
                         <p class="points-status js-points-status" role="status" aria-live="polite" hidden></p>
                         <label for="claim-qty-{{ $item->id }}">Quantity</label>
                         <div class="reward-input-group">
-                            <input type="number" id="claim-qty-{{ $item->id }}" name="quantity" min="1" max="{{ $stockAvailable ? $item->quantity : 1 }}" value="{{ old('quantity', 1) }}" required aria-label="Quantity" data-points="{{ $pointsPerPiece }}" data-available="{{ (int) $item->quantity }}">
+                            <input type="number" id="claim-qty-{{ $item->id }}" name="quantity" min="1" max="{{ $stockAvailable ? $item->quantity : 1 }}" value="{{ request('submitted_card_id') == $item->id ? old('quantity', 1) : 1 }}" required aria-label="Quantity" data-points="{{ $pointsPerPiece }}" data-available="{{ (int) $item->quantity }}">
                         </div>
                         <div class="reward-total-box" aria-live="polite">
                             <span>Total Required:</span>
@@ -163,6 +180,11 @@
         var knownPoints = null;
         var lookupTimer = null;
         var lookupToken = 0;
+        
+        // Store LRN state per card to maintain independence
+        var cardId = lrnInput.getAttribute('data-card-id') || 'default';
+        var cardLrnState = {};
+        cardLrnState[cardId] = lrnInput.value;
 
         function renderLookup(state, points) {
             lookupState = state;
@@ -302,6 +324,11 @@
             clearTimeout(lookupTimer);
 
             var lrn = lrnInput.value.trim();
+            var currentCardId = lrnInput.getAttribute('data-card-id') || 'default';
+            
+            // Update the stored LRN state for this card
+            if (!cardLrnState) cardLrnState = {};
+            cardLrnState[currentCardId] = lrn;
 
             if (!lrn) {
                 renderLookup('idle');
@@ -324,10 +351,30 @@
         // redirect), fetch the student's current balance right away so the
         // panel never shows a stale points value.
         if (lrnInput.value.trim()) {
+            var currentCardId = lrnInput.getAttribute('data-card-id') || 'default';
             renderLookup('checking');
             lookupPoints(lrnInput.value.trim());
         }
     });
+
+    // --- Auto-dismiss success notifications ---
+    var dismissTimer = null;
+    var alertEl = document.getElementById('publicSuccessAlert');
+
+    function dismissSuccessAlert() {
+        if (!alertEl) return;
+        alertEl.classList.add('dismissing');
+        setTimeout(function () {
+            if (alertEl && alertEl.parentNode) {
+                alertEl.parentNode.removeChild(alertEl);
+            }
+            alertEl = null;
+        }, 400); // match CSS transition duration
+    }
+
+    if (alertEl) {
+        dismissTimer = setTimeout(dismissSuccessAlert, 4000);
+    }
 })();
 </script>
 

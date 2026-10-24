@@ -91,15 +91,6 @@
                     </select>
                 </div>
 
-                <div class="stu-field stu-field-actions">
-                    <button class="btn btn-primary stu-apply-btn" type="submit">
-                        <x-icon name="funnel" :size="15" /> Apply filters
-                    </button>
-                    <a href="{{ route('admin.students') }}" class="btn btn-outline stu-reset-btn">
-                        <x-icon name="rotate-ccw" :size="15" /> Reset
-                    </a>
-                </div>
-
                 @if(auth()->user()->isTeacher())
                 <p class="stu-toolbar-note">Showing students from your assigned class.</p>
                 @endif
@@ -125,148 +116,13 @@
         </div>
     </div>
 
-    <div class="table-container">
-        <div class="table-header">
-            <div class="table-header-left">
-                <span class="stu-result-count" role="status">
-                    Showing {{ $students->total() }} student{{ $students->total() === 1 ? '' : 's' }}{{ $appliedFilters->isNotEmpty() ? ' matching your filters' : '' }}
-                </span>
-            </div>
-            <div class="table-toolbar-actions">
-                <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
-                @if(Auth::user()->role !== 'admin')
-                <button type="button" class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
-                <button type="button" class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
-                @endif
-            </div>
+        <div class="table-container" id="studentsTableContainer">
+            @include('partials.students-table', [
+                'students' => $students,
+                'appliedFilters' => $appliedFilters,
+                'actionsColClass' => $actionsColClass,
+            ])
         </div>
-        <div class="table-responsive">
-        <table>
-            <colgroup>
-                <col class="stu-col-lrn">
-                <col class="stu-col-name">
-                <col class="stu-col-grade">
-                <col class="stu-col-qr">
-                <col class="stu-col-points">
-                <col class="stu-col-status">
-                <col class="stu-col-actions {{ $actionsColClass }}">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th scope="col">LRN</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Grade Level</th>
-                    <th scope="col">QR Code</th>
-                    <th scope="col">Total Points</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" class="actions-th">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($students as $student)
-                <tr>
-                    <td class="cell-lrn">{{ $student->lrn }}</td>
-                    <td class="cell-name">
-                        <button type="button" class="stu-name-btn" title="Open full details"
-                            data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
-                            data-student-key="{{ $student->id }}"
-                            data-tab="full-details"
-                            aria-label="Open full details for {{ $student->full_name }}">
-                            <span class="stu-avatar" aria-hidden="true">{{ collect([$student->first_name, $student->last_name])->filter()->map(fn ($part) => mb_strtoupper(mb_substr(trim($part), 0, 1)))->implode('') ?: 'ST' }}</span>
-                            <span class="stu-name-text">
-                                <strong>{{ $student->full_name }}</strong>
-                                @if($student->student_id)
-                                <small>{{ $student->student_id }}</small>
-                                @endif
-                            </span>
-                        </button>
-                    </td>
-                    <td>{{ $student->grade_level }}</td>
-                    <td class="cell-qr">{{ $student->qr_code ?? '—' }}</td>
-                    <td class="cell-points">{{ $student->total_points }}</td>
-                    <td class="cell-status">
-                        <span class="status-badge status-{{ strtolower($student->status) }}">{{ ucfirst($student->status) }}</span>
-                    </td>
-                    <td class="cell-actions">
-                        <div class="student-actions">
-                            <button type="button" class="action-icon-btn view" title="View Student" aria-label="View student overview"
-                                data-overview-open
-                                data-overview-url="{{ route('admin.students.overview', $student->id) }}"
-                                data-student-key="{{ $student->id }}"
-                                data-tab="overview"><x-icon name="eye" :size="16" /></button>
-                            <button type="button" class="action-icon-btn achievements" title="View Achievements" aria-label="View achievements"
-                                data-overview-open
-                                data-overview-url="{{ route('admin.students.overview', $student->id) }}"
-                                data-student-key="{{ $student->id }}"
-                                data-tab="achievements"><x-icon name="trophy" :size="16" /></button>
-                            <button type="button" class="action-icon-btn awards" title="View Certificates" aria-label="View certificates"
-                                data-overview-open
-                                data-overview-url="{{ route('admin.students.overview', $student->id) }}"
-                                data-student-key="{{ $student->id }}"
-                                data-tab="certificates"><x-icon name="award" :size="16" /></button>
-                            @if(Auth::user()->role !== 'admin')
-                            @php
-                                $editEnrollment = $student->enrollments
-                                    ->when(Auth::user()->isTeacher(), fn ($en) => $en->where('teacher_id', Auth::id()))
-                                    ->sortByDesc('id')
-                                    ->first();
-                            @endphp
-                            <button type="button" class="action-icon-btn edit" title="Edit Student" aria-label="Edit student" data-modal-target="editStudentModal"
-                                data-id="{{ $student->id }}"
-                                data-lrn="{{ $student->lrn }}"
-                                data-first="{{ $student->first_name }}"
-                                data-middle="{{ $student->middle_name }}"
-                                data-last="{{ $student->last_name }}"
-                                data-grade="{{ $student->grade_level }}"
-                                data-gender="{{ $student->gender }}"
-                                data-birth="{{ $student->birth_date ? $student->birth_date->format('Y-m-d') : '' }}"
-                                data-section="{{ $editEnrollment?->section ?? '' }}"
-                                data-school-year="{{ $editEnrollment?->school_year ?? '' }}"
-                                data-house="{{ $student->house_street }}"
-                                data-barangay="{{ $student->barangay }}"
-                                data-municipality="{{ $student->municipality_city }}"
-                                data-province="{{ $student->province }}"
-                                data-region="{{ $student->region }}"
-                                data-father="{{ $student->father_name }}"
-                                data-mother="{{ $student->mother_maiden_name }}"
-                                data-guardian="{{ $student->guardian_name }}"
-                                data-guardian-rel="{{ $student->guardian_relationship }}"
-                                data-contact="{{ $student->contact_number }}"
-                                data-ethnic="{{ $student->ip_ethnic_group }}"
-                                data-religion="{{ $student->religion }}"
-                                data-nationality="{{ $student->nationality }}"
-                                data-modality="{{ $student->learning_modality }}"
-                                data-remarks="{{ $student->remarks }}"><x-icon name="pencil" :size="15" /></button>
-                            @if($student->status !== 'Archived')
-                            <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
-                                @csrf @method('PATCH')
-                                <button type="submit" class="action-icon-btn archive" title="Archive Student" aria-label="Archive student"><x-icon name="archive" :size="15" /></button>
-                            </form>
-                            @endif
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="7" class="empty-row">No students found.</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-        </div>
-        @if($students->hasPages())
-        <div class="pagination">
-            <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
-            <div class="page-btns">
-                @for ($i = 1; $i <= $students->lastPage(); $i++)
-                    <a href="{{ $students->url($i) }}" class="page-btn {{ $students->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
-                @endfor
-            </div>
-        </div>
-        @endif
-    </div>
 
     </div>
 
@@ -936,16 +792,74 @@ function initStudentToolbar() {
     const form = document.getElementById('filterForm');
     const input = document.getElementById('stuSearchInput');
     const clearBtn = document.getElementById('stuSearchClear');
-    if (!form || !input) return;
+    const tableContainer = document.getElementById('studentsTableContainer');
+    if (!form || !input || !tableContainer) return;
 
     let timer = null;
     let lastValue = input.value.trim();
+    let pendingController = null;
+    let currentSequence = 0;
+
+    const fetchStudentsTable = () => {
+        if (pendingController) pendingController.abort();
+        currentSequence++;
+        const seq = currentSequence;
+        const controller = new AbortController();
+        pendingController = controller;
+
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (const [key, value] of formData.entries()) {
+            if (value !== '') params.append(key, value);
+        }
+        const url = '{{ route('admin.students.filter') }}' + '?' + params.toString();
+
+        tableContainer.classList.add('loading');
+
+        fetch(url, {
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            signal: controller.signal
+        })
+        .then((response) => {
+            if (!response.ok) throw new Error('Filter failed');
+            return response.text();
+        })
+        .then((html) => {
+            if (seq !== currentSequence) return;
+            tableContainer.innerHTML = html;
+            tableContainer.classList.remove('loading');
+        })
+        .catch((err) => {
+            if (seq !== currentSequence) return;
+            tableContainer.classList.remove('loading');
+            if (err.name !== 'AbortError') console.error('Fetch error:', err);
+        })
+        .finally(() => {
+            pendingController = null;
+        });
+    };
 
     const syncClear = () => {
         if (clearBtn) clearBtn.hidden = input.value.length === 0;
     };
 
     syncClear();
+
+    const gradeSelect = document.getElementById('stuGradeSelect');
+    const genderSelect = document.getElementById('stuGenderSelect');
+
+    [gradeSelect, genderSelect].forEach(select => {
+        if (select) {
+            select.addEventListener('change', () => {
+                if (timer) clearTimeout(timer);
+                fetchStudentsTable();
+            });
+        }
+    });
 
     input.addEventListener('input', () => {
         syncClear();
@@ -955,8 +869,8 @@ function initStudentToolbar() {
         timer = setTimeout(() => {
             timer = null;
             lastValue = value;
-            form.submit();
-        }, 450);
+            fetchStudentsTable();
+        }, 300);
     });
 
     input.addEventListener('keydown', (e) => {
@@ -964,7 +878,7 @@ function initStudentToolbar() {
             e.preventDefault();
             if (timer) { clearTimeout(timer); timer = null; }
             lastValue = input.value.trim();
-            form.submit();
+            fetchStudentsTable();
         }
     });
 
@@ -974,13 +888,15 @@ function initStudentToolbar() {
             input.value = '';
             lastValue = '';
             syncClear();
-            form.submit();
+            fetchStudentsTable();
         });
     }
 
-    form.addEventListener('submit', () => {
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
         if (timer) { clearTimeout(timer); timer = null; }
         lastValue = input.value.trim();
+        fetchStudentsTable();
     });
 }
 

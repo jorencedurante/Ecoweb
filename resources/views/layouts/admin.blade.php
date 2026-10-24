@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
-    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}?v=10">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}?v=10">
-    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}?v=10">
+    @yield('head')
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}?v=2">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}?v=2">
     <script>
         // Apply the persisted sidebar state before first paint to avoid a flash of the wrong width.
         try {
