@@ -800,7 +800,7 @@ function initStudentToolbar() {
     let pendingController = null;
     let currentSequence = 0;
 
-    const fetchStudentsTable = () => {
+    const fetchStudentsTable = (page = null) => {
         if (pendingController) pendingController.abort();
         currentSequence++;
         const seq = currentSequence;
@@ -812,6 +812,7 @@ function initStudentToolbar() {
         for (const [key, value] of formData.entries()) {
             if (value !== '') params.append(key, value);
         }
+        if (page !== null) params.set('page', page);
         const url = '{{ route('admin.students.filter') }}' + '?' + params.toString();
 
         tableContainer.classList.add('loading');
@@ -897,6 +898,14 @@ function initStudentToolbar() {
         if (timer) { clearTimeout(timer); timer = null; }
         lastValue = input.value.trim();
         fetchStudentsTable();
+    });
+
+    tableContainer.addEventListener('click', (e) => {
+        const pageLink = e.target.closest('a.page-btn[data-page]');
+        if (!pageLink) return;
+        e.preventDefault();
+        const page = pageLink.getAttribute('data-page');
+        fetchStudentsTable(page);
     });
 }
 
@@ -1392,9 +1401,13 @@ function initStudentOverview() {
         else panel.innerHTML = renderOverview(data);
     }
 
-    document.querySelectorAll('[data-overview-open]').forEach((btn) => {
-        btn.addEventListener('click', () => open(btn));
-    });
+    const tableContainer = document.getElementById('studentsTableContainer');
+    if (tableContainer) {
+        tableContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-overview-open]');
+            if (btn) open(btn);
+        });
+    }
 
     document.getElementById('soCloseBtn').addEventListener('click', close);
     document.getElementById('soCloseFooter').addEventListener('click', close);

@@ -134,7 +134,7 @@
         <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
         <div class="page-btns">
             @for ($i = 1; $i <= $students->lastPage(); $i++)
-                <a href="{{ $students->url($i) }}" class="page-btn {{ $students->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
+                <a href="{{ $students->url($i) }}" class="page-btn {{ $students->currentPage() == $i ? 'active' : '' }}" data-page="{{ $i }}">{{ $i }}</a>
             @endfor
         </div>
     </div>
