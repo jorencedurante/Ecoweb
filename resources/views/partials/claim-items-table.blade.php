@@ -17,7 +17,7 @@
             @if ($claimItems->count())
                 @foreach ($claimItems as $index => $item)
                 <tr>
-                    <td>{{ $index + 1 }}</td>
+                    <td>{{ (($claimItems->currentPage() - 1) * $claimItems->perPage()) + $index + 1 }}</td>
                     <td><strong>{{ $item->item_name }}</strong></td>
                     <td style="max-width:200px;white-space:normal;">{{ $item->description ?? '—' }}</td>
                     <td>{{ $item->points_required }}</td>
@@ -47,3 +47,17 @@
     </table>
     </div>
 </div>
+
+{{-- Pagination for Claim Items --}}
+@if ($claimItems instanceof \Illuminate\LengthAwarePaginator && $claimItems->total() > 0)
+<div class="pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
+    <span class="page-info" style="font-size:13px;color:#6b7280;">
+        Showing {{ $claimItems->firstItem() }} to {{ $claimItems->lastItem() }} of {{ $claimItems->total() }} items
+    </span>
+    <div class="page-btns" style="display:flex;gap:4px;">
+        @for ($i = 1; $i <= $claimItems->lastPage(); $i++)
+            <a href="{{ route('claims.index', array_merge(request()->query(), ['page' => $i])) }}#claim-items-section" class="page-btn {{ $claimItems->currentPage() == $i ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $claimItems->currentPage() == $i ? '#10b981' : '#374151' }};background:{{ $claimItems->currentPage() == $i ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+        @endfor
+    </div>
+</div>
+@endif

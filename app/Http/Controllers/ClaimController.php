@@ -66,7 +66,8 @@ class ClaimController extends Controller
 
         $claimItems = $claimItemsQuery
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         $claimItemsForSearch = ClaimItem::query()
             ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
@@ -93,13 +94,67 @@ class ClaimController extends Controller
         $pendingQuery = StudentClaim::with(['student', 'item'])
             ->where('status', 'Pending');
 
+        // Live filters for pending claims
+        $pendingStudentSearch = trim($request->get('pending_student_search', ''));
+        $pendingItemSearch = trim($request->get('pending_item_search', ''));
+
+        if ($pendingStudentSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
+                $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
+                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
+                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
+                    });
+                });
+            });
+        }
+
+        if ($pendingItemSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingItemSearch) {
+                $q->where('item_name', 'like', "%{$pendingItemSearch}%")
+                  ->orWhereHas('item', function ($itemQuery) use ($pendingItemSearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$pendingItemSearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$pendingItemSearch}%");
+                      }
+                  });
+            });
+        }
+
         if (Auth::user()->isTeacher()) {
             $pendingQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
             });
         }
 
-        $pendingClaims = $pendingQuery->latest()->paginate(10);
+        // Get ALL matching claims first, then group by student (NOT paginate before grouping)
+        $allPendingClaims = $pendingQuery->latest()->get();
+        $groupedByStudent = $allPendingClaims->groupBy('student_id');
+
+        // Track whether any search filter is active for empty-state messaging
+        $hasActiveSearch = $pendingStudentSearch !== '' || $pendingItemSearch !== '';
+        $hasAnyMatches = $groupedByStudent->count() > 0;
+
+        // Paginate student groups manually (10 groups per page)
+        $studentIds = $groupedByStudent->keys()->toArray();
+        $pendingPage = (int) $request->get('pending_page', 1);
+        $pendingPerPage = 10;
+        $pendingOffset = max(0, ($pendingPage - 1) * $pendingPerPage);
+        $pendingPageStudentIds = array_slice($studentIds, $pendingOffset, $pendingPerPage);
+        $pendingPaginatedGroups = [];
+        foreach ($pendingPageStudentIds as $sid) {
+            $pendingPaginatedGroups[$sid] = $groupedByStudent[$sid];
+        }
+        $pendingHasMorePages = count($studentIds) > $pendingPage * $pendingPerPage;
+
+        // Initialize $pendingClaims for the main Claims view (used by @include in claims.blade.php)
+        $pendingClaims = $allPendingClaims;
 
         // Claim history
         $claimsQuery = StudentClaim::with(['student', 'item', 'admin'])
@@ -158,6 +213,18 @@ class ClaimController extends Controller
         $allClaims = $claimsQuery->latest('claim_date')->get();
         $claimHistoryByStudent = $allClaims->groupBy('student_id');
         $claims = $allClaims;
+
+        // Paginate claim history by student groups (max 10 student groups per page)
+        $historyStudentIds = $claimHistoryByStudent->keys()->toArray();
+        $historyPage = $request->get('history_page', 1);
+        $historyPerPage = 10;
+        $historyOffset = ($historyPage - 1) * $historyPerPage;
+        $historyPageStudentIds = array_slice($historyStudentIds, $historyOffset, $historyPerPage);
+        $historyPaginatedByStudent = [];
+        foreach ($historyPageStudentIds as $sid) {
+            $historyPaginatedByStudent[$sid] = $claimHistoryByStudent[$sid];
+        }
+        $historyHasMorePages = count($historyStudentIds) > $historyPage * $historyPerPage;
 
         $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
         if (Auth::user()->isTeacher()) {
@@ -233,6 +300,18 @@ class ClaimController extends Controller
             $approvedClaimsByStudent = $approvedQuery->latest('claim_date')
                 ->get()
                 ->groupBy('student_id');
+
+            // Paginate approved claims by student groups (max 10 per page)
+            $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
+            $approvedPage = $request->get('approved_page', 1);
+            $approvedPerPage = 10;
+            $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
+            $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
+            $approvedPaginatedByStudent = [];
+            foreach ($approvedPageStudentIds as $sid) {
+                $approvedPaginatedByStudent[$sid] = $approvedClaimsByStudent[$sid];
+            }
+            $approvedHasMorePages = count($approvedStudentIds) > $approvedPage * $approvedPerPage;
         }
 
         // Archived/released claims grouped by student (Admin/Super Admin only)
@@ -289,11 +368,24 @@ class ClaimController extends Controller
             $archivedClaimsByStudent = $archivedQuery->latest('released_at')
                 ->get()
                 ->groupBy('student_id');
+
+            // Paginate archived claims by student groups (max 10 per page)
+            $archivedStudentIds = $archivedClaimsByStudent->keys()->toArray();
+            $archivedPage = $request->get('archived_page', 1);
+            $archivedPerPage = 10;
+            $archivedOffset = ($archivedPage - 1) * $archivedPerPage;
+            $archivedPageStudentIds = array_slice($archivedStudentIds, $archivedOffset, $archivedPerPage);
+            $archivedPaginatedByStudent = [];
+            foreach ($archivedPageStudentIds as $sid) {
+                $archivedPaginatedByStudent[$sid] = $archivedClaimsByStudent[$sid];
+            }
+            $archivedHasMorePages = count($archivedStudentIds) > $archivedPage * $archivedPerPage;
         }
 
         return view('pages.claims', compact(
             'claimItems', 'claimItemsForSearch', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
-            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim', 'studentsForHistorySearch', 'itemsForHistorySearch'
+            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim', 'studentsForHistorySearch', 'itemsForHistorySearch',
+            'historyHasMorePages', 'historyPage', 'approvedHasMorePages', 'approvedPage', 'archivedHasMorePages', 'archivedPage'
         ));
     }
 
@@ -626,18 +718,20 @@ class ClaimController extends Controller
             return back()->with('error', 'Only approved item requests can be archived.');
         }
 
-        $claim->update([
-            'is_archived' => true,
-            'released_at' => now(),
-            'released_by' => Auth::id(),
-        ]);
+        DB::transaction(function () use ($claim) {
+            $claim->update([
+                'is_archived' => true,
+                'released_at' => now(),
+                'released_by' => Auth::id(),
+            ]);
 
-        AdminActivity::create([
-            'user_id' => Auth::id(),
-            'action' => 'Archived Item Request',
-            'description' => "Marked {$claim->student->full_name}'s request for {$claim->item_name} as released/archived.",
-            'module' => 'Claims',
-        ]);
+            AdminActivity::create([
+                'user_id' => Auth::id(),
+                'action' => 'Archived Item Request',
+                'description' => "Marked " . ($claim->student?->full_name ?? 'Unknown Student') . "'s request for {$claim->item_name} as released/archived.",
+                'module' => 'Claims',
+            ]);
+        });
 
         return back()->with('success', 'Item request marked as released and archived successfully.');
     }
@@ -704,7 +798,7 @@ class ClaimController extends Controller
             $claimItemsQuery->where('points_required', '<=', $request->claim_item_max_points);
         }
 
-        $claimItems = $claimItemsQuery->orderByDesc('created_at')->paginate(15)->withQueryString();
+        $claimItems = $claimItemsQuery->orderByDesc('created_at')->paginate(10)->withQueryString();
 
         return view('partials.claim-items-table', compact('claimItems'))->render();
     }
@@ -771,6 +865,75 @@ class ClaimController extends Controller
         return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
     }
 
+    public function filterApproved(Request $request)
+    {
+        $approvedQuery = StudentClaim::with(['student', 'item', 'admin', 'approver'])
+            ->where('status', 'Approved')
+            ->where('is_archived', false);
+
+        // Filters for approved claims
+        if ($request->filled('approved_search')) {
+            $search = $request->approved_search;
+            $approvedQuery->where(function ($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhere('remarks', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($search) {
+                      $studentQuery->where(function ($sq) use ($search) {
+                          $sq->where('lrn', 'like', "%{$search}%")
+                            ->orWhere('student_id', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                      });
+                  });
+            });
+        }
+
+        if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+            $quarter = $request->approved_quarter;
+            $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+            switch ($quarter) {
+                case 'Q1':
+                    $approvedQuery->whereMonth('claim_date', '>=', 1)
+                                   ->whereMonth('claim_date', '<=', 3)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q2':
+                    $approvedQuery->whereMonth('claim_date', '>=', 4)
+                                   ->whereMonth('claim_date', '<=', 6)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q3':
+                    $approvedQuery->whereMonth('claim_date', '>=', 7)
+                                   ->whereMonth('claim_date', '<=', 9)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q4':
+                    $approvedQuery->whereMonth('claim_date', '>=', 10)
+                                   ->whereMonth('claim_date', '<=', 12)
+                                   ->whereYear('claim_date', $year);
+                    break;
+            }
+        } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+            $approvedQuery->whereYear('claim_date', $request->approved_year);
+        }
+
+        $allClaims = $approvedQuery->latest('claim_date')->get();
+        $approvedClaimsByStudent = $allClaims->groupBy('student_id');
+
+        // Paginate approved claims by student groups (max 10 per page)
+        $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
+        $approvedPage = $request->get('approved_page', 1);
+        $approvedPerPage = 10;
+        $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
+        $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
+        $approvedPaginatedByStudent = [];
+        foreach ($approvedPageStudentIds as $sid) {
+            $approvedPaginatedByStudent[$sid] = $approvedClaimsByStudent[$sid];
+        }
+        $approvedHasMorePages = count($approvedStudentIds) > $approvedPage * $approvedPerPage;
+
+        return view('partials.approved-claims-table', compact('approvedPaginatedByStudent', 'approvedClaimsByStudent', 'approvedHasMorePages', 'approvedPage'))->render();
+    }
+
     public function searchStudents(Request $request)
     {
         $search = trim($request->get('search', $request->get('q', '')));
@@ -802,5 +965,81 @@ class ClaimController extends Controller
                 'total_points' => $student->total_points ?? 0,
             ];
         }));
+    }
+
+    public function filterPending(Request $request)
+    {
+        $pendingStudentSearch = trim($request->get('pending_student_search', ''));
+        $pendingItemSearch = trim($request->get('pending_item_search', ''));
+
+        $pendingQuery = StudentClaim::with(['student', 'item'])
+            ->where('status', 'Pending');
+
+        if ($pendingStudentSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
+                $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
+                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
+                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
+                    });
+                });
+            });
+        }
+
+        if ($pendingItemSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingItemSearch) {
+                $q->where('item_name', 'like', "%{$pendingItemSearch}%")
+                  ->orWhereHas('item', function ($itemQuery) use ($pendingItemSearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$pendingItemSearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$pendingItemSearch}%");
+                      }
+                  });
+            });
+        }
+
+        if (Auth::user()->isTeacher()) {
+            $pendingQuery->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        // Get ALL matching claims first, then group by student (NOT paginate before grouping)
+        $allPendingClaims = $pendingQuery->latest()->get();
+        $groupedByStudent = $allPendingClaims->groupBy('student_id');
+
+        // Track whether any search filter is active for empty-state messaging
+        $hasActiveSearch = $pendingStudentSearch !== '' || $pendingItemSearch !== '';
+        $hasAnyMatches = $groupedByStudent->count() > 0;
+
+        // Paginate student groups manually (10 groups per page)
+        $pendingStudentIds = $groupedByStudent->keys()->toArray();
+        $pendingPage = (int) $request->get('pending_page', 1);
+        $pendingPerPage = 10;
+        $pendingOffset = ($pendingPage - 1) * $pendingPerPage;
+        $pendingPageStudentIds = array_slice($pendingStudentIds, $pendingOffset, $pendingPerPage);
+        $pendingPaginatedGroups = [];
+        foreach ($pendingPageStudentIds as $sid) {
+            $pendingPaginatedGroups[$sid] = $groupedByStudent[$sid];
+        }
+        $pendingHasMorePages = count($pendingStudentIds) > $pendingPage * $pendingPerPage;
+
+        return view('partials.pending-claims-table', compact(
+            'pendingPaginatedGroups',
+            'pendingPage',
+            'pendingHasMorePages',
+            'pendingStudentIds',
+            'groupedByStudent',
+            'hasActiveSearch',
+            'hasAnyMatches',
+            'pendingStudentSearch',
+            'pendingItemSearch'
+        ))->render();
     }
 }
