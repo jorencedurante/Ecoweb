@@ -69,6 +69,7 @@ class StudentOverviewTest extends TestCase
             'status' => 'Active',
             'required_bottles' => 10,
             'points_required' => 0,
+            'created_by' => $teacher->id,
         ]);
 
         StudentAchievement::create([
@@ -230,6 +231,7 @@ class StudentOverviewTest extends TestCase
             'status' => 'Active',
             'required_bottles' => 10,
             'points_required' => 0,
+            'created_by' => $teacher->id,
         ]);
 
         $response = $this->actingAs($teacher)->getJson(route('admin.students.overview', $student->id));

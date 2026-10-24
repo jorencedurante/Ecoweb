@@ -12,18 +12,35 @@ class AchievementController extends Controller
     public const MAX_QUESTS = 5;
 
     /**
-     * Only Admin and Super Admin can manage achievement quests.
+     * Only teachers can manage achievement quests. Admin and Super Admin
+     * retain read-only monitoring access on the Certificate page.
      */
     private function authorizeQuestManagement(): void
     {
-        if (!Auth::user()->isAdminLevel()) {
-            abort(403, 'Only Admin and Super Admin can manage achievement quests.');
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Only teachers can manage achievement quests.');
         }
     }
 
+    /**
+     * Teachers may only edit or delete quests they own (created_by).
+     */
+    private function authorizeQuestOwnership(Achievement $achievement): void
+    {
+        if ((int) $achievement->created_by !== (int) Auth::id()) {
+            abort(403, 'You can only modify achievement quests you created.');
+        }
+    }
+
+    /**
+     * The MAX_QUESTS limit applies per teacher, counting that teacher's
+     * own quests (active or inactive) — not a global total.
+     */
     private function questLimitReached(): bool
     {
-        return Achievement::whereNull('student_id')->count() >= self::MAX_QUESTS;
+        return Achievement::whereNull('student_id')
+            ->where('created_by', Auth::id())
+            ->count() >= self::MAX_QUESTS;
     }
 
     private function validatedQuestData(Request $request): array
@@ -76,6 +93,7 @@ class AchievementController extends Controller
     public function update(Request $request, Achievement $achievement)
     {
         $this->authorizeQuestManagement();
+        $this->authorizeQuestOwnership($achievement);
 
         $achievement->update($this->validatedQuestData($request));
 
@@ -93,6 +111,7 @@ class AchievementController extends Controller
     public function destroy(Achievement $achievement)
     {
         $this->authorizeQuestManagement();
+        $this->authorizeQuestOwnership($achievement);
 
         AdminActivity::create([
             'user_id' => Auth::id(),

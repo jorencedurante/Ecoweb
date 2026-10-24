@@ -9,6 +9,7 @@ use App\Models\StudentClaim;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -348,9 +349,22 @@ class PublicController extends Controller
             'bottleCollections',
         ]);
 
-        $achievementProgress = $student->achievementProgressData();
+    $achievementProgress = $student->achievementProgressData();
 
-        return view('landing-student-details', compact('student', 'achievementProgress'));
+    // Scoped, non-guessable certificate links (signed URLs). Awards without
+    // a renderable completed certificate are flagged instead of linked.
+    $certificateViewers = $student->certificateAwards->mapWithKeys(function ($award) {
+        $available = $award->canRenderCertificate();
+
+        return [$award->id => [
+            'available' => $available,
+            'view_url' => $available
+                ? URL::temporarySignedRoute('public.certificate.view', now()->addDays(7), ['award' => $award->id])
+                : null,
+        ]];
+    });
+
+    return view('landing-student-details', compact('student', 'achievementProgress', 'certificateViewers'));
     }
 
     private function getLandingRankings(): array

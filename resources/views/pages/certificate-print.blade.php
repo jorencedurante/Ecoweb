@@ -7,12 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @php
-        $filePath = $award->template_file ?? $award->certificate_file ?? $award->template_file_path;
-        $fileExt = $filePath ? strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) : null;
-        $isImage = $fileExt && in_array($fileExt, ['jpg','jpeg','png']);
-        $fileUrl = $filePath ? asset('storage/'.$filePath) : null;
+        // The file route serves the completed certificate from whichever disk
+        // holds it (final file, or template image for canvas reconstruction).
+        $fileUrl = route('admin.certificate.file', $award);
         $rawCanvas = $award->canvas_data;
         $canvasData = is_string($rawCanvas) ? json_decode($rawCanvas, true) : $rawCanvas;
+        $hasCanvas = is_array($canvasData) && count($canvasData) > 0;
+        $certificateExt = $award->certificate_file ? strtolower(pathinfo($award->certificate_file, PATHINFO_EXTENSION)) : null;
+        $certificateIsImage = $certificateExt && in_array($certificateExt, ['jpg', 'jpeg', 'png']);
     @endphp
     <style>
         html, body {
@@ -140,7 +142,15 @@
     <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
-    @if($canvasData && is_array($canvasData) && count($canvasData) > 0 && $fileUrl && $isImage)
+    @if($award->generated_file_path)
+    {{-- Final stored output: names are already baked in, so print the exact
+         awarded image instead of reconstructing a different layout. --}}
+    <div class="certificate-print-page">
+        <div class="certificate-canvas">
+            <img src="{{ route('admin.certificate.file', $award) }}" alt="Certificate" class="certificate-bg">
+        </div>
+    </div>
+    @elseif($hasCanvas)
     <div class="certificate-print-page">
         <div class="certificate-canvas">
             <img src="{{ $fileUrl }}" alt="Certificate Template" class="certificate-bg">
@@ -187,22 +197,22 @@
             @endforeach
         </div>
     </div>
-    @elseif($fileUrl && $isImage)
-    <div class="certificate-print-page">
-        <div class="certificate-canvas">
-            <img src="{{ $fileUrl }}" alt="Certificate" class="certificate-bg">
-        </div>
-    </div>
-    @elseif($fileUrl)
+    @elseif($award->pdf_file_path || ($award->certificate_file && !$certificateIsImage))
     <div class="certificate-print-page">
         <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;min-height:794px;">
             <iframe src="{{ $fileUrl }}" style="width:100%;height:100%;border:none;"></iframe>
         </div>
     </div>
+    @elseif($award->certificate_file)
+    <div class="certificate-print-page">
+        <div class="certificate-canvas">
+            <img src="{{ $fileUrl }}" alt="Certificate" class="certificate-bg">
+        </div>
+    </div>
     @else
     <div class="certificate-print-page">
         <div class="certificate-canvas" style="display:flex;align-items:center;justify-content:center;min-height:794px;">
-            <h3 style="color:#9CA3AF;">{{ $award->award_title ?: 'Certificate' }}</h3>
+            <h3 style="color:#9CA3AF;">Completed certificate unavailable</h3>
         </div>
     </div>
     @endif

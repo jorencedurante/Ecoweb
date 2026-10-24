@@ -146,7 +146,6 @@ trait CreatesApplicationTables
                 $table->string('status', 50)->default('active');
                 $table->string('visibility', 50)->default('private');
                 $table->string('template_type', 50)->default('uploaded');
-                $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->timestamps();
             });
@@ -156,35 +155,18 @@ trait CreatesApplicationTables
             Schema::create('certificate_awards', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->nullable()->constrained('students')->cascadeOnDelete();
-                $table->foreignId('template_id')->nullable()->constrained('certificate_templates')->nullOnDelete();
                 $table->foreignId('teacher_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('award_title', 150);
                 $table->text('award_description')->nullable();
                 $table->string('certificate_file', 255)->nullable();
-                $table->string('school_principal_name', 255)->nullable();
-                $table->string('program_coordinator_name', 255)->nullable();
-                $table->string('awarded_by', 255)->nullable();
-                $table->string('template_file_path', 255)->nullable();
                 $table->string('template_file', 255)->nullable();
                 $table->longText('canvas_data')->nullable();
-                $table->boolean('show_logo')->default(false);
-                $table->boolean('show_certificate_title')->default(false);
-                $table->boolean('show_student_name')->default(true);
-                $table->boolean('show_award_description')->default(false);
-                $table->boolean('show_award_date')->default(false);
-                $table->boolean('show_principal_name')->default(false);
-                $table->boolean('show_program_coordinator_name')->default(false);
                 $table->date('awarded_date');
-                $table->string('certificate_type', 100)->nullable();
-                $table->string('certificate_title', 255)->nullable();
                 $table->string('generated_file_path', 255)->nullable();
                 $table->string('pdf_file_path', 255)->nullable();
                 $table->string('status', 50)->default('Active');
                 $table->foreignId('issued_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('signed_by', 255)->nullable();
-                $table->string('signatory_position', 255)->nullable();
-                $table->string('school_year', 50)->nullable();
-                $table->text('remarks')->nullable();
                 $table->timestamps();
             });
         }
