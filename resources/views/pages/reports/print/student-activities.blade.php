@@ -8,35 +8,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; padding: 30px; color: #1a1a2e; background: #fff; }
+        body { font-family: 'Inter', sans-serif; padding: 0; color: #1a1a2e; background: #fff; font-size: 12px; }
 
-        .report-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #0f766e; }
-        .report-header h1 { font-size: 22px; color: #0f766e; margin-bottom: 4px; }
-        .report-header .subtitle { font-size: 13px; color: #64748b; }
-        .report-header .generated { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+        .report-header { text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #0f766e; }
+        .report-header h1 { font-size: 18px; color: #0f766e; margin-bottom: 3px; }
+        .report-header .subtitle { font-size: 11px; color: #64748b; }
+        .report-header .generated { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+        .report-header .filters { font-size: 10px; color: #64748b; margin-top: 6px; }
 
-        .teacher-section { margin-bottom: 25px; page-break-inside: avoid; }
-        .teacher-name { font-size: 16px; font-weight: 700; color: #0f766e; margin-bottom: 10px; padding: 8px 12px; background: #f0fdfa; border-left: 4px solid #0f766e; }
+        .teacher-section { margin-bottom: 18px; page-break-inside: auto; }
+        .teacher-name { font-size: 14px; font-weight: 700; color: #0f766e; margin-bottom: 8px; padding: 6px 10px; background: #f0fdfa; border-left: 3px solid #0f766e; page-break-after: avoid; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { background: #0f766e; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; }
-        td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        thead { display: table-header-group; }
+        th { background: #0f766e; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 10px; }
+        td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        tr { page-break-inside: avoid; }
         tr:nth-child(even) { background: #f8fafc; }
-        tr:hover { background: #e0f7f5; }
 
         .points { font-weight: 700; color: #d97706; }
         .bottles { color: #059669; font-weight: 600; }
         .claims { color: #7c3aed; font-weight: 600; }
 
-        .no-data { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+        .no-data { text-align: center; padding: 24px; color: #94a3b8; font-size: 13px; }
+        .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; }
 
         @media print {
-            @page { size: landscape; margin: 15mm; }
+            @page { size: A4 landscape; margin: 12mm 10mm; }
             body { padding: 0; }
-            .report-header { margin-bottom: 20px; padding-bottom: 15px; }
-            .teacher-section { page-break-inside: avoid; }
+            .report-header { margin-bottom: 12px; padding-bottom: 10px; }
             tr:hover { background: transparent; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
@@ -45,6 +47,40 @@
         <h1>📈 {{ $title }}</h1>
         <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
         <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }}</div>
+        @if($teacher_id = request('teacher_id'))
+        <div class="filters">Teacher: {{ $teacherGroups[0]['teacher']->name ?? '' }} @if($grade_level) · Grade: {{ $grade_level }} @endif @if($date_from || $date_to) · Date: {{ $date_from ?? '' }} to {{ $date_to ?? '' }} @endif</div>
+        @endif
+    </div>
+
+    <!-- All Teachers Summary Table -->
+    <div class="summary-table-section" style="margin-bottom:24px; page-break-inside: avoid;">
+        <div class="summary-header" style="font-size:14px;font-weight:700;color:#0f766e;margin-bottom:12px;">All Teachers Summary Report</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+            <thead>
+                <tr style="background:#0f766e;">
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Teacher</th>
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Students</th>
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Student Claimed</th>
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Bottles</th>
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Points</th>
+                    <th scope="col" style="padding:8px 10px;color:#fff;font-weight:600;text-align:left;font-size:10px;text-transform:uppercase;">Claims</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($teacherGroups as $group)
+                <tr>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#111827;">{{ $group['teacher']->name }}</td>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">{{ $group['student_count'] }}</td>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">{{ $group['student_claimed'] }}</td>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#059669;font-weight:600;">{{ number_format($group['total_bottles']) }}</td>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#d97706;font-weight:600;">{{ number_format($group['total_points']) }}</td>
+                    <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#7c3aed;font-weight:600;">{{ $group['total_claims'] }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="6" style="text-align:center;padding:24px;color:#94a3b8;">No teacher data available.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 
     @if(empty($teacherGroups))

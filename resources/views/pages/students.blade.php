@@ -224,12 +224,12 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Excel File <span style="color:var(--red);">*</span></label>
-                        <input type="file" name="file" accept=".xlsx,.xls" required aria-label="Upload CSV file">
+                        <input type="file" name="file" id="importFileInput" accept=".xlsx,.xls" required aria-label="Upload Excel file">
                     </div>
                     <div class="form-group">
-                        <label>Grade Level (fallback if not detected in file)</label>
-                        <select name="grade_level">
-                            <option value="">-- Auto-detect or select --</option>
+                        <label>Grade Level <span style="color:var(--red);">*</span></label>
+                        <select name="grade_level" id="importGradeLevel" required aria-label="Select grade level">
+                            <option value="" disabled selected>Select Grade Level</option>
                             <option value="Kindergarten">Kindergarten</option>
                             <option value="Grade 1">Grade 1</option>
                             <option value="Grade 2">Grade 2</option>
@@ -252,7 +252,7 @@
                 <div class="modal-footer">
                     <a href="{{ route('admin.students.import.template') }}" class="btn btn-outline btn-template">📄 Download Template</a>
                     <button type="button" class="btn btn-danger" data-modal-close>Cancel</button>
-                    <button type="submit" class="btn btn-success">Import</button>
+                    <button type="submit" class="btn btn-success" id="importBtn" disabled>Import</button>
                 </div>
             </form>
         </div>
@@ -1444,5 +1444,31 @@ function initStudentOverview() {
         render();
     });
 }
+
+// ---- Import Students Modal validation ----
+(function initImportModal() {
+    const fileInput = document.getElementById('importFileInput');
+    const gradeSelect = document.getElementById('importGradeLevel');
+    const importBtn = document.getElementById('importBtn');
+    const importModal = document.getElementById('importStudentModal');
+
+    if (!fileInput || !gradeSelect || !importBtn) return;
+
+    function updateImportButton() {
+        const hasFile = fileInput.files && fileInput.files.length > 0;
+        const hasGrade = gradeSelect.value !== '';
+        importBtn.disabled = !(hasFile && hasGrade);
+    }
+
+    fileInput.addEventListener('change', updateImportButton);
+    gradeSelect.addEventListener('change', updateImportButton);
+
+    // Reset button state when modal opens
+    document.querySelectorAll('[data-modal-target="importStudentModal"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            importBtn.disabled = true;
+        });
+    });
+})();
 </script>
 @endpush
