@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use OpenSpout\Writer\XLSX\Writer as XLSXWriter;
 use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Common\Entity\Style\Color;
+use OpenSpout\Common\Entity\Style\Border;
+use OpenSpout\Common\Entity\Style\BorderPart;
+use OpenSpout\Common\Entity\Style\CellAlignment;
+use OpenSpout\Common\Entity\Style\CellVerticalAlignment;
+use OpenSpout\Writer\XLSX\Entity\SheetView;
 
 class StudentController extends Controller
 {
@@ -166,7 +174,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->with('enrollments')->latest()->paginate(10)->withQueryString();
+        $students = $query->with('enrollments')->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
         $teachers = User::where('role', 'teacher')->where('status', 'active')->orderBy('name')->get();
 
@@ -200,7 +208,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
+        $students = $query->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
         $actionsColClass = Auth::user()->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
 
         $filterable = [
@@ -249,7 +257,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->latest()->paginate(10)->withQueryString();
+        $students = $query->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
 
         return view('pages.students-archived', compact('students', 'gradeLevels'));
@@ -805,7 +813,7 @@ class StudentController extends Controller
 
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls',
-            'grade_level' => 'nullable|string|max:20',
+            'grade_level' => 'required|string|max:20|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
         ]);
 
         try {
@@ -813,7 +821,21 @@ class StudentController extends Controller
             $path = $file->storeAs('imports', 'students_' . time() . '.' . $file->extension());
 
             $importer = new StudentsImport();
-            $importer->import(Storage::path($path), Auth::user(), $request->grade_level);
+
+            // Detect SF1 grade conflict before importing
+            $detectedGrade = $importer->detectSf1Grade(Storage::path($path));
+            if ($detectedGrade && $detectedGrade !== $request->grade_level) {
+                Storage::delete($path);
+                return redirect()->route('admin.students')->with('import_result', [
+                    'type' => 'error',
+                    'message' => "Grade level mismatch: The SF1 file contains '{$detectedGrade}' but you selected '{$request->grade_level}'. Please select the correct grade level and try again.",
+                    'errors' => [],
+                ]);
+            }
+
+            DB::transaction(function () use ($importer, $path, $request) {
+                $importer->import(Storage::path($path), Auth::user(), $request->grade_level);
+            });
 
             Storage::delete($path);
 
@@ -870,16 +892,116 @@ class StudentController extends Controller
 
     public function downloadTemplate()
     {
-        $headers = ['LRN', 'Student Name', 'Grade Level', 'Gender', 'Student ID'];
+        $headers = [
+            'LRN',
+            'NAME (Last Name, First Name, Middle Name)',
+            'SEX (M/F)',
+            'BIRTH DATE (mm-dd-yyyy)',
+            'AGE as of First Friday of June',
+            'MOTHER TONGUE (Grade 1 to 3 only)',
+            'IP (Ethnic Group)',
+            'RELIGION',
+            'ADDRESS - House # / Street / Sitio / Purok',
+            'ADDRESS - Barangay',
+            'ADDRESS - Municipality / City',
+            'ADDRESS - Province',
+            "FATHER'S NAME (Last, First, Middle)",
+            "MOTHER'S MAIDEN NAME (Last, First, Middle)",
+            'GUARDIAN NAME',
+            'RELATIONSHIP',
+            'CONTACT NUMBER OF PARENT / GUARDIAN',
+            'LEARNING MODALITY',
+            'REMARKS',
+            'GRADE LEVEL',
+            'SCHOOL YEAR',
+            'SCHOOL NAME',
+            'SCHOOL ID',
+            'REGION',
+            'DIVISION',
+            'DISTRICT',
+            'SECTION',
+        ];
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'eco_collect_template_');
+        if ($tempFile === false) {
+            return back()->withErrors(['Failed to create temporary file for template.']);
+        }
 
         $writer = new XLSXWriter();
-        $writer->openToBrowser('student_import_template.xlsx');
+        $writer->openToFile($tempFile);
 
-        $writer->addRow(Row::fromValues($headers));
-        $writer->addRow(Row::fromValues(['123456789012', 'Juan Dela Cruz', 'Grade 6', 'Male', 'STU001']));
-        $writer->addRow(Row::fromValues(['987654321098', 'Maria Clara Santos', 'Grade 5', 'Female', 'STU002']));
+        // Header style: bold, centered, white text on dark blue background, wrapped, bordered
+        $headerStyle = new Style();
+        $headerStyle->setFontBold();
+        $headerStyle->setFontColor(Color::WHITE);
+        $headerStyle->setCellAlignment(CellAlignment::CENTER);
+        $headerStyle->setCellVerticalAlignment(CellVerticalAlignment::CENTER);
+        $headerStyle->setShouldWrapText();
+        $headerStyle->setBackgroundColor(Color::toARGB(Color::DARK_BLUE));
+        $headerStyle->setBorder(new Border(
+            new BorderPart(Border::TOP, Color::toARGB(Color::BLACK), Border::WIDTH_THIN, Border::STYLE_SOLID),
+            new BorderPart(Border::BOTTOM, Color::toARGB(Color::BLACK), Border::WIDTH_THIN, Border::STYLE_SOLID),
+            new BorderPart(Border::LEFT, Color::toARGB(Color::BLACK), Border::WIDTH_THIN, Border::STYLE_SOLID),
+            new BorderPart(Border::RIGHT, Color::toARGB(Color::BLACK), Border::WIDTH_THIN, Border::STYLE_SOLID),
+        ));
+
+        // Build per-column header styles (LRN column gets text format hint)
+        $columnStyles = [];
+        foreach ($headers as $colIndex => $header) {
+            $colStyle = clone $headerStyle;
+            if ($colIndex === 0) {
+                // LRN column header - also marked as text format
+                $colStyle->setFormat('@');
+            }
+            $columnStyles[$colIndex] = $colStyle;
+        }
+
+        $writer->addRow(Row::fromValuesWithStyles($headers, null, $columnStyles));
+
+        // Set column widths for readability
+        $sheet = $writer->getCurrentSheet();
+        $columnWidths = [
+            0  => 15,   // LRN
+            1  => 42,   // NAME
+            2  => 10,   // SEX
+            3  => 18,   // BIRTH DATE
+            4  => 12,   // AGE
+            5  => 20,   // MOTHER TONGUE
+            6  => 20,   // IP
+            7  => 15,   // RELIGION
+            8  => 30,   // ADDRESS House
+            9  => 20,   // ADDRESS Barangay
+            10 => 22,   // ADDRESS Municipality
+            11 => 20,   // ADDRESS Province
+            12 => 36,   // FATHER'S NAME
+            13 => 36,   // MOTHER'S MAIDEN
+            14 => 28,   // GUARDIAN NAME
+            15 => 18,   // RELATIONSHIP
+            16 => 20,   // CONTACT NUMBER
+            17 => 20,   // LEARNING MODALITY
+            18 => 22,   // REMARKS
+            19 => 12,   // GRADE LEVEL
+            20 => 16,   // SCHOOL YEAR
+            21 => 34,   // SCHOOL NAME
+            22 => 14,   // SCHOOL ID
+            23 => 14,   // REGION
+            24 => 18,   // DIVISION
+            25 => 18,   // DISTRICT
+            26 => 14,   // SECTION
+        ];
+        foreach ($columnWidths as $colIndex => $width) {
+            $sheet->setColumnWidthForRange($width, $colIndex + 1, $colIndex + 1);
+        }
+
+        // Freeze the header row
+        $sheet->setSheetView((new SheetView())->setFreezeRow(2));
 
         $writer->close();
-        exit;
+
+        return response()->download(
+            $tempFile,
+            'EcoCollect_SF1_Student_Import_Template.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        )->deleteFileAfterSend(true);
     }
 }

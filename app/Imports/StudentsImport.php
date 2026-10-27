@@ -27,6 +27,7 @@ class StudentsImport
 
     private string $section = '';
     private string $schoolYear = '';
+    private string $worksheetName = '';
 
     public function import(string $filePath, ?User $authUser = null, ?string $fallbackGradeLevel = null): void
     {
@@ -62,6 +63,11 @@ class StudentsImport
 
         $allRows = [];
         foreach ($reader->getSheetIterator() as $sheet) {
+            try {
+                $this->worksheetName = trim((string) $sheet->getName());
+            } catch (\Throwable $e) {
+                $this->worksheetName = '';
+            }
             foreach ($sheet->getRowIterator() as $row) {
                 $cells = [];
                 foreach ($row->getCells() as $cell) {
@@ -233,6 +239,18 @@ class StudentsImport
                 continue;
             }
 
+            // Use grade level from Column T if available, otherwise fall back to detected grade
+            $rowGradeLevel = $gradeLevel;
+            if (isset($colMap['grade_level'])) {
+                $rawGradeLevel = trim((string) ($row[$colMap['grade_level']] ?? ''));
+                if ($rawGradeLevel !== '') {
+                    $normalizedGrade = $this->normalizeGrade($rawGradeLevel);
+                    if ($normalizedGrade) {
+                        $rowGradeLevel = $normalizedGrade;
+                    }
+                }
+            }
+
             $sf1Data = [];
             if ($hasDetails) {
                 $sf1Data = $this->extractSf1Details($row, $colMap, $rowNumber);
@@ -242,7 +260,7 @@ class StudentsImport
 
             if ($student) {
                 $this->reusedStudents++;
-                $this->updateStudentFromSf1($student, $nameData, $gender, $gradeLevel, $sf1Data);
+                $this->updateStudentFromSf1($student, $nameData, $gender, $rowGradeLevel, $sf1Data);
             } else {
                 $nextId = (Student::max('id') ?? 0) + 1;
                 $student = Student::create(array_merge([
@@ -252,7 +270,7 @@ class StudentsImport
                     'middle_name' => $nameData['middle_name'],
                     'last_name' => $nameData['last_name'],
                     'full_name' => $nameData['full_name'],
-                    'grade_level' => $gradeLevel,
+                    'grade_level' => $rowGradeLevel,
                     'gender' => $gender,
                     'qr_code' => 'QR-' . $lrn,
                     'total_points' => 0,
@@ -265,6 +283,27 @@ class StudentsImport
             $this->imported++;
             $this->createQrForImportedStudent($student);
         }
+    }
+
+    public function detectSf1Grade(string $filePath): ?string
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        $rows = match ($extension) {
+            'xlsx' => $this->readXlsx($filePath),
+            'xls' => $this->readXls($filePath),
+            default => null,
+        };
+
+        if ($rows === null || empty($rows)) {
+            return null;
+        }
+
+        if (!$this->detectSf1Format($rows)) {
+            return null;
+        }
+
+        return $this->extractGradeFromSf1($rows);
     }
 
     private function extractSf1Details(array $row, array $colMap, int $rowNumber): array
@@ -447,6 +486,23 @@ class StudentsImport
 
     private function extractGradeFromSf1(array $rows): ?string
     {
+        // Check worksheet name first (e.g., "Grade 4" tab name)
+        if ($this->worksheetName !== '') {
+            $wsLower = strtolower($this->worksheetName);
+            $kindergartenPatterns = ['kindergarten', 'kinder', 'grade k', 'grade kinder'];
+            foreach ($kindergartenPatterns as $pattern) {
+                if (str_contains($wsLower, $pattern)) {
+                    return 'Kindergarten';
+                }
+            }
+            if (preg_match('/Grade\s+(\d+)/i', $this->worksheetName, $m)) {
+                $n = (int) $m[1];
+                if ($n >= 1 && $n <= 6) {
+                    return 'Grade ' . $n;
+                }
+            }
+        }
+
         $limit = min(10, count($rows));
 
         for ($i = 0; $i < $limit; $i++) {
@@ -519,6 +575,10 @@ class StudentsImport
 
     private function findSf1HeaderRow(array $rows): ?int
     {
+        $excludeNamePatterns = [
+            'school name', 'mother', 'father', 'guardian', ' maiden ',
+        ];
+
         foreach ($rows as $i => $row) {
             $cellText = array_map(function ($c) {
                 return strtolower(trim((string) $c));
@@ -532,10 +592,17 @@ class StudentsImport
                 if (preg_match('/\blrn\b/', $text) || str_contains($text, 'learner reference')) {
                     $hasLrn = true;
                 }
-                if ($text === 'name' || str_contains($text, 'name')) {
+                $isExcludedName = false;
+                foreach ($excludeNamePatterns as $pattern) {
+                    if (str_contains($text, $pattern)) {
+                        $isExcludedName = true;
+                        break;
+                    }
+                }
+                if (!$isExcludedName && ($text === 'name' || preg_match('/\bname\b/', $text) || str_contains($text, 'student name') || str_contains($text, 'full name'))) {
                     $hasName = true;
                 }
-                if ($text === 'sex' || $text === 'gender') {
+                if ($text === 'sex' || $text === 'gender' || preg_match('/\bsex\b/', $text) || preg_match('/\bgender\b/', $text)) {
                     $hasSex = true;
                 }
             }
@@ -552,47 +619,65 @@ class StudentsImport
     {
         $map = [];
 
+        // Column names that should NOT be treated as the student NAME column
+        $excludeNamePatterns = [
+            'school name', 'schoolid', 'school_id',
+            'mother', 'father', 'guardian',
+            ' maiden ', 'maiden_name',
+        ];
+
         foreach ($headerRow as $index => $cell) {
             $text = strtolower(trim((string) $cell));
+            $isExcludedName = false;
+            foreach ($excludeNamePatterns as $pattern) {
+                if (str_contains($text, $pattern)) {
+                    $isExcludedName = true;
+                    break;
+                }
+            }
 
-            if (preg_match('/\blrn\b/', $text) || str_contains($text, 'learner reference')) {
+            if (!isset($map['lrn']) && (preg_match('/\blrn\b/', $text) || str_contains($text, 'learner reference'))) {
                 $map['lrn'] = $index;
-            } elseif ($text === 'name' || str_contains($text, 'name')) {
+            } elseif (!isset($map['name']) && !$isExcludedName && ($text === 'name' || preg_match('/\bname\b/', $text) || str_contains($text, 'student name') || str_contains($text, 'full name'))) {
                 $map['name'] = $index;
-            } elseif ($text === 'sex' || $text === 'gender') {
+            } elseif (!isset($map['sex']) && ($text === 'sex' || $text === 'gender' || preg_match('/\bsex\b/', $text) || preg_match('/\bgender\b/', $text))) {
                 $map['sex'] = $index;
-            } elseif (str_contains($text, 'birth') && str_contains($text, 'date')) {
+            } elseif (!isset($map['birth_date']) && str_contains($text, 'birth') && str_contains($text, 'date')) {
                 $map['birth_date'] = $index;
-            } elseif ($text === 'age') {
+            } elseif (!isset($map['age']) && $text === 'age') {
                 $map['age'] = $index;
-            } elseif (str_contains($text, 'mother tongue')) {
+            } elseif (!isset($map['mother_tongue']) && str_contains($text, 'mother tongue')) {
                 $map['mother_tongue'] = $index;
-            } elseif (str_contains($text, 'ip') || str_contains($text, 'ethnic')) {
+            } elseif (!isset($map['ip_ethnic_group']) && (str_contains($text, 'ip') || str_contains($text, 'ethnic'))) {
                 $map['ip_ethnic_group'] = $index;
-            } elseif (str_contains($text, 'religion')) {
+            } elseif (!isset($map['religion']) && str_contains($text, 'religion')) {
                 $map['religion'] = $index;
-            } elseif (str_contains($text, 'house') || str_contains($text, 'street') || str_contains($text, 'sitio') || str_contains($text, 'purok')) {
+            } elseif (!isset($map['house_street']) && (str_contains($text, 'house') || str_contains($text, 'street') || str_contains($text, 'sitio') || str_contains($text, 'purok'))) {
                 $map['house_street'] = $index;
-            } elseif (str_contains($text, 'barangay')) {
+            } elseif (!isset($map['barangay']) && str_contains($text, 'barangay')) {
                 $map['barangay'] = $index;
-            } elseif (str_contains($text, 'municipality') || str_contains($text, 'city')) {
+            } elseif (!isset($map['municipality_city']) && (str_contains($text, 'municipality') || str_contains($text, 'city'))) {
                 $map['municipality_city'] = $index;
-            } elseif (str_contains($text, 'province')) {
+            } elseif (!isset($map['province']) && str_contains($text, 'province')) {
                 $map['province'] = $index;
-            } elseif (str_contains($text, 'father')) {
+            } elseif (!isset($map['father_name']) && str_contains($text, 'father')) {
                 $map['father_name'] = $index;
-            } elseif (str_contains($text, 'mother') && (str_contains($text, 'maiden') || str_contains($text, 'name'))) {
+            } elseif (!isset($map['mother_maiden_name']) && str_contains($text, 'mother') && (str_contains($text, 'maiden') || str_contains($text, 'name'))) {
                 $map['mother_maiden_name'] = $index;
-            } elseif (str_contains($text, 'guardian') && !str_contains($text, 'relationship')) {
+            } elseif (!isset($map['guardian_name']) && str_contains($text, 'guardian') && !str_contains($text, 'relationship')) {
                 $map['guardian_name'] = $index;
-            } elseif (str_contains($text, 'guardian') && str_contains($text, 'relationship')) {
+            } elseif (!isset($map['guardian_relationship']) && str_contains($text, 'guardian') && str_contains($text, 'relationship')) {
                 $map['guardian_relationship'] = $index;
-            } elseif (str_contains($text, 'contact') || str_contains($text, 'tel') || str_contains($text, 'phone') || str_contains($text, 'mobile')) {
+            } elseif (!isset($map['contact_number']) && (str_contains($text, 'contact') || str_contains($text, 'tel') || str_contains($text, 'phone') || str_contains($text, 'mobile'))) {
                 $map['contact_number'] = $index;
-            } elseif (str_contains($text, 'modality') || str_contains($text, 'learning')) {
+            } elseif (!isset($map['learning_modality']) && (str_contains($text, 'modality') || str_contains($text, 'learning'))) {
                 $map['learning_modality'] = $index;
-            } elseif (str_contains($text, 'remarks') || str_contains($text, 'remark')) {
+            } elseif (!isset($map['remarks']) && (str_contains($text, 'remarks') || str_contains($text, 'remark'))) {
                 $map['remarks'] = $index;
+            } elseif (!isset($map['grade_level']) && str_contains($text, 'grade') && str_contains($text, 'level')) {
+                $map['grade_level'] = $index;
+            } elseif (!isset($map['school_name']) && str_contains($text, 'school') && str_contains($text, 'name') && !str_contains($text, 'school id')) {
+                $map['school_name'] = $index;
             }
         }
 
@@ -813,6 +898,14 @@ class StudentsImport
         ];
 
         $studentName = $this->pickField($data, ['student_name', 'studentname', 'name', 'full_name', 'fullname', 'complete_name', 'completename']);
+        if (!$studentName) {
+            foreach ($data as $key => $value) {
+                if (str_starts_with($key, 'name') && $value !== '') {
+                    $studentName = $value;
+                    break;
+                }
+            }
+        }
         if ($studentName && (!$result['first_name'] || !$result['last_name'])) {
             $parts = preg_split('/\s+/', trim($studentName));
             $result['first_name'] = $parts[0] ?? '';

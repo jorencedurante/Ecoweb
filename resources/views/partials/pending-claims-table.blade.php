@@ -50,7 +50,7 @@
 @if(!request()->ajax())
 <div class="table-container" id="pendingClaimsTableContainer">
     {{-- Live Filters for Pending Claims (NOT replaced by AJAX) --}}
-    <form id="pendingClaimsFilterForm" class="table-filter-form pending-claims-filter" method="GET" action="{{ route('claims.index') }}#pending-claims-section">
+    <form id="pendingClaimsFilterForm" class="table-filter-form pending-claims-filter" method="GET" action="{{ route('claims.index') }}#pending-claims-section" onsubmit="return false;">
         <div class="filter-field">
             <input
                 type="text"
@@ -293,5 +293,11 @@
         padding: 16px 16px 0 16px;
         margin-bottom: 12px;
     }
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
 }
 </style>
