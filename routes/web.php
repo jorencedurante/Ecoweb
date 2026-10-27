@@ -128,7 +128,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');
         Route::get('/student-report', [ReportController::class, 'studentReport'])->name('admin.student-report');
         Route::get('/bottle-report', [ReportController::class, 'bottleReport'])->name('admin.bottle-report');
+        Route::get('/bottle-report/search', [ReportController::class, 'bottleReportSearch'])->name('admin.bottle-report.search');
         Route::get('/admin-activities', [ReportController::class, 'adminActivities'])->name('admin.admin-activities');
+        Route::get('/admin-activities/teacher-students', [ReportController::class, 'teacherStudents'])->name('admin.admin-activities.teacher-students');
+        Route::get('/admin-activities/student-claims', [ReportController::class, 'studentClaims'])->name('admin.admin-activities.student-claims');
 
         // Reports - Print routes
         Route::get('/reports/print/top-students', [ReportController::class, 'printTopStudents'])->name('reports.top-students.print');
@@ -136,6 +139,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports/print/bottle-collection', [ReportController::class, 'printBottleCollection'])->name('reports.bottle-collection.print');
         Route::get('/reports/print/item-claims', [ReportController::class, 'printItemClaims'])->name('reports.item-claims.print');
         Route::get('/reports/print/student-activities', [ReportController::class, 'printStudentActivities'])->name('reports.student-activities.print');
+
+        // Student Report - Student Details (AJAX) and Print Single Student
+        Route::get('/student-report/student/{id}/details', [ReportController::class, 'studentReportDetails'])->name('admin.student-report.details');
+        Route::get('/reports/print/student/{id}', [ReportController::class, 'printStudentReport'])->name('reports.student.print');
 
         // Account Settings (all authenticated users)
         Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
