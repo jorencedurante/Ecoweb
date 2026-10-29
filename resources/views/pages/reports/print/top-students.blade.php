@@ -40,11 +40,11 @@
     <div class="report-header">
         <h1>🏆 {{ $title }}</h1>
         <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }}</div>
+        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }} | Quarter: Q{{ $quarter }} {{ $year }}</div>
     </div>
 
     @if($topStudents->isEmpty())
-        <div class="no-data">No student data available.</div>
+        <div class="no-data">No students have collected bottles this quarter.</div>
     @else
         <table>
             <thead>
@@ -52,8 +52,7 @@
                     <th scope="col" class="rank">#</th>
                     <th scope="col">Student Name</th>
                     <th scope="col">Grade Level</th>
-                    <th scope="col">Gender</th>
-                    <th scope="col">Total Points</th>
+                    <th scope="col">Bottles Collected</th>
                 </tr>
             </thead>
             <tbody>
@@ -62,8 +61,7 @@
                         <td class="rank">{{ $index + 1 }}</td>
                         <td>{{ $student->full_name }}</td>
                         <td>{{ $student->grade_level }}</td>
-                        <td>{{ $student->gender }}</td>
-                        <td class="points">{{ number_format($student->total_points) }}</td>
+                        <td class="bottles">{{ number_format($student->quarter_bottles ?? 0) }}</td>
                     </tr>
                 @endforeach
             </tbody>

@@ -13,36 +13,85 @@ class ReportController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
+        $now = now();
+        $currentYear = $now->year;
+
+        [$currentQuarterStart, $currentQuarterEnd] = $this->getQuarterDateRange('current');
+
         $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
         $bottlesBase = BottleCollection::query();
         $awardsBase = \App\Models\CertificateAward::query();
 
-        if (Auth::user()->isTeacher()) {
+        if ($user->isTeacher()) {
             $studentsBase->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', $user->id)->where('status', 'active');
             });
             $bottlesBase->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', $user->id)->where('status', 'active');
             });
             $awardsBase->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
 
         $totalStudents = (clone $studentsBase)->count();
         $totalBottles = (clone $bottlesBase)->sum('bottle_count');
         $totalAwards = (clone $awardsBase)->count();
-        $femaleCount = (clone $studentsBase)->where('gender', 'Female')->count();
-        $maleCount = (clone $studentsBase)->where('gender', 'Male')->count();
 
+        // --- Gender Contribution (Admin / Super Admin only) ---
+        // Count UNIQUE students with at least one bottle collection this quarter,
+        // grouped by gender. Percentages based on contributing students only.
+        $genderContribution = null;
+        if ($user->isAdminLevel()) {
+            $contributingStudents = (clone $studentsBase)
+                ->whereHas('bottleCollections', function ($q) use ($currentQuarterStart, $currentQuarterEnd) {
+                    $q->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
+                });
+            $femaleContributors = (clone $contributingStudents)->where('gender', 'Female')->count();
+            $maleContributors = (clone $contributingStudents)->where('gender', 'Male')->count();
+            $totalContributors = $femaleContributors + $maleContributors;
+            $genderContribution = [
+                'female' => $femaleContributors,
+                'male' => $maleContributors,
+                'total' => $totalContributors,
+                'femalePct' => $totalContributors > 0 ? round($femaleContributors / $totalContributors * 100, 2) : 0,
+                'malePct' => $totalContributors > 0 ? round($maleContributors / $totalContributors * 100, 2) : 0,
+            ];
+        }
+
+        // --- Quarterly Bottle Collections (Admin / Super Admin only) ---
+        // Sum of actual bottle quantities per calendar quarter, current year only.
+        $quarterlyCollections = [];
+        if ($user->isAdminLevel()) {
+            for ($q = 1; $q <= 4; $q++) {
+                $quarterStart = \Carbon\Carbon::create($currentYear, ($q - 1) * 3 + 1, 1)->startOfDay();
+                $quarterEnd = \Carbon\Carbon::create($currentYear, $q * 3, 1)->startOfDay()->addMonth(1)->subDay()->endOfDay();
+                $bottleSum = (clone $bottlesBase)->whereBetween('collection_date', [$quarterStart, $quarterEnd])->sum('bottle_count');
+                $quarterlyCollections[] = [
+                    'quarter' => 'Q' . $q,
+                    'bottles' => (int) $bottleSum,
+                ];
+            }
+        }
+
+        // --- Top Students — Quarterly Ranking ---
+        // Rank by bottles collected in the CURRENT calendar quarter only.
+        // Exclude students with zero bottles this quarter. Max 10 (3 for teachers).
         $topStudents = (clone $studentsBase)
-            ->orderBy('total_points', 'desc')
-            ->take(Auth::user()->isTeacher() ? 3 : 10)
+            ->withSum(['bottleCollections as quarter_bottles' => function ($q) use ($currentQuarterStart, $currentQuarterEnd) {
+                $q->whereBetween('collection_date', [$currentQuarterStart, $currentQuarterEnd]);
+            }], 'bottle_count')
+            ->having('quarter_bottles', '>', 0)
+            ->orderByDesc('quarter_bottles')
+            ->orderBy('full_name', 'asc')
+            ->take($user->isTeacher() ? 3 : 10)
             ->get();
 
         return view('pages.reports', compact(
             'totalStudents', 'totalBottles', 'totalAwards',
-            'femaleCount', 'maleCount', 'topStudents'
+            'genderContribution', 'quarterlyCollections', 'topStudents',
+            'currentQuarterStart', 'currentQuarterEnd'
         ));
     }
 
@@ -201,6 +250,7 @@ class ReportController extends Controller
                 }),
                 'certificates' => $certificates->map(function ($c) {
                     return [
+                        'id' => $c->id,
                         'award_title' => $c->award_title ?? 'N/A',
                         'award_description' => $c->award_description ?? 'N/A',
                         'awarded_date' => $c->awarded_date ? $c->awarded_date->format('M d, Y') : 'N/A',
@@ -837,24 +887,80 @@ class ReportController extends Controller
         });
     }
 
-    public function printTopStudents()
+    public function printTopStudents(Request $request)
     {
-        $isTeacher = Auth::user()->isTeacher();
+        $user = Auth::user();
+        $isTeacher = $user->isTeacher();
+        $quarter = (int) $request->get('quarter', date('n'));
+        $year = (int) $request->get('year', now()->year);
 
-        $query = Student::whereNotIn('status', ['Archived', 'archived']);
+        // Calculate quarter date range
+        $quarterStart = \Carbon\Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+        $quarterEnd = \Carbon\Carbon::create($year, $quarter * 3, 1)->startOfDay()->addMonth(1)->subDay()->endOfDay();
+
+        $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
 
         if ($isTeacher) {
-            $this->applyTeacherScope($query);
+            $this->applyTeacherScope($studentsBase);
         }
 
-        $topStudents = $query
-            ->orderBy('total_points', 'desc')
+        $topStudents = $studentsBase
+            ->withSum(['bottleCollections as quarter_bottles' => function ($q) use ($quarterStart, $quarterEnd) {
+                $q->whereBetween('collection_date', [$quarterStart, $quarterEnd]);
+            }], 'bottle_count')
+            ->having('quarter_bottles', '>', 0)
+            ->orderByDesc('quarter_bottles')
+            ->orderBy('full_name', 'asc')
             ->take($isTeacher ? 3 : 10)
             ->get();
 
-        $title = $isTeacher ? 'Top 3 Students Report' : 'Top 10 Overall Students Report';
+        $quarterLabel = 'Q' . $quarter;
+        $title = $isTeacher ? "Top 3 Students — $quarterLabel $year" : "Top 10 Students — $quarterLabel $year";
 
-        return view('pages.reports.print.top-students', compact('topStudents', 'title', 'isTeacher'));
+        return view('pages.reports.print.top-students', compact('topStudents', 'title', 'isTeacher', 'quarter', 'year'));
+    }
+
+    public function topStudentsData(Request $request)
+    {
+        $user = Auth::user();
+        $isTeacher = $user->isTeacher();
+        $quarter = (int) $request->get('quarter', date('n'));
+        $year = (int) $request->get('year', now()->year);
+
+        // Calculate quarter date range
+        $quarterStart = \Carbon\Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+        $quarterEnd = \Carbon\Carbon::create($year, $quarter * 3, 1)->startOfDay()->addMonth(1)->subDay()->endOfDay();
+
+        $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
+
+        if ($isTeacher) {
+            $studentsBase->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', $user->id)->where('status', 'active');
+            });
+        }
+
+        $topStudents = $studentsBase
+            ->withSum(['bottleCollections as quarter_bottles' => function ($q) use ($quarterStart, $quarterEnd) {
+                $q->whereBetween('collection_date', [$quarterStart, $quarterEnd]);
+            }], 'bottle_count')
+            ->having('quarter_bottles', '>', 0)
+            ->orderByDesc('quarter_bottles')
+            ->orderBy('full_name', 'asc')
+            ->take($isTeacher ? 3 : 10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'quarter' => $quarter,
+            'year' => $year,
+            'students' => $topStudents->map(function ($s) {
+                return [
+                    'full_name' => $s->full_name,
+                    'grade_level' => $s->grade_level,
+                    'quarter_bottles' => (int) ($s->quarter_bottles ?? 0),
+                ];
+            }),
+        ]);
     }
 
     public function printStudentRanking(Request $request)

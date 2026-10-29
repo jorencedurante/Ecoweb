@@ -205,13 +205,11 @@
                         <h3 id="srModalTitle">Performance Report</h3>
                         <div class="sr-modal-subtitle">Student activity and accomplishments</div>
                     </div>
-                    <div class="sr-header-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
                     <button type="button" class="sr-modal-close" id="srModalClose" aria-label="Close">×</button>
                 </div>
 
                 <div class="sr-modal-body">
+                    <div id="srModalError" class="sr-modal-error" style="display:none;"></div>
                     {{-- Student Identity Card --}}
                     <div class="sr-identity-card">
                         <div class="sr-avatar" id="srAvatar">BC</div>
@@ -351,7 +349,7 @@
     const gradeSelect = document.getElementById('srGrade');
     const genderSelect = document.getElementById('srGender');
     const tableBody = document.getElementById('srStudentTableBody');
-    const paginationContainer = document.querySelector('.sr-pagination');
+    let paginationContainer = document.querySelector('.sr-pagination');
     const errorDiv = document.getElementById('srError');
 
     let timer = null;
@@ -488,6 +486,7 @@
         // Update the module-level reference
         // Use a fresh query since the old element is now detached
         const refreshedContainer = document.querySelector('.sr-pagination');
+        paginationContainer = refreshedContainer;
         if (refreshedContainer) {
             refreshedContainer.addEventListener('click', function(e) {
                 const link = e.target.closest('.page-btn');
@@ -589,6 +588,23 @@
     const srAchievementsGrid = document.getElementById('srAchievementsGrid');
     const srCertificatesGrid = document.getElementById('srCertificatesGrid');
 
+    // Modal error display
+    const srModalError = document.getElementById('srModalError');
+
+    function showModalError(msg) {
+        if (srModalError) {
+            srModalError.textContent = msg;
+            srModalError.style.display = '';
+        }
+    }
+
+    function hideModalError() {
+        if (srModalError) {
+            srModalError.textContent = '';
+            srModalError.style.display = 'none';
+        }
+    }
+
     let currentStudentId = null;
     let currentSection = 'activity';
     let studentData = null;
@@ -674,10 +690,11 @@
             const data = await response.json();
 
             if (!data.success) {
-                alert(data.message || 'Unable to load student details.');
+                showModalError(data.message || 'Unable to load student details.');
                 return;
             }
 
+            hideModalError();
             const s = data.student;
             studentData = s;
             currentSection = 'activity';
@@ -774,7 +791,7 @@
 
         } catch (err) {
             if (err.name === 'AbortError') return;
-            alert('Unable to load student details. Please try again.');
+            showModalError('Unable to load student details. Please try again.');
             console.error('Student modal error:', err);
         } finally {
             if (abortController === controller) abortController = null;
@@ -782,7 +799,7 @@
     }
 
     function renderActivitySection(s) {
-        const collections = s.bottle_collections || [];
+        const collections = Array.isArray(s.bottle_collections) ? s.bottle_collections : [];
         const latest = collections.length > 0 ? collections[0] : null;
         const totalBottles = collections.reduce((sum, c) => sum + (parseInt(c.bottle_count) || 0), 0);
 
@@ -809,12 +826,12 @@
     }
 
     function renderCollectionsSection(s) {
-        const collections = (s.bottle_collections || []).slice();
+        const collections = Array.isArray(s.bottle_collections) ? (s.bottle_collections || []).slice() : [];
         if (srCollectionsTableWrap) {
             if (collections.length === 0) {
                 srCollectionsTableWrap.innerHTML = `
                     <div class="sr-empty-state">
-                        <div class="sr-empty-icon"><i class="fas fa-bottle-water"></i></div>
+                        <div class="sr-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4;"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></div>
                         <div class="sr-empty-msg">No collection records found.</div>
                     </div>
                 `;
@@ -834,7 +851,7 @@
     }
 
     function renderRewardsSection(s) {
-        const claims = s.claims || [];
+        const claims = Array.isArray(s.claims) ? s.claims : [];
         if (srRewardsPointsWrap) {
             srRewardsPointsWrap.innerHTML = `
                 <div class="sr-points-card">
@@ -855,7 +872,7 @@
             if (claims.length === 0) {
                 srClaimsTableWrap.innerHTML = `
                     <div class="sr-empty-state">
-                        <div class="sr-empty-icon"><i class="fas fa-gift"></i></div>
+                        <div class="sr-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4;"><path d="M12 7v14"/><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"/><rect x="3" y="7" width="18" height="4" rx="1"/></svg></div>
                         <div class="sr-empty-msg">No reward claims recorded.</div>
                     </div>
                 `;
@@ -875,13 +892,48 @@
         }
     }
 
+    function achievementIconHtml(a) {
+        const title = (a.title || '').toLowerCase();
+        const badgeName = (a.badge_name || '').toLowerCase();
+
+        // If achievement has its own saved icon name, use it
+        const savedIcons = {
+            'leaf': '<path d="M12 2a10 10 0 0 0-5.6 19"/><path d="M2 20h20"/><path d="M12 2v20"/>',
+            'trophy': '<path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/>',
+            'star': '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+            'award': '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+        };
+
+        if (savedIcons[badgeName]) {
+            const colorClass = badgeName === 'leaf' ? 'sr-ach-badge-green' :
+                             badgeName === 'trophy' ? 'sr-ach-badge-gold' :
+                             badgeName === 'star' ? 'sr-ach-badge-purple' :
+                             badgeName === 'award' ? 'sr-ach-badge-orange' : '';
+            return `<div class="sr-ach-badge ${colorClass}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${savedIcons[badgeName]}</svg></div>`;
+        }
+
+        // Map by achievement title
+        if (title.includes('gatherer')) {
+            return `<div class="sr-ach-badge sr-ach-badge-green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 0 0-5.6 19"/><path d="M2 20h20"/><path d="M12 2v20"/></svg></div>`;
+        }
+        if (title.includes('collector')) {
+            return `<div class="sr-ach-badge sr-ach-badge-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${savedIcons.trophy}</svg></div>`;
+        }
+        if (title.includes('relentless')) {
+            return `<div class="sr-ach-badge sr-ach-badge-purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${savedIcons.star}</svg></div>`;
+        }
+
+        // Fallback: trophy icon
+        return `<div class="sr-ach-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${savedIcons.trophy}</svg></div>`;
+    }
+
     function renderAchievementsSection(s) {
-        const achievements = s.achievements || [];
+        const achievements = Array.isArray(s.achievements) ? s.achievements : [];
         if (srAchievementsGrid) {
             if (achievements.length === 0) {
                 srAchievementsGrid.innerHTML = `
                     <div class="sr-empty-state" style="grid-column: 1 / -1;">
-                        <div class="sr-empty-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="sr-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4;"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></div>
                         <div class="sr-empty-msg">No achievements earned yet.</div>
                     </div>
                 `;
@@ -889,7 +941,7 @@
             }
             srAchievementsGrid.innerHTML = achievements.map(a => `
                 <div class="sr-achievement-card">
-                    <div class="sr-ach-badge"><i class="fas fa-trophy"></i></div>
+                    ${achievementIconHtml(a)}
                     <div class="sr-ach-title">${escapeHtml(a.title || 'N/A')}</div>
                     <div class="sr-ach-desc">${escapeHtml(a.description || 'N/A')}</div>
                     <div class="sr-ach-date">${escapeHtml(a.awarded_date || 'N/A')}</div>
@@ -899,24 +951,25 @@
     }
 
     function renderCertificatesSection(s) {
-        const certificates = s.certificates || [];
+        const certificates = Array.isArray(s.certificates) ? s.certificates : [];
         if (srCertificatesGrid) {
             if (certificates.length === 0) {
                 srCertificatesGrid.innerHTML = `
                     <div class="sr-empty-state" style="grid-column: 1 / -1;">
-                        <div class="sr-empty-icon"><i class="fas fa-award"></i></div>
+                        <div class="sr-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.4;"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg></div>
                         <div class="sr-empty-msg">No awarded certificates found.</div>
                     </div>
                 `;
                 return;
             }
+            const awardSvg = '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>';
             srCertificatesGrid.innerHTML = certificates.map(c => `
                 <div class="sr-certificate-card">
-                    <div class="sr-cert-icon"><i class="fas fa-award"></i></div>
+                    <div class="sr-cert-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${awardSvg}</svg></div>
                     <div class="sr-cert-title">${escapeHtml(c.award_title || 'N/A')}</div>
                     <div class="sr-cert-desc">${escapeHtml(c.award_description || 'N/A')}</div>
                     <div class="sr-cert-date">${escapeHtml(c.awarded_date || 'N/A')}</div>
-                    ${c.can_render ? `<a href="#" class="sr-cert-action" onclick="event.preventDefault(); alert('Certificate print functionality opens the certificate viewer.');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
+                    ${c.can_render ? `<a href="#" class="sr-cert-action" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); window.open('{{ route('admin.certificate.print', '__PLACEHOLDER__') }}'.replace('__PLACEHOLDER__', ${c.id}), '_blank');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
                 </div>
             `).join('');
         }
