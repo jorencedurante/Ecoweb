@@ -7278,6 +7278,11 @@ button,
     font-size: 20px;
 }
 
+.sr-ach-badge.sr-ach-badge-green { background: rgba(0, 200, 83, 0.12); color: var(--green); }
+.sr-ach-badge.sr-ach-badge-gold { background: rgba(255, 215, 0, 0.12); color: #d4a017; }
+.sr-ach-badge.sr-ach-badge-purple { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.sr-ach-badge.sr-ach-badge-orange { background: rgba(249, 115, 22, 0.12); color: #f97316; }
+
 .sr-achievement-card .sr-ach-title {
     font-size: 14px;
     font-weight: 600;
