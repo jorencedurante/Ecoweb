@@ -135,6 +135,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Reports - Print routes
         Route::get('/reports/print/top-students', [ReportController::class, 'printTopStudents'])->name('reports.top-students.print');
+Route::get('/reports/top-students-data', [ReportController::class, 'topStudentsData'])->name('reports.top-students.data');
         Route::get('/reports/print/student-ranking', [ReportController::class, 'printStudentRanking'])->name('reports.student-ranking.print');
         Route::get('/reports/print/bottle-collection', [ReportController::class, 'printBottleCollection'])->name('reports.bottle-collection.print');
         Route::get('/reports/print/item-claims', [ReportController::class, 'printItemClaims'])->name('reports.item-claims.print');
