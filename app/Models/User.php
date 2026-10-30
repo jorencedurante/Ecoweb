@@ -66,6 +66,16 @@ class User extends Authenticatable
         return $this->role === 'teacher';
     }
 
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isRestricted(): bool
+    {
+        return $this->status === 'restricted';
+    }
+
     public function students(): HasMany
     {
         return $this->hasMany(Student::class, 'teacher_id');
