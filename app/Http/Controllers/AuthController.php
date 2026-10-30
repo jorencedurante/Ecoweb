@@ -43,6 +43,18 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
+            if (!$user->isActive()) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect()->route('login')
+                    ->withErrors([
+                        'login' => 'Your account has been deactivated. Please contact the system administrator.',
+                    ])
+                    ->onlyInput('login');
+            }
+
             if (!$user->hasVerifiedEmail()) {
                 Auth::logout();
                 $request->session()->invalidate();
