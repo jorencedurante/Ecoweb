@@ -55,7 +55,7 @@ Route::post('/email/verify', [AuthController::class, 'verifyOtp'])->name('verifi
 Route::post('/email/verify/resend', [AuthController::class, 'resendOtp'])->name('verification.resend');
 
 // Protected admin routes
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'account.active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     // Email change routes (outside 'verified' middleware — user's email may not be verified yet)
@@ -147,15 +147,21 @@ Route::get('/reports/top-students-data', [ReportController::class, 'topStudentsD
 
         // Account Settings (all authenticated users)
         Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
-        Route::put('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
-        Route::put('/settings/password', [AccountSettingsController::class, 'updatePassword'])->name('settings.password.update');
+        Route::post('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
+        Route::post('/settings/password', [AccountSettingsController::class, 'updatePassword'])->name('settings.password.update');
+        Route::post('/settings/email-change/initiate', [AccountSettingsController::class, 'initiateEmailChange'])->name('settings.email-change.initiate');
 
         // Teachers / Accounts (admin only)
         Route::middleware('admin.only')->group(function () {
             Route::get('/teachers', [TeacherController::class, 'index'])->name('admin.teachers');
+            Route::get('/teachers/fetch', [TeacherController::class, 'fetch'])->name('admin.teachers.fetch');
             Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
             Route::put('/teachers/{teacher}', [TeacherController::class, 'update'])->name('admin.teachers.update');
-            Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroy'])->name('admin.teachers.destroy');
+            Route::patch('/teachers/{teacher}/restrict', [TeacherController::class, 'restrict'])->name('admin.teachers.restrict');
+            Route::patch('/teachers/{teacher}/unrestrict', [TeacherController::class, 'unrestrict'])->name('admin.teachers.unrestrict');
+            Route::patch('/teachers/{teacher}/archive', [TeacherController::class, 'archive'])->name('admin.teachers.archive');
+            Route::patch('/teachers/{teacher}/reactivate', [TeacherController::class, 'reactivate'])->name('admin.teachers.reactivate');
+            Route::get('/teachers/archived', [TeacherController::class, 'archived'])->name('admin.teachers.archived');
 
             // System Settings
             Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.settings');

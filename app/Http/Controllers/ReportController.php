@@ -532,14 +532,15 @@ class ReportController extends Controller
             });
         }
 
+        $page = $request->get('page', 1);
+
         $students = $studentsQuery
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->orderBy('lrn')
-            ->limit(20)
-            ->get();
+            ->paginate(10, ['*'], 'page', $page);
 
-        $groups = $students->map(function ($student) use ($baseQuery, $dateFrom, $dateTo, $quarter) {
+        $groups = $students->getCollection()->map(function ($student) use ($baseQuery, $dateFrom, $dateTo, $quarter) {
             $collections = clone $baseQuery;
             $collections->where('student_id', $student->id);
             if ($dateFrom) {
@@ -570,7 +571,7 @@ class ReportController extends Controller
                 }),
                 'total_bottles' => $studentCollections->sum('bottle_count'),
             ];
-        });
+        })->values()->all();
 
         // Chart data - last 7 days within filtered period
         $trendQuery = BottleCollection::selectRaw('DAYNAME(collection_date) as day, SUM(bottle_count) as total')
@@ -606,9 +607,12 @@ class ReportController extends Controller
         return response()->json([
             'student_groups' => $groups,
             'pagination' => [
-                'from' => $students->isEmpty() ? 0 : 1,
-                'to' => $students->count(),
-                'total' => $students->count(),
+                'current_page' => $students->currentPage(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'from' => $students->isEmpty() ? 0 : $students->firstItem(),
+                'to' => $students->isEmpty() ? 0 : $students->lastItem(),
+                'total' => $students->total(),
             ],
             'chart_data' => $chartData,
         ]);

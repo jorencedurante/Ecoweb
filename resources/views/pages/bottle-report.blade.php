@@ -205,6 +205,7 @@ const brSearchInput = document.getElementById('brSearch');
 const brQuarterSelect = document.getElementById('brQuarter');
 let brSearchTimer = null;
 let brAbortController = null;
+let brCurrentPage = 1;
 
 function abortPendingRequest() {
     if (brAbortController) {
@@ -228,6 +229,7 @@ function fetchBottleData() {
     url.searchParams.set('date_from', dateFrom);
     url.searchParams.set('date_to', dateTo);
     url.searchParams.set('quarter', quarterVal);
+    url.searchParams.set('page', brCurrentPage);
 
     fetch(url, {
         headers: {
@@ -242,6 +244,14 @@ function fetchBottleData() {
         return response.json();
     })
     .then(data => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', data.pagination.current_page);
+        url.searchParams.set('search', searchVal);
+        url.searchParams.set('date_from', dateFrom);
+        url.searchParams.set('date_to', dateTo);
+        url.searchParams.set('quarter', quarterVal);
+        history.pushState({ page: data.pagination.current_page, search: searchVal, date_from: dateFrom, date_to: dateTo, quarter: quarterVal }, '', url.toString());
+
         renderStudentGroups(data.student_groups, data.pagination);
         updateChartBars(data.chart_data);
     })
@@ -262,6 +272,7 @@ function fetchBottleData() {
 
 if (brSearchInput) {
     brSearchInput.addEventListener('input', function () {
+        brCurrentPage = 1;
         clearTimeout(brSearchTimer);
         brSearchTimer = setTimeout(fetchBottleData, 300);
     });
@@ -269,6 +280,7 @@ if (brSearchInput) {
 
 if (brQuarterSelect) {
     brQuarterSelect.addEventListener('change', function () {
+        brCurrentPage = 1;
         clearTimeout(brSearchTimer);
         brSearchTimer = setTimeout(fetchBottleData, 300);
     });
@@ -346,10 +358,19 @@ function renderStudentGroups(groups, pagination) {
     // Update pagination
     if (paginationContainer) {
         paginationContainer.style.display = 'flex';
-        // Simple pagination display
         const info = paginationContainer.querySelector('.page-info');
         if (info && pagination) {
             info.textContent = `Showing ${pagination.from} to ${pagination.to} of ${pagination.total} students`;
+        }
+        const btns = paginationContainer.querySelector('.page-btns');
+        if (btns && pagination) {
+            brCurrentPage = pagination.current_page;
+            let btnsHtml = '';
+            for (let p = 1; p <= pagination.last_page; p++) {
+                const active = p === pagination.current_page ? 'active' : '';
+                btnsHtml += `<a href="#" class="page-btn ${active}" data-page="${p}">${p}</a>`;
+            }
+            btns.innerHTML = btnsHtml;
         }
     }
 }
@@ -621,13 +642,48 @@ if (brDateRangeInput) {
     brDateRangeInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
+            brCurrentPage = 1;
             const parsed = parseDateRange(this.value);
             if (parsed.valid) {
                 updateDateRangeDisplay(parsed.start, parsed.end);
-                document.getElementById('brFilterForm').requestSubmit();
+            } else {
+                updateDateRangeDisplay(null, null);
             }
+            fetchBottleData();
         }
     });
 }
+
+// --- Pagination click delegation ---
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.page-btn');
+    if (!btn) return;
+    e.preventDefault();
+    const page = parseInt(btn.dataset.page, 10);
+    if (isNaN(page) || page === brCurrentPage) return;
+    brCurrentPage = page;
+    fetchBottleData();
+});
+
+// --- Browser Back/Forward ---
+window.addEventListener('popstate', function(e) {
+    if (!e.state) return;
+    brCurrentPage = e.state.page || 1;
+    const searchVal = e.state.search || '';
+    const dateFrom = e.state.date_from || '';
+    const dateTo = e.state.date_to || '';
+    const quarterVal = e.state.quarter || '';
+
+    if (brSearchInput) brSearchInput.value = searchVal;
+    if (brQuarterSelect) brQuarterSelect.value = quarterVal;
+    if (document.getElementById('brDateFrom')) document.getElementById('brDateFrom').value = dateFrom;
+    if (document.getElementById('brDateTo')) document.getElementById('brDateTo').value = dateTo;
+    const dateRangeInput = document.getElementById('brDateRange');
+    if (dateRangeInput) {
+        dateRangeInput.value = (dateFrom && dateTo) ? `${dateFrom} - ${dateTo}` : '';
+    }
+
+    fetchBottleData();
+});
 </script>
 @endpush

@@ -19,63 +19,33 @@ class AccountSettingsController extends Controller
         return view('pages.account-settings', compact('user'));
     }
 
+    /**
+     * Helper: return JSON for AJAX, redirect otherwise.
+     */
+    private function respond($success, $message, $redirect = null, $status = 200, $errors = null)
+    {
+        if ($request = request()) {
+            if ($request->expectsJson() || $request->ajax()) {
+                $payload = ['success' => $success, 'message' => $message];
+                if ($errors) {
+                    $payload['errors'] = $errors;
+                }
+                return response()->json($payload, $status);
+            }
+        }
+        if ($success) {
+            return redirect($redirect)->with('success', $message);
+        }
+        return back()->withErrors($errors ? $errors : ['general' => $message])->withInput();
+    }
+
     public function updateProfile(Request $request)
     {
         $user = Auth::user();
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
         ]);
-
-        $emailChanged = $validated['email'] !== $user->email;
-
-        if ($emailChanged) {
-            $oldEmail = $user->email;
-            $newEmail = $validated['email'];
-
-            if ($user->pending_email === $newEmail) {
-                return redirect()->route('account.email-change.verify')
-                    ->with('info', 'A verification code was already sent to your current email.');
-            }
-
-            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-            $user->update([
-                'name' => $validated['name'],
-                'pending_email' => $newEmail,
-                'email_change_otp' => Hash::make($otp),
-                'email_change_otp_expires_at' => now()->addMinutes(10),
-            ]);
-
-            try {
-                Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-                Log::info('Email change OTP sent to old email: ' . $oldEmail);
-            } catch (\Throwable $e) {
-                Log::error('Email change OTP sending failed', [
-                    'user_id' => auth()->id(),
-                    'email' => auth()->user()->email,
-                    'error' => $e->getMessage(),
-                ]);
-                $user->update([
-                    'email_change_otp' => null,
-                    'email_change_otp_expires_at' => null,
-                ]);
-                return back()->withErrors([
-                    'email' => 'Unable to send verification email. Please try again later.',
-                ])->withInput();
-            }
-
-            AdminActivity::create([
-                'user_id' => Auth::id(),
-                'action' => 'Requested Email Change',
-                'description' => "Requested to change email to {$newEmail}.",
-                'module' => 'Account Settings',
-            ]);
-
-            return redirect()->route('account.email-change.verify')
-                ->with('success', 'A verification code was sent to your current email address.');
-        }
 
         $user->update([
             'name' => $validated['name'],
@@ -88,8 +58,56 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return redirect()->route('settings.edit')
-            ->with('success', 'Profile updated successfully.');
+        return $this->respond(true, 'Profile updated successfully.', route('settings.edit'));
+    }
+
+    public function initiateEmailChange(Request $request)
+    {
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'new_email' => 'required|email|max:255|unique:users,email,' . $user->id,
+        ]);
+
+        $newEmail = $validated['new_email'];
+
+        if ($user->pending_email === $newEmail) {
+            return $this->respond(false, 'A verification code was already sent for this email address.', null, 422);
+        }
+
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $user->update([
+            'pending_email' => $newEmail,
+            'email_change_otp' => Hash::make($otp),
+            'email_change_otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        try {
+            Mail::to($user->email)->send(new EmailChangeOtpMail($otp, $user->name));
+            Log::info('Email change OTP sent to current email: ' . $user->email);
+        } catch (\Throwable $e) {
+            Log::error('Email change OTP sending failed', [
+                'user_id' => auth()->id(),
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+            $user->update([
+                'pending_email' => null,
+                'email_change_otp' => null,
+                'email_change_otp_expires_at' => null,
+            ]);
+            return $this->respond(false, 'Unable to send verification email. Please try again later.', null, 500);
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Requested Email Change',
+            'description' => "Requested to change email to {$newEmail}.",
+            'module' => 'Account Settings',
+        ]);
+
+        return $this->respond(true, 'A verification code was sent to your current email address.');
     }
 
     public function showEmailChangeVerify()
@@ -159,8 +177,6 @@ class AccountSettingsController extends Controller
                 ->with('error', 'No pending email change request found.');
         }
 
-        $oldEmail = $user->email;
-
         $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         $user->update([
@@ -169,15 +185,16 @@ class AccountSettingsController extends Controller
         ]);
 
         try {
-            Mail::to($oldEmail)->send(new EmailChangeOtpMail($otp, $user->name));
-            Log::info('Email change OTP resent to old email: ' . $oldEmail);
+            Mail::to($user->email)->send(new EmailChangeOtpMail($otp, $user->name));
+            Log::info('Email change OTP resent to current email: ' . $user->email);
         } catch (\Throwable $e) {
             Log::error('Email change OTP sending failed', [
                 'user_id' => auth()->id(),
-                'email' => auth()->user()->email,
+                'email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
             $user->update([
+                'pending_email' => null,
                 'email_change_otp' => null,
                 'email_change_otp_expires_at' => null,
             ]);
@@ -220,9 +237,7 @@ class AccountSettingsController extends Controller
         ]);
 
         if (!Hash::check($validated['current_password'], $user->password)) {
-            return back()->withErrors([
-                'current_password' => 'The current password is incorrect.',
-            ])->withInput();
+            return $this->respond(false, 'The current password is incorrect.', null, 422, ['current_password' => 'The current password is incorrect.']);
         }
 
         $user->update([
@@ -236,7 +251,6 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return redirect()->route('settings.edit')
-            ->with('success', 'Password updated successfully.');
+        return $this->respond(true, 'Password updated successfully.', route('settings.edit'));
     }
 }
