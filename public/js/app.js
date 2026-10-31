@@ -119,16 +119,6 @@ function initPasswordToggle() {
             btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
         });
     });
-
-    document.querySelectorAll('.password-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const input = document.getElementById(btn.getAttribute('data-target'));
-            if (!input) return;
-            const type = input.type === 'password' ? 'text' : 'password';
-            input.type = type;
-            btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
-        });
-    });
 }
 
 // ---------- Password Match Check on Submit ----------

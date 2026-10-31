@@ -907,11 +907,22 @@ class StudentsImport
             }
         }
         if ($studentName && (!$result['first_name'] || !$result['last_name'])) {
-            $parts = preg_split('/\s+/', trim($studentName));
-            $result['first_name'] = $parts[0] ?? '';
-            $result['last_name'] = count($parts) > 1 ? end($parts) : '';
-            if (count($parts) > 2) {
-                $result['middle_name'] = implode(' ', array_slice($parts, 1, -1));
+            // Handle comma-separated names: "LAST, FIRST MIDDLE" -> first_name, middle_name, last_name
+            if (str_contains($studentName, ',')) {
+                $nameParts = array_map('trim', explode(',', $studentName));
+                $result['last_name'] = $nameParts[0] ?? '';
+                $restParts = array_map('trim', explode(' ', $nameParts[1] ?? ''));
+                $result['first_name'] = $restParts[0] ?? '';
+                if (count($restParts) > 1) {
+                    $result['middle_name'] = implode(' ', array_slice($restParts, 1));
+                }
+            } else {
+                $parts = preg_split('/\s+/', trim($studentName));
+                $result['first_name'] = $parts[0] ?? '';
+                $result['last_name'] = count($parts) > 1 ? end($parts) : '';
+                if (count($parts) > 2) {
+                    $result['middle_name'] = implode(' ', array_slice($parts, 1, -1));
+                }
             }
         }
 

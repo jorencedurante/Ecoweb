@@ -7465,3 +7465,251 @@ body.modal-open {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* ============================================================
+   ACCOUNT SETTINGS PAGE
+   ============================================================ */
+
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.settings-card-icon {
+    width: 40px;
+    height: 40px;
+    background: #e7f9e9;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.settings-card-icon svg {
+    color: #00C853;
+}
+
+.settings-card-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 2px;
+}
+
+.settings-card-header p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.settings-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.settings-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.settings-form-group input {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.settings-form-group input[readonly] {
+    background: #f5f5f5;
+    color: #6b7280;
+}
+
+.settings-email-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-email-controls {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.settings-email-info {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 6px;
+}
+
+.settings-save-row {
+    margin-top: 8px;
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Security card panel */
+.security-panel {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.security-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 260px;
+}
+
+.security-lock {
+    width: 56px;
+    height: 56px;
+    background: #dcfce7;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.security-lock svg {
+    color: #00C853;
+}
+
+.security-info h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px;
+}
+
+.security-info p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Modal overrides for Account Settings (green theme) */
+#changeEmailModalOverlay .modal-header,
+#changePasswordModalOverlay .modal-header {
+    background: #f0fdf4;
+    border-bottom-color: #bbf7d0;
+}
+
+#changeEmailModalOverlay .modal-header svg,
+#changePasswordModalOverlay .modal-header svg {
+    color: #00C853;
+}
+
+/* Password toggle in modals */
+.password-field-wrapper {
+    position: relative;
+}
+
+.password-field-wrapper input {
+    padding-right: 40px !important;
+}
+
+.password-field-wrapper button {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-field-wrapper button svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+}
+
+/* Password requirements states */
+.req-met {
+    color: #00C853 !important;
+    font-weight: 600 !important;
+}
+
+.req-unmet {
+    color: #6b7280 !important;
+    font-weight: 400 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-email-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .settings-email-controls button {
+        border-radius: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .security-panel {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .security-left {
+        justify-content: center;
+        min-width: unset;
+    }
+
+    .security-info p {
+        text-align: center;
+    }
+
+    .security-panel button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    #changeEmailModalOverlay .modal-content,
+    #changePasswordModalOverlay .modal-content {
+        max-width: 100%;
+        max-height: 95vh;
+    }
+}
+
+/* Desktop - force two-column profile grid */
+@media (min-width: 769px) {
+    #profileSettingsForm {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}

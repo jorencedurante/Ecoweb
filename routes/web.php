@@ -147,8 +147,9 @@ Route::get('/reports/top-students-data', [ReportController::class, 'topStudentsD
 
         // Account Settings (all authenticated users)
         Route::get('/settings', [AccountSettingsController::class, 'edit'])->name('settings.edit');
-        Route::put('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
-        Route::put('/settings/password', [AccountSettingsController::class, 'updatePassword'])->name('settings.password.update');
+        Route::post('/settings/profile', [AccountSettingsController::class, 'updateProfile'])->name('settings.profile.update');
+        Route::post('/settings/password', [AccountSettingsController::class, 'updatePassword'])->name('settings.password.update');
+        Route::post('/settings/email-change/initiate', [AccountSettingsController::class, 'initiateEmailChange'])->name('settings.email-change.initiate');
 
         // Teachers / Accounts (admin only)
         Route::middleware('admin.only')->group(function () {

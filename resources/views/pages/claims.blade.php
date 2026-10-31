@@ -581,11 +581,13 @@ document.addEventListener('DOMContentLoaded', function () {
     var claimSelectedItemName = document.getElementById('claimSelectedItemName');
 
     function closeItemResults() {
+        if (!claimItemResults) return;
         claimItemResults.innerHTML = '';
         claimItemResults.classList.remove('show');
     }
 
     function renderItemResults(items) {
+        if (!claimItemResults) return;
         claimItemResults.innerHTML = '';
 
         if (!items.length) {
@@ -660,11 +662,13 @@ document.addEventListener('DOMContentLoaded', function () {
     var historyHiddenInput = document.getElementById('claimHistorySelectedValue');
 
     function closeHistoryResults() {
+        if (!historyResults) return;
         historyResults.innerHTML = '';
         historyResults.classList.remove('show');
     }
 
     function renderHistoryResults(results) {
+        if (!historyResults) return;
         historyResults.innerHTML = '';
 
         if (!results.length) {

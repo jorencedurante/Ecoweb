@@ -188,6 +188,19 @@ class PublicController extends Controller
                     return ['duplicate' => true];
                 }
 
+                // Block a new request when the student already has a pending
+                // claim for the same item.
+                $existingPending = StudentClaim::where('student_id', $student->id)
+                    ->where('claim_item_id', $validated['claim_item_id'])
+                    ->where('status', 'Pending')
+                    ->first();
+
+                if ($existingPending) {
+                    throw ValidationException::withMessages([
+                        'claim_item_id' => 'You already have a pending claim request for this item. Please wait for admin approval or rejection before submitting another request.',
+                    ]);
+                }
+
                 $item = ClaimItem::whereKey($validated['claim_item_id'])->lockForUpdate()->first();
 
                 if (!$item) {
