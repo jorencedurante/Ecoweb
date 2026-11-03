@@ -16,21 +16,28 @@ class ReportController extends Controller
         $user = Auth::user();
         $now = now();
         $currentYear = $now->year;
+        $currentQuarter = $now->quarter;
 
         [$currentQuarterStart, $currentQuarterEnd] = $this->getQuarterDateRange('current');
+
+        // Determine the earliest reporting year from actual bottle collection data
+        $earliestCollection = BottleCollection::whereNotNull('collection_date')
+            ->orderBy('collection_date', 'asc')
+            ->value('collection_date');
+        $reportStartYear = $earliestCollection ? (new \Carbon\Carbon($earliestCollection))->year : ($currentYear - 5);
 
         $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
         $bottlesBase = BottleCollection::query();
         $awardsBase = \App\Models\CertificateAward::query();
 
         if ($user->isTeacher()) {
-            $studentsBase->whereHas('enrollments', function ($q) {
+            $studentsBase->whereHas('enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
-            $bottlesBase->whereHas('student.enrollments', function ($q) {
+            $bottlesBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
-            $awardsBase->whereHas('student.enrollments', function ($q) {
+            $awardsBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
@@ -91,7 +98,8 @@ class ReportController extends Controller
         return view('pages.reports', compact(
             'totalStudents', 'totalBottles', 'totalAwards',
             'genderContribution', 'quarterlyCollections', 'topStudents',
-            'currentQuarterStart', 'currentQuarterEnd'
+            'currentQuarterStart', 'currentQuarterEnd',
+            'currentQuarter', 'currentYear', 'reportStartYear'
         ));
     }
 
@@ -421,6 +429,7 @@ class ReportController extends Controller
                 'student' => $student,
                 'collections' => $studentCollections,
                 'total_bottles' => $studentCollections->sum('bottle_count'),
+                'total_points' => $studentCollections->sum('points_earned'),
             ];
         });
 
@@ -570,6 +579,7 @@ class ReportController extends Controller
                     ];
                 }),
                 'total_bottles' => $studentCollections->sum('bottle_count'),
+                'total_points' => $studentCollections->sum('points_earned'),
             ];
         })->values()->all();
 
@@ -646,12 +656,16 @@ class ReportController extends Controller
 
         $students = $query
             ->with('enrollments')
-            ->with('claims')
+            ->with(['claims' => function ($q) {
+                $q->orderByDesc('claim_date')->orderByDesc('id');
+            }])
             ->withCount('claims as total_claims')
             ->withSum('claims as total_points_used', 'points_deducted')
             ->withMax('claims as latest_claim_date', 'claim_date')
-            ->orderByDesc('total_claims')
-            ->paginate(15)
+            ->having('total_claims', '>', 0)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->paginate(10)
             ->withQueryString();
 
         return view('pages.admin-activities', compact('students'));
@@ -938,7 +952,7 @@ class ReportController extends Controller
         $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
 
         if ($isTeacher) {
-            $studentsBase->whereHas('enrollments', function ($q) {
+            $studentsBase->whereHas('enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
@@ -1123,11 +1137,15 @@ class ReportController extends Controller
 
         $students = $query
             ->with('enrollments')
-            ->with('claims')
+            ->with(['claims' => function ($q) {
+                $q->orderByDesc('claim_date')->orderByDesc('id');
+            }])
             ->withCount('claims as total_claims')
             ->withSum('claims as total_points_used', 'points_deducted')
             ->withMax('claims as latest_claim_date', 'claim_date')
-            ->orderByDesc('total_claims')
+            ->having('total_claims', '>', 0)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
             ->get();
 
         return view('pages.reports.print.item-claims', [
@@ -1202,9 +1220,42 @@ class ReportController extends Controller
                 ->orderByDesc('total_bottles')
                 ->get();
 
+            $studentCount = $students->count();
+            $totalBottles = (int) $students->sum('total_bottles');
+            $totalPoints = (int) $students->sum('total_points');
+            $totalClaims = (int) $students->sum('total_claims');
+
+            $studentClaimed = Student::whereNotIn('status', ['Archived', 'archived'])
+                ->where('teacher_id', $teacher->id)
+                ->when($gradeLevel, function ($q) use ($gradeLevel) {
+                    $q->where('grade_level', $gradeLevel);
+                })
+                ->when($search, function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('lrn', 'like', "%{$search}%")
+                           ->orWhere('student_id', 'like', "%{$search}%")
+                           ->orWhere('full_name', 'like', "%{$search}%")
+                           ->orWhere('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%");
+                    });
+                })
+                ->whereHas('claims', function ($q) use ($dateFrom, $dateTo) {
+                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
+                })
+                ->count();
+
             $teacherGroups[] = [
                 'teacher' => $teacher,
                 'students' => $students,
+                'student_count' => $studentCount,
+                'student_claimed' => $studentClaimed,
+                'total_bottles' => $totalBottles,
+                'total_points' => $totalPoints,
+                'total_claims' => $totalClaims,
             ];
         }
 

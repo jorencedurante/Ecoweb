@@ -8,6 +8,10 @@
         <div class="table-toolbar-actions">
             <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
             @if(Auth::user()->role !== 'admin')
+            <button type="button" class="btn btn-outline btn-sm archive-all-btn" style="border-color:var(--red);color:var(--red);" data-modal-target="archiveAllStudentModal" aria-label="Archive all students for a school year">📦 Archive All</button>
+            @if($nullSchoolYearCount > 0)
+            <button type="button" class="btn btn-outline btn-sm fix-school-years-btn" style="border-color:var(--amber);color:var(--amber);" data-modal-target="fixSchoolYearsModal" aria-label="Assign school year to {{ $nullSchoolYearCount }} student(s) without one">⚠️ Fix School Years</button>
+            @endif
             <button type="button" class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
             <button type="button" class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
             @endif

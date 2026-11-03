@@ -474,7 +474,15 @@ class ClaimController extends Controller
 
         $pointsAfter = $pointsBefore - $totalPointsRequired;
 
-        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $totalPointsRequired, $quantity, $validated) {
+        // Link the claim to the student's current active enrollment so
+        // school-year claim activity stays isolated from historical records.
+        $currentEnrollment = $student->enrollments()
+            ->when(Auth::user()->isTeacher(), fn ($q) => $q->where('teacher_id', Auth::id()))
+            ->where('status', 'active')
+            ->latest('id')
+            ->first();
+
+        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $totalPointsRequired, $quantity, $validated, $currentEnrollment) {
             $student->update(['total_points' => $pointsAfter]);
             $item->decrement('quantity', $quantity);
             $item->refresh();
@@ -497,6 +505,7 @@ class ClaimController extends Controller
                 'status' => 'Approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
+                'enrollment_id' => $currentEnrollment?->id,
             ]);
         });
 

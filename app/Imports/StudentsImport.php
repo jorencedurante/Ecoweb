@@ -860,6 +860,8 @@ class StudentsImport
                 $this->newStudents++;
             }
 
+            $this->schoolYear = $rowData['school_year'] ?? '';
+            $this->section = $rowData['section'] ?? '';
             $this->createOrUpdateEnrollment($student, $teacherId, $rowData['grade_level'], $fileName);
             $this->imported++;
             $this->createQrForImportedStudent($student);
@@ -895,6 +897,8 @@ class StudentsImport
             'gender' => $this->pickField($data, ['gender', 'sex']),
             'student_id' => $this->pickField($data, ['student_id', 'studentid', 'id_number', 'idnumber']),
             'teacher_email' => $this->pickField($data, ['teacher_email', 'teacheremail', 'teacher', 'teacher_mail']),
+            'school_year' => $this->pickField($data, ['school_year', 'schoolyear', 'school year', 'sy', 'academic_year']),
+            'section' => $this->pickField($data, ['section', 'class_section', 'classsection']),
         ];
 
         $studentName = $this->pickField($data, ['student_name', 'studentname', 'name', 'full_name', 'fullname', 'complete_name', 'completename']);
