@@ -27,8 +27,10 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="admin-sidebar-logo-img" width="38" height="38">
-            <span class="brand-text">ECOCOLLECT</span>
+            <a href="{{ route('admin.dashboard') }}" class="brand-link" onclick="return handleBrandClick(event)" aria-label="EcoCollect - Go to Dashboard">
+                <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="admin-sidebar-logo-img" width="38" height="38">
+                <span class="brand-text">ECOCOLLECT</span>
+            </a>
             <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true" aria-controls="sidebar-nav">
                 <span class="collapse-icon collapse-icon-expand" aria-hidden="true"><x-icon name="chevrons-left" :size="18" /></span>
                 <span class="collapse-icon collapse-icon-collapse" aria-hidden="true"><x-icon name="chevrons-right" :size="18" /></span>
@@ -195,6 +197,21 @@
         } catch (e) {}
         updateSidebarCollapseUI();
         hideSidebarTooltip();
+    }
+
+    function handleBrandClick(event) {
+        event.preventDefault();
+        if (document.documentElement.classList.contains('sidebar-collapsed')) {
+            document.documentElement.classList.remove('sidebar-collapsed');
+            try {
+                localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
+            } catch (e) {}
+            updateSidebarCollapseUI();
+            hideSidebarTooltip();
+        } else {
+            window.location.href = event.currentTarget.href;
+        }
+        return false;
     }
 
     function updateSidebarCollapseUI() {

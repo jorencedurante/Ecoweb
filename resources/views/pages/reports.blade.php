@@ -118,22 +118,21 @@
             <h4 style="font-size:14px;font-weight:600;">Top Students</h4>
             <label class="ts-filter-label" style="font-size:12px;color:var(--text-medium);margin-right:6px;">Quarter:</label>
             <select id="tsQuarter" class="ts-filter" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text-dark);">
-                <option value="1">Q1</option>
-                <option value="2">Q2</option>
-                <option value="3">Q3</option>
-                <option value="4">Q4</option>
+                <option value="1" {{ $currentQuarter == 1 ? 'selected' : '' }}>Q1</option>
+                <option value="2" {{ $currentQuarter == 2 ? 'selected' : '' }}>Q2</option>
+                <option value="3" {{ $currentQuarter == 3 ? 'selected' : '' }}>Q3</option>
+                <option value="4" {{ $currentQuarter == 4 ? 'selected' : '' }}>Q4</option>
             </select>
             <label class="ts-filter-label" style="font-size:12px;color:var(--text-medium);margin-left:8px;margin-right:6px;">Year:</label>
             <select id="tsYear" class="ts-filter" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text-dark);">
                 @php
-                    $currentYear = now()->year;
-                    for ($y = $currentYear - 5; $y <= $currentYear + 1; $y++):
+                    for ($y = $reportStartYear; $y <= $currentYear + 1; $y++):
                         $selected = $y == $currentYear ? 'selected' : '';
                         echo "<option value=\"$y\" $selected>$y</option>";
                     endfor;
                 @endphp
             </select>
-            <a href="#" id="tsPrintBtn" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;margin-left:10px;" aria-label="Print top students report">🖨️ Print Report</a>
+            <a href="#" id="tsPrintBtn" class="btn btn-filter" target="_blank" rel="noopener" style="font-size:12px;padding:6px 14px;text-decoration:none;margin-left:10px;" aria-label="Print top students report">🖨️ Print Report</a>
         </div>
         <div class="table-responsive">
         <table id="tsTable">

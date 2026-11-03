@@ -21,7 +21,7 @@
 
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
         thead { display: table-header-group; }
-        th { background: #0f766e; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 10px; }
+        th { background: #0f766e; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
         tr { page-break-inside: avoid; }
         tr:nth-child(even) { background: #f8fafc; }
@@ -37,6 +37,7 @@
             @page { size: A4 landscape; margin: 12mm 10mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 12px; padding-bottom: 10px; }
+            th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             tr:hover { background: transparent; }
             .no-print { display: none !important; }
         }

@@ -396,6 +396,16 @@ body {
     white-space: nowrap;
 }
 
+.brand-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
 .sidebar-collapse-btn {
     display: none;
     margin-left: auto;
@@ -2070,7 +2080,13 @@ body.modal-open {
         padding: 14px 8px;
     }
 
+    html.sidebar-collapsed .brand-link {
+        justify-content: center;
+        width: 100%;
+    }
+
     html.sidebar-collapsed .sidebar-collapse-btn {
+        display: none;
         margin-left: 0;
     }
 
