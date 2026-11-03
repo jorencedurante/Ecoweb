@@ -39,6 +39,9 @@ class DashboardController extends Controller
         $totalTeachers = Auth::user()->isAdminLevel()
             ? User::where('role', 'teacher')->where('status', 'active')->count()
             : 0;
+        $totalAdmins = Auth::user()->isSuperAdmin()
+            ? User::where('role', 'admin')->where('status', 'active')->count()
+            : 0;
         $totalAwards = (clone $awardsQuery)->count();
         $totalClaimedItems = (clone $claimsQuery)->count();
         $totalPointsRedeemed = (clone $claimsQuery)->sum('points_deducted');
@@ -67,7 +70,7 @@ class DashboardController extends Controller
         }
 
         return view('pages.dashboard', compact(
-            'totalStudents', 'totalBottles', 'totalTeachers', 'totalAwards',
+            'totalStudents', 'totalBottles', 'totalTeachers', 'totalAdmins', 'totalAwards',
             'totalClaimedItems', 'totalPointsRedeemed', 'availableClaimItems',
             'femaleCount', 'maleCount', 'collectionData'
         ));

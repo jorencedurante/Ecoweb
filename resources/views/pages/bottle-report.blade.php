@@ -34,7 +34,7 @@
             <div class="stat-icon green">📦</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $totalBottles ?? 0 }}</div>
-                <div class="stat-label">Total Collected</div>
+                <div class="stat-label">Total Points</div>
             </div>
         </div>
     </div>
@@ -127,7 +127,7 @@
                 <tr>
                     <th scope="col" style="padding:10px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Student</th>
                     <th scope="col" style="padding:10px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">LRN</th>
-                    <th scope="col" style="padding:10px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Total Bottles</th>
+                    <th scope="col" style="padding:10px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Total Points</th>
                     <th scope="col" style="padding:10px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Collections</th>
                 </tr>
             </thead>
@@ -140,7 +140,7 @@
                             </a>
                         </td>
                         <td style="padding:12px 14px;color:#6b7280;">{{ $group['student']->lrn }}</td>
-                        <td style="padding:12px 14px;color:#059669;font-weight:600;">{{ number_format($group['total_bottles']) }}</td>
+                        <td style="padding:12px 14px;color:#059669;font-weight:600;">{{ number_format($group['total_points']) }}</td>
                         <td style="padding:12px 14px;color:#6b7280;">{{ count($group['collections']) }}</td>
                     </tr>
                 <tr class="br-student-detail" data-student-id="{{ $group['student']->id }}" style="display:none;">
@@ -172,7 +172,7 @@
                                     @else
                                     <tr style="background:#f0fdfa;">
                                         <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;" colspan="3" style="font-weight:600;">Total</td>
-                                        <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;color:#059669;font-weight:600;">{{ number_format($group['total_bottles']) }}</td>
+                                        <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;color:#059669;font-weight:600;">{{ number_format($group['total_points']) }}</td>
                                     </tr>
                                     @endif
                                 </tbody>
@@ -316,7 +316,7 @@ function renderStudentGroups(groups, pagination) {
                 </a>
             </td>
             <td style="padding:12px 14px;color:#6b7280;">${group.student.lrn}</td>
-            <td style="padding:12px 14px;color:#059669;font-weight:600;">${group.total_bottles}</td>
+            <td style="padding:12px 14px;color:#059669;font-weight:600;">${group.total_points}</td>
             <td style="padding:12px 14px;color:#6b7280;">${group.collections.length}</td>
         </tr>
         <tr class="br-student-detail" data-student-id="${group.student.id}" style="display:none;">
@@ -343,7 +343,7 @@ function renderStudentGroups(groups, pagination) {
                             ${group.collections.length > 0 ? `
                             <tr style="background:#f0fdfa;">
                                 <td style="padding:8px 14px;" colspan="3" style="font-weight:600;">Total</td>
-                                <td style="padding:8px 14px;color:#059669;font-weight:600;">${group.total_bottles}</td>
+                                <td style="padding:8px 14px;color:#059669;font-weight:600;">${group.total_points}</td>
                             </tr>
                             ` : ''}
                         </tbody>

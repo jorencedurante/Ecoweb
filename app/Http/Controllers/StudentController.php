@@ -78,7 +78,7 @@ class StudentController extends Controller
             'gender' => 'required|in:Male,Female',
             'birth_date' => 'nullable|date',
             'section' => 'nullable|string|max:100',
-            'school_year' => 'nullable|string|max:20',
+            'school_year' => 'required|string|max:20|regex:/^\d{4}-\d{4}$/',
             'house_street' => 'nullable|string|max:255',
             'barangay' => 'nullable|string|max:100',
             'municipality_city' => 'nullable|string|max:100',
@@ -149,6 +149,7 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
+        $user = Auth::user();
         $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
         $query->visibleTo(Auth::user());
 
@@ -178,7 +179,30 @@ class StudentController extends Controller
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
         $teachers = User::where('role', 'teacher')->where('status', 'active')->orderBy('name')->get();
 
-        return view('pages.students', compact('students', 'gradeLevels', 'teachers'));
+        // School years available for Archive All: distinct years from active
+        // enrollments of students visible to the current user.
+        $archiveSchoolYears = StudentEnrollment::where('status', 'active')
+            ->whereHas('student', function ($q) use ($user) {
+                $q->whereNotIn('status', ['Archived', 'archived']);
+            })
+            ->when($user->isTeacher(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->id);
+            })
+            ->orderBy('school_year', 'desc')
+            ->pluck('school_year')
+            ->unique()
+            ->filter()
+            ->values();
+
+        // Count active enrollments with NULL school_year for this teacher
+        $nullSchoolYearCount = StudentEnrollment::whereNull('school_year')
+            ->where('status', 'active')
+            ->when($user->isTeacher(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->id);
+            })
+            ->count();
+
+        return view('pages.students', compact('students', 'gradeLevels', 'teachers', 'archiveSchoolYears', 'nullSchoolYearCount'));
     }
 
     public function filterStudents(Request $request)
@@ -437,6 +461,315 @@ class StudentController extends Controller
         ]);
 
         return redirect()->route('admin.students')->with('success', 'Student archived successfully!');
+    }
+
+    public function archiveAll(Request $request)
+    {
+        $this->ensureCanManageStudents();
+
+        $user = Auth::user();
+
+        $isPreview = $request->boolean('preview');
+
+        if (!$isPreview) {
+            $request->validate([
+                'school_year' => 'required|string|max:20',
+                'confirm' => 'required|boolean',
+            ]);
+
+            if (!$request->boolean('confirm')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You must confirm the archive action.',
+                ], 422);
+            }
+        } else {
+            $request->validate([
+                'school_year' => 'required|string|max:20',
+            ]);
+        }
+
+        // Archive only the logged-in teacher's eligible enrollments for the selected year.
+        $students = Student::query()
+            ->whereNotIn('status', ['Archived', 'archived'])
+            ->visibleTo($user)
+            ->whereHas('enrollments', function ($q) use ($request) {
+                $q->where('school_year', $request->school_year);
+            })
+            ->get();
+
+        $studentCount = $students->count();
+        $totalBottles = (int) $students->sum(function ($s) {
+            return (int) $s->bottleCollections()->sum('bottle_count');
+        });
+
+        if ($studentCount === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "No active students found for school year '{$request->school_year}'.",
+            ], 422);
+        }
+
+        if ($isPreview) {
+            return response()->json([
+                'success' => true,
+                'student_count' => $studentCount,
+                'total_bottles' => $totalBottles,
+            ]);
+        }
+
+        DB::transaction(function () use ($students, $request) {
+            foreach ($students as $student) {
+                $student->update(['status' => 'Archived']);
+
+                AdminActivity::create([
+                    'user_id' => Auth::id(),
+                    'action' => 'Archived Student (School Year)',
+                    "description" => "Archived {$student->full_name} for school year {$request->school_year}.",
+                    'module' => 'Students',
+                ]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => "Archived {$studentCount} student(s) for school year {$request->school_year}.",
+            'student_count' => $studentCount,
+            'total_bottles' => $totalBottles,
+        ]);
+    }
+
+    public function fixSchoolYears(Request $request)
+    {
+        $this->ensureCanManageStudents();
+        $user = Auth::user();
+
+        $request->validate([
+            'school_year' => 'required|string|max:20|regex:/^\d{4}-\d{4}$/',
+            'confirm' => 'required|boolean',
+        ]);
+
+        if (!$request->boolean('confirm')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must confirm the school year assignment.',
+            ], 422);
+        }
+
+        $enrollments = StudentEnrollment::whereNull('school_year')
+            ->where('status', 'active')
+            ->whereHas('student', function ($q) use ($user) {
+                $q->visibleTo($user);
+            })
+            ->get();
+
+        $count = $enrollments->count();
+
+        if ($count === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No NULL school year enrollments found for your class.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($enrollments, $request) {
+            foreach ($enrollments as $enrollment) {
+                $enrollment->update(['school_year' => $request->school_year]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => "Assigned school year '{$request->school_year}' to {$count} student(s).",
+            'student_count' => $count,
+        ]);
+    }
+
+    public function schoolYearArchives(Request $request)
+    {
+        $user = Auth::user();
+
+        $query = Student::query()->whereIn('status', ['Archived', 'archived']);
+        $query->visibleTo($user);
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query->with(['enrollments' => function ($q) {
+            $q->orderByDesc('id');
+        }])->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->get();
+
+        $groups = [];
+        foreach ($students as $student) {
+            $enrollment = $student->enrollments->first();
+            $schoolYear = $enrollment?->school_year ?? 'Unknown';
+            if (!isset($groups[$schoolYear])) {
+                $groups[$schoolYear] = [
+                    'school_year' => $schoolYear,
+                    'students' => [],
+                    'total_bottles' => 0,
+                ];
+            }
+            $totalBottles = (int) $student->bottleCollections()->sum('bottle_count');
+            $groups[$schoolYear]['students'][] = [
+                'id' => $student->id,
+                'lrn' => $student->lrn,
+                'full_name' => $student->full_name,
+                'grade_level' => $student->grade_level,
+                'total_points' => (int) ($student->total_points ?? 0),
+                'total_bottles' => $totalBottles,
+                'status' => $student->status,
+            ];
+            $groups[$schoolYear]['total_bottles'] += $totalBottles;
+        }
+
+        ksort($groups);
+
+        return response()->json([
+            'success' => true,
+            'groups' => array_values($groups),
+        ]);
+    }
+
+    public function historical(Student $student)
+    {
+        $this->authorizeStudentAccess($student);
+
+        $student->load([
+            'bottleCollections',
+            'enrollments.teacher',
+            'earnedAchievements.quest',
+            'certificateAwards.teacher',
+            'claims',
+        ]);
+
+        $enrollment = $student->enrollments->sortByDesc('id')->first();
+        $totalBottles = (int) $student->bottleCollections()->sum('bottle_count');
+        $totalPointsEarned = (int) $student->bottleCollections()->sum('points_earned');
+        $totalPointsRedeemed = (int) $student->claims()->where('status', 'approved')->sum('points_deducted');
+        $availablePoints = max(0, (int) ($student->total_points ?? 0) - $totalPointsRedeemed);
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'id' => $student->id,
+                'lrn' => $student->lrn,
+                'full_name' => $student->full_name,
+                'grade_level' => $enrollment?->grade_level ?? $student->grade_level,
+                'school_year' => $enrollment?->school_year ?? 'N/A',
+                'teacher_name' => optional($enrollment?->teacher)->name ?? 'N/A',
+                'status' => $student->status,
+                'total_points' => (int) ($student->total_points ?? 0),
+                'available_points' => $availablePoints,
+            ],
+            'summary' => [
+                'total_bottles' => $totalBottles,
+                'points_earned' => $totalPointsEarned,
+                'points_redeemed' => $totalPointsRedeemed,
+                'available_points' => $availablePoints,
+                'collections_count' => $student->bottleCollections->count(),
+                'achievements_count' => $student->earnedAchievements->count(),
+                'certificates_count' => $student->certificateAwards->count(),
+                'claims_count' => $student->claims->count(),
+            ],
+            'collections' => $student->bottleCollections->map(function ($c) {
+                return [
+                    'collection_date' => optional($c->collection_date)->format('M d, Y'),
+                    'bottle_count' => (int) $c->bottle_count,
+                    'points_earned' => (int) ($c->points_earned ?? 0),
+                ];
+            })->values(),
+            'achievements' => $student->earnedAchievements->map(function ($a) {
+                return [
+                    'title' => $a->quest?->title ?? 'Achievement',
+                    'badge_name' => $a->quest?->badge_name,
+                    'awarded_date' => optional($a->awarded_date)->format('M d, Y'),
+                ];
+            })->values(),
+            'certificates' => $student->certificateAwards->map(function ($a) {
+                return [
+                    'title' => $a->award_title,
+                    'type' => $a->certificate_type,
+                    'awarded_date' => optional($a->awarded_date)->format('M d, Y'),
+                    'teacher_name' => optional($a->teacher)->name,
+                ];
+            })->values(),
+            'claims' => $student->claims->map(function ($c) {
+                return [
+                    'item_name' => $c->item_name,
+                    'quantity' => (int) $c->quantity,
+                    'points_deducted' => (int) ($c->points_deducted ?? 0),
+                    'claim_date' => optional($c->claim_date)->format('M d, Y'),
+                    'status' => $c->status,
+                ];
+            })->values(),
+        ]);
+    }
+
+    public function reEnroll(Request $request, Student $student)
+    {
+        $this->ensureCanManageStudents();
+        $this->authorizeStudentAccess($student);
+
+        $user = Auth::user();
+
+        $request->validate([
+            'new_school_year' => 'required|string|max:20',
+            'new_grade_level' => 'required|in:Kindergarten,Grade 1,Grade 2,Grade 3,Grade 4,Grade 5,Grade 6',
+            'new_section' => 'nullable|string|max:100',
+            'teacher_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'teacher')],
+        ]);
+
+        // Determine the teacher for re-enrollment
+        $newTeacherId = null;
+        if ($user->isTeacher()) {
+            $newTeacherId = $user->id;
+        } elseif ($user->isSuperAdmin()) {
+            $newTeacherId = $request->get('teacher_id') ? (int) $request->get('teacher_id') : null;
+        }
+
+        if (!$newTeacherId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A teacher must be assigned for re-enrollment.',
+            ], 422);
+        }
+
+        $previousEnrollment = $student->enrollments()->latest('id')->first();
+
+        DB::transaction(function () use ($student, $request, $newTeacherId, $previousEnrollment) {
+            // Reactivate the student
+            $student->update(['status' => 'Active']);
+
+            // Create a new enrollment for the new school year (bottle totals start at zero)
+            StudentEnrollment::create([
+                'student_id' => $student->id,
+                'teacher_id' => $newTeacherId,
+                'grade_level' => $request->new_grade_level,
+                'section' => $request->new_section ?? null,
+                'school_year' => $request->new_school_year,
+                'status' => 'active',
+                'imported_by' => Auth::id(),
+            ]);
+
+            AdminActivity::create([
+                'user_id' => Auth::id(),
+                'action' => 'Re-enrolled Student',
+                "description" => "Re-enrolled {$student->full_name} for school year {$request->new_school_year}.",
+                'module' => 'Students',
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$student->full_name} has been re-enrolled for {$request->new_school_year}.",
+        ]);
     }
 
     public function restore(Student $student)

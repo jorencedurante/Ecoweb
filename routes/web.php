@@ -95,7 +95,12 @@ Route::middleware(['auth', 'account.active'])->group(function () {
         Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('admin.students.import.template');
         Route::put('/students/{student}', [StudentController::class, 'update'])->name('admin.students.update');
         Route::patch('/students/{student}/archive', [StudentController::class, 'archive'])->name('admin.students.archive');
+        Route::post('/students/archive-all', [StudentController::class, 'archiveAll'])->name('admin.students.archive-all');
+        Route::post('/students/fix-school-years', [StudentController::class, 'fixSchoolYears'])->name('admin.students.fix-school-years');
         Route::get('/students/archived', [StudentController::class, 'archived'])->name('admin.students.archived');
+        Route::get('/students/archived/school-years', [StudentController::class, 'schoolYearArchives'])->name('admin.students.school-year-archives');
+        Route::patch('/students/{student}/re-enroll', [StudentController::class, 'reEnroll'])->name('students.re-enroll');
+        Route::get('/students/{student}/historical', [StudentController::class, 'historical'])->name('students.historical');
         Route::patch('/students/{student}/restore', [StudentController::class, 'restore'])->name('students.restore');
         Route::get('/students/{student}/info', [StudentController::class, 'info'])->name('students.info');
         Route::get('/students/{student}/achievements', [StudentController::class, 'achievements'])->name('students.achievements');

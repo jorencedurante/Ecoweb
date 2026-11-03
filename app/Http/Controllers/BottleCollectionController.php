@@ -186,11 +186,22 @@ class BottleCollectionController extends Controller
             }
         }
 
-        $validated['lrn'] = $student->lrn;
-        $validated['points_earned'] = $validated['bottle_count'];
-        $validated['created_by'] = Auth::id();
+    $validated['lrn'] = $student->lrn;
+    $validated['points_earned'] = $validated['bottle_count'];
+    $validated['created_by'] = Auth::id();
 
-        BottleCollection::create($validated);
+    // Link the collection to the student's current active enrollment so
+    // school-year activity stays isolated from historical records.
+    $currentEnrollment = $student->enrollments()
+        ->when(Auth::user()->isTeacher(), fn ($q) => $q->where('teacher_id', Auth::id()))
+        ->where('status', 'active')
+        ->latest('id')
+        ->first();
+    if ($currentEnrollment) {
+        $validated['enrollment_id'] = $currentEnrollment->id;
+    }
+
+    BottleCollection::create($validated);
 
         // Update student total points: 1 bottle = 1 point
         $student->increment('total_points', $validated['bottle_count']);

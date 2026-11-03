@@ -29,6 +29,16 @@
             </div>
         </div>
         @endif
+
+        @if(Auth::user()->isSuperAdmin())
+        <div class="stat-card">
+            <div class="stat-icon blue">🛡️</div>
+            <div class="stat-info">
+                <div class="stat-value">{{ $totalAdmins }}</div>
+                <div class="stat-label">Total Admins</div>
+            </div>
+        </div>
+        @endif
         <div class="stat-card">
             <div class="stat-icon purple">🏆</div>
             <div class="stat-info">
