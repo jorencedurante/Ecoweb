@@ -31,13 +31,13 @@ class ReportController extends Controller
         $awardsBase = \App\Models\CertificateAward::query();
 
         if ($user->isTeacher()) {
-            $studentsBase->whereHas('enrollments', function ($q) {
+            $studentsBase->whereHas('enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
-            $bottlesBase->whereHas('student.enrollments', function ($q) {
+            $bottlesBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
-            $awardsBase->whereHas('student.enrollments', function ($q) {
+            $awardsBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
@@ -429,6 +429,7 @@ class ReportController extends Controller
                 'student' => $student,
                 'collections' => $studentCollections,
                 'total_bottles' => $studentCollections->sum('bottle_count'),
+                'total_points' => $studentCollections->sum('points_earned'),
             ];
         });
 
@@ -578,6 +579,7 @@ class ReportController extends Controller
                     ];
                 }),
                 'total_bottles' => $studentCollections->sum('bottle_count'),
+                'total_points' => $studentCollections->sum('points_earned'),
             ];
         })->values()->all();
 
@@ -654,12 +656,16 @@ class ReportController extends Controller
 
         $students = $query
             ->with('enrollments')
-            ->with('claims')
+            ->with(['claims' => function ($q) {
+                $q->orderByDesc('claim_date')->orderByDesc('id');
+            }])
             ->withCount('claims as total_claims')
             ->withSum('claims as total_points_used', 'points_deducted')
             ->withMax('claims as latest_claim_date', 'claim_date')
-            ->orderByDesc('total_claims')
-            ->paginate(15)
+            ->having('total_claims', '>', 0)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->paginate(10)
             ->withQueryString();
 
         return view('pages.admin-activities', compact('students'));
@@ -946,7 +952,7 @@ class ReportController extends Controller
         $studentsBase = Student::whereNotIn('status', ['Archived', 'archived']);
 
         if ($isTeacher) {
-            $studentsBase->whereHas('enrollments', function ($q) {
+            $studentsBase->whereHas('enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
@@ -1131,11 +1137,15 @@ class ReportController extends Controller
 
         $students = $query
             ->with('enrollments')
-            ->with('claims')
+            ->with(['claims' => function ($q) {
+                $q->orderByDesc('claim_date')->orderByDesc('id');
+            }])
             ->withCount('claims as total_claims')
             ->withSum('claims as total_points_used', 'points_deducted')
             ->withMax('claims as latest_claim_date', 'claim_date')
-            ->orderByDesc('total_claims')
+            ->having('total_claims', '>', 0)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
             ->get();
 
         return view('pages.reports.print.item-claims', [

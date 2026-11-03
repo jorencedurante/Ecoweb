@@ -9,7 +9,7 @@ class BottleCollection extends Model
 {
     protected $fillable = [
         'student_id', 'lrn', 'collection_date', 'collection_time',
-        'bottle_count', 'points_earned', 'created_by'
+        'bottle_count', 'points_earned', 'created_by', 'enrollment_id'
     ];
 
     protected $casts = [

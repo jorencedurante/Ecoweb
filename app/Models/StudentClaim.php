@@ -29,6 +29,7 @@ class StudentClaim extends Model
         'released_by',
         'is_reserved',
         'request_token',
+        'enrollment_id',
     ];
 
     protected $casts = [

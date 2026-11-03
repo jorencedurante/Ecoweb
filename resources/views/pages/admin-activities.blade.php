@@ -43,53 +43,83 @@
                 <a href="{{ route('reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
             <div class="table-responsive">
-            <table>
+            <table id="teacherClaimsTable">
                 <thead>
                     <tr>
-                        <th scope="col">Rank</th>
+                        <th scope="col" style="width:30px;"></th>
                         <th scope="col">Student Name</th>
                         <th scope="col">LRN</th>
                         <th scope="col">Grade Level</th>
-                        <th scope="col">Section</th>
                         <th scope="col">Total Item Claims</th>
-                        <th scope="col">Total Points Used</th>
-                        <th scope="col">Claimed Items</th>
-                        <th scope="col">Latest Claim Date</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($students as $i => $s)
                     @php
-                        $enr = $s->enrollments->first(function ($e) {
-                            return $e->teacher_id === auth()->id() && $e->status === 'active';
-                        });
-                        $claimedItems = $s->claims->groupBy('item_name')->map(function ($group) {
-                            return $group->first()->item_name . ' x' . $group->count();
-                        })->implode(', ');
+                        $claims = $s->claims->sortByDesc('claim_date')->sortByDesc('id')->values();
                     @endphp
-                    <tr>
-                        <td><strong>{{ $students->firstItem() + $i }}</strong></td>
-                        <td>{{ $s->full_name }}</td>
-                        <td>{{ $s->lrn }}</td>
-                        <td>{{ $s->grade_level }}</td>
-                        <td>{{ $enr->section ?? '—' }}</td>
-                        <td>{{ $s->total_claims ?? 0 }}</td>
-                        <td>{{ $s->total_points_used ? number_format($s->total_points_used) : '—' }}</td>
-                        <td>{{ $claimedItems ?: '—' }}</td>
-                        <td>{{ $s->latest_claim_date ? \Carbon\Carbon::parse($s->latest_claim_date)->format('M d, Y') : '—' }}</td>
+                    <tr class="claims-student-row" data-student-id="{{ $s->id }}" data-expanded="false">
+                        <td style="padding:10px 14px;text-align:center;">
+                            <span class="claims-toggle" data-student-id="{{ $s->id }}" style="display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;font-weight:700;color:#6b7280;cursor:pointer;user-select:none;background:#fff;">▶</span>
+                        </td>
+                        <td style="padding:10px 14px;font-weight:600;color:#111827;cursor:pointer;" class="claims-row-trigger" data-student-id="{{ $s->id }}">
+                            {{ $s->full_name }}
+                        </td>
+                        <td style="padding:10px 14px;">{{ $s->lrn }}</td>
+                        <td style="padding:10px 14px;">{{ $s->grade_level }}</td>
+                        <td style="padding:10px 14px;color:#7c3aed;font-weight:600;">{{ $s->total_claims ?? 0 }}</td>
+                    </tr>
+                    <tr class="claims-detail-row" data-student-id="{{ $s->id }}" style="display:none;background:#f8fafc;">
+                        <td colspan="5" style="padding:0;">
+                            <div style="padding:12px 14px;border-top:1px solid #e2e8f0;">
+                                @if($claims->isEmpty())
+                                    <span style="color:#9ca3af;font-size:12px;">No claim history.</span>
+                                @else
+                                    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
+                                        <thead>
+                                            <tr style="background:#f1f5f9;">
+                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Item Claimed</th>
+                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Quantity</th>
+                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Points Used</th>
+                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Date Claimed</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($claims as $c)
+                                            <tr>
+                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:500;color:#111827;">{{ $c->item_name }}</td>
+                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">{{ $c->quantity }}</td>
+                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#d97706;font-weight:600;">{{ number_format($c->points_deducted ?? 0) }}</td>
+                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#6b7280;font-size:11px;">{{ $c->claim_date ? \Carbon\Carbon::parse($c->claim_date)->format('M d, Y') : 'N/A' }}</td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                @endif
+                            </div>
+                        </td>
                     </tr>
                     @empty
-                    <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-light);">No item claims found for your assigned students.</td></tr>
+                    <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-light);">No item claims found for your assigned students.</td></tr>
                     @endforelse
                 </tbody>
             </table>
             </div>
-            <div class="pagination">
-                <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
-                <div class="page-btns">
-                    @for ($p = 1; $p <= $students->lastPage(); $p++)
-                        <a href="{{ $students->url($p) }}" class="page-btn {{ $students->currentPage() == $p ? 'active' : '' }}">{{ $p }}</a>
+
+            <div id="teacherClaimsPagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
+                <span class="page-info" style="font-size:13px;color:#6b7280;">
+                    Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} students
+                </span>
+                <div class="page-btns" style="display:flex;gap:4px;">
+                    @if ($students->currentPage() > 1)
+                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() - 1 }}">Prev</a>
+                    @endif
+                    @for ($p = max(1, $students->currentPage() - 2); $p <= min($students->lastPage(), $students->currentPage() + 2); $p++)
+                        <a href="#" class="page-btn {{ $students->currentPage() == $p ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $students->currentPage() == $p ? '#059669' : '#374151' }};background:{{ $students->currentPage() == $p ? '#d1fae5' : '#fff' }};text-decoration:none;" data-page="{{ $p }}">{{ $p }}</a>
                     @endfor
+                    @if ($students->hasMorePages())
+                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() + 1 }}">Next</a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -786,6 +816,100 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && studentClaimsModal && studentClaimsModal.style.display === 'flex') {
         closeClaimsModal();
     }
+});
+
+// --- Teacher Item Claims: Expandable Rows ---
+document.addEventListener('click', (e) => {
+    const toggle = e.target.closest('.claims-toggle, .claims-row-trigger');
+    if (!toggle) return;
+    const studentId = toggle.getAttribute('data-student-id');
+    if (!studentId) return;
+    e.preventDefault();
+
+    const detailRow = document.querySelector('.claims-detail-row[data-student-id="' + studentId + '"]');
+    const icon = document.querySelector('.claims-toggle[data-student-id="' + studentId + '"]');
+    const row = document.querySelector('.claims-student-row[data-student-id="' + studentId + '"]');
+    const expanded = row.getAttribute('data-expanded') === 'true';
+
+    if (expanded) {
+        detailRow.style.display = 'none';
+        row.setAttribute('data-expanded', 'false');
+        icon.textContent = '▶';
+        icon.style.background = '#fff';
+        icon.style.color = '#6b7280';
+    } else {
+        detailRow.style.display = 'table-row';
+        row.setAttribute('data-expanded', 'true');
+        icon.textContent = '▼';
+        icon.style.background = '#d1fae5';
+        icon.style.color = '#059669';
+    }
+});
+
+// --- Teacher Item Claims: AJAX Search ---
+const teacherClaimsFilterForm = document.querySelector('.filter-card .filter-form');
+const teacherClaimsTable = document.getElementById('teacherClaimsTable');
+const teacherClaimsPagination = document.getElementById('teacherClaimsPagination');
+
+if (teacherClaimsFilterForm && teacherClaimsTable) {
+    let teacherClaimsDebounce = null;
+    const searchInput = teacherClaimsFilterForm.querySelector('input[name="search"]');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            clearTimeout(teacherClaimsDebounce);
+            teacherClaimsDebounce = setTimeout(() => {
+                fetchTeacherClaimsPage(1);
+            }, 300);
+        });
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') e.preventDefault();
+        });
+    }
+
+    teacherClaimsFilterForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        fetchTeacherClaimsPage(1);
+    });
+}
+
+function fetchTeacherClaimsPage(page) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', page);
+    const url = window.location.pathname + '?' + params.toString();
+
+    fetch(url, {
+        headers: {
+            'Accept': 'text/html',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then((response) => {
+        if (!response.ok) throw new Error('Fetch failed');
+        return response.text();
+    })
+    .then((html) => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTable = doc.getElementById('teacherClaimsTable');
+        const newPagination = doc.getElementById('teacherClaimsPagination');
+        if (newTable) teacherClaimsTable.innerHTML = newTable.innerHTML;
+        if (newPagination) teacherClaimsPagination.innerHTML = newPagination.innerHTML;
+        window.history.pushState(null, '', url);
+    })
+    .catch((err) => {
+        console.error('Teacher claims fetch error:', err);
+    });
+}
+
+// --- Teacher Item Claims: AJAX Pagination ---
+document.addEventListener('click', (e) => {
+    const pageLink = e.target.closest('#teacherClaimsPagination a.page-btn[data-page]');
+    if (!pageLink) return;
+    e.preventDefault();
+    const page = pageLink.getAttribute('data-page');
+    fetchTeacherClaimsPage(page);
 });
 </script>
 @endpush

@@ -121,6 +121,7 @@
                 'students' => $students,
                 'appliedFilters' => $appliedFilters,
                 'actionsColClass' => $actionsColClass,
+                'nullSchoolYearCount' => $nullSchoolYearCount,
             ])
         </div>
 
@@ -620,7 +621,81 @@
             </form>
         </div>
     </div>
-    @endif
+
+    <!-- Archive All Students Confirmation Modal -->
+    <div class="modal-overlay" id="archiveAllStudentModal" inert>
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+                <h3>Archive All My Students?</h3>
+                <p class="subtitle">Archive your assigned students for the selected completed school year.</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="archiveAllSchoolYear">School Year <span style="color:var(--red);">*</span></label>
+                    <select id="archiveAllSchoolYear" name="school_year" required aria-label="Select school year">
+                        <option value="">Select a school year</option>
+                        @foreach($archiveSchoolYears ?? [] as $year)
+                            <option value="{{ $year }}">{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group archive-all-summary">
+                    <div class="archive-all-summary-row">
+                        <span class="label">Students to archive</span>
+                        <span class="value" id="archiveAllStudentCount">0</span>
+                    </div>
+                    <div class="archive-all-summary-row">
+                        <span class="label">Total bottles collected</span>
+                        <span class="value" id="archiveAllTotalBottles">0</span>
+                    </div>
+                    <p class="note">Historical records, points, achievements, and claims will be preserved.</p>
+                </div>
+                <div id="archiveAllZeroMessage">No eligible students found for this school year.</div>
+                <div class="archive-warning" style="background:#fff3cd;border:1px solid#ffc107;color:#856404;padding:12px;border-radius:6px;margin:12px 0;font-size:13px;">
+                    <strong>Warning:</strong> Only proceed when your school's academic year has officially ended.
+                </div>
+                <div class="form-group">
+                    <label class="confirm-checkbox" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+                        <input type="checkbox" id="archiveAllConfirm" aria-label="I understand that this will archive all my students for the selected school year." style="width:18px;height:18px;margin:0;">
+                        <span>I understand that this will archive all my students for the selected school year.</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" data-modal-close>Cancel</button>
+                <button type="button" class="btn btn-confirm" id="archiveAllConfirmBtn" disabled aria-label="Confirm Archive All">Confirm Archive All</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+    <!-- Fix School Years Modal -->
+    <div class="modal-overlay" id="fixSchoolYearsModal" inert>
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+                <h3>Assign School Year</h3>
+                <p class="subtitle">Assign a school year to {{ $nullSchoolYearCount }} student(s) without one.</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="fixSchoolYear">School Year <span style="color:var(--red);">*</span></label>
+                    <input type="text" id="fixSchoolYear" name="school_year" placeholder="2026-2027" value="{{ old('school_year') }}" required aria-label="School year" maxlength="20" pattern="\d{4}-\d{4}">
+                    <small class="form-hint">Format: YYYY-YYYY (e.g. 2026-2027)</small>
+                </div>
+                <div id="fixSchoolYearsZeroMessage" style="color:var(--red);font-size:13px;margin-top:8px;display:none;">No eligible students found.</div>
+                <div class="form-group">
+                    <label class="confirm-checkbox" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+                        <input type="checkbox" id="fixSchoolYearsConfirm" aria-label="I confirm assigning this school year to the students above." style="width:18px;height:18px;margin:0;">
+                        <span>I confirm assigning this school year to these {{ $nullSchoolYearCount }} student(s).</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" data-modal-close>Cancel</button>
+                <button type="button" class="btn btn-confirm" id="fixSchoolYearsConfirmBtn" disabled aria-label="Confirm school year assignment">Confirm</button>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
@@ -902,10 +977,27 @@ function initStudentToolbar() {
 
     tableContainer.addEventListener('click', (e) => {
         const pageLink = e.target.closest('a.page-btn[data-page]');
-        if (!pageLink) return;
-        e.preventDefault();
-        const page = pageLink.getAttribute('data-page');
-        fetchStudentsTable(page);
+        if (pageLink) {
+            e.preventDefault();
+            const page = pageLink.getAttribute('data-page');
+            fetchStudentsTable(page);
+            return;
+        }
+
+        const modalBtn = e.target.closest('[data-modal-target]');
+        if (modalBtn) {
+            const target = modalBtn.getAttribute('data-modal-target');
+            const modal = document.getElementById(target);
+            if (modal) {
+                if (target === 'editStudentModal') {
+                    populateEditStudentForm(modalBtn);
+                }
+                modal.classList.add('show');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.removeAttribute('inert');
+                document.body.classList.add('modal-open');
+            }
+        }
     });
 }
 
@@ -1467,6 +1559,255 @@ function initStudentOverview() {
     document.querySelectorAll('[data-modal-target="importStudentModal"]').forEach(btn => {
         btn.addEventListener('click', () => {
             importBtn.disabled = true;
+        });
+    });
+})();
+
+// ---- Archive All Students Modal ----
+(function initArchiveAllModal() {
+    const modal = document.getElementById('archiveAllStudentModal');
+    const select = document.getElementById('archiveAllSchoolYear');
+    const countEl = document.getElementById('archiveAllStudentCount');
+    const bottlesEl = document.getElementById('archiveAllTotalBottles');
+    const zeroMsg = document.getElementById('archiveAllZeroMessage');
+    const checkbox = document.getElementById('archiveAllConfirm');
+    const confirmBtn = document.getElementById('archiveAllConfirmBtn');
+    const cancelBtn = modal.querySelector('[data-modal-close]');
+    let lastOpenedTrigger = null;
+
+    if (!modal || !select || !confirmBtn) return;
+
+    function resetState() {
+        select.value = '';
+        countEl.textContent = '0';
+        bottlesEl.textContent = '0';
+        zeroMsg.style.display = 'none';
+        checkbox.checked = false;
+        confirmBtn.disabled = true;
+    }
+
+    function updateConfirmButton() {
+        const hasYear = select.value !== '';
+        confirmBtn.disabled = !(hasYear && checkbox.checked);
+    }
+
+    function fetchCounts(year) {
+        const url = '{{ route('admin.students.archive-all') }}';
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `school_year=${encodeURIComponent(year)}&preview=true`,
+            credentials: 'same-origin'
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.success) {
+                countEl.textContent = data.student_count ?? 0;
+                bottlesEl.textContent = data.total_bottles ?? 0;
+                zeroMsg.style.display = (data.student_count == 0) ? 'block' : 'none';
+                updateConfirmButton();
+            } else {
+                countEl.textContent = '0';
+                bottlesEl.textContent = '0';
+                zeroMsg.style.display = 'block';
+                confirmBtn.disabled = true;
+            }
+        })
+        .catch(() => {
+            countEl.textContent = '0';
+            bottlesEl.textContent = '0';
+            zeroMsg.style.display = 'block';
+            confirmBtn.disabled = true;
+        });
+    }
+
+    select.addEventListener('change', function () {
+        if (this.value) {
+            fetchCounts(this.value);
+        } else {
+            resetState();
+        }
+    });
+
+    checkbox.addEventListener('change', updateConfirmButton);
+
+    // Open modal + reset state
+    document.querySelectorAll('[data-modal-target="archiveAllStudentModal"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            lastOpenedTrigger = btn;
+            resetState();
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            modal.removeAttribute('inert');
+            select.focus();
+            document.body.classList.add('modal-open');
+        });
+    });
+
+    // Close modal
+    function closeModal() {
+        const active = document.activeElement;
+        if (active && modal.contains(active)) {
+            active.blur();
+        }
+        if (lastOpenedTrigger) {
+            lastOpenedTrigger.focus();
+            lastOpenedTrigger = null;
+        }
+        modal.setAttribute('inert', '');
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        resetState();
+    }
+
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
+
+    // Confirm archive
+    confirmBtn.addEventListener('click', function () {
+        const year = select.value;
+        if (!year || !checkbox.checked) return;
+
+        confirmBtn.disabled = true;
+
+        const url = '{{ route('admin.students.archive-all') }}';
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `school_year=${encodeURIComponent(year)}&confirm=1`,
+            credentials: 'same-origin'
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.success) {
+                closeModal();
+                window.location.reload();
+            } else {
+                confirmBtn.disabled = !(year && checkbox.checked);
+                alert(data.message || 'Archive failed.');
+            }
+        })
+        .catch(() => {
+            confirmBtn.disabled = !(year && checkbox.checked);
+            alert('Archive failed. Please try again.');
+        });
+    });
+})();
+
+// ---- Fix School Years Modal ----
+(function initFixSchoolYearsModal() {
+    const modal = document.getElementById('fixSchoolYearsModal');
+    const input = document.getElementById('fixSchoolYear');
+    const checkbox = document.getElementById('fixSchoolYearsConfirm');
+    const confirmBtn = document.getElementById('fixSchoolYearsConfirmBtn');
+    const cancelBtn = modal.querySelector('[data-modal-close]');
+    const zeroMsg = document.getElementById('fixSchoolYearsZeroMessage');
+    let lastOpenedTrigger = null;
+
+    if (!modal || !input || !confirmBtn) return;
+
+    function resetState() {
+        input.value = '';
+        checkbox.checked = false;
+        confirmBtn.disabled = true;
+        zeroMsg.style.display = 'none';
+    }
+
+    function updateConfirmButton() {
+        const year = input.value.trim();
+        const yearValid = /^\d{4}-\d{4}$/.test(year);
+        confirmBtn.disabled = !(yearValid && checkbox.checked);
+    }
+
+    input.addEventListener('input', updateConfirmButton);
+    checkbox.addEventListener('change', updateConfirmButton);
+
+    document.querySelectorAll('[data-modal-target="fixSchoolYearsModal"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            lastOpenedTrigger = btn;
+            resetState();
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            modal.removeAttribute('inert');
+            document.body.classList.add('modal-open');
+        });
+    });
+
+    function closeModal() {
+        if (lastOpenedTrigger) {
+            lastOpenedTrigger.focus();
+            lastOpenedTrigger = null;
+        }
+        modal.setAttribute('inert', '');
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        resetState();
+    }
+
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
+
+    confirmBtn.addEventListener('click', function () {
+        const year = input.value.trim();
+        if (!/^\d{4}-\d{4}$/.test(year) || !checkbox.checked) return;
+
+        confirmBtn.disabled = true;
+
+        const url = '{{ route('admin.students.fix-school-years') }}';
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `school_year=${encodeURIComponent(year)}&confirm=1`,
+            credentials: 'same-origin'
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.success) {
+                closeModal();
+                window.location.reload();
+            } else {
+                confirmBtn.disabled = false;
+                alert(data.message || 'Failed to assign school year.');
+            }
+        })
+        .catch(() => {
+            confirmBtn.disabled = false;
+            alert('Failed to assign school year. Please try again.');
         });
     });
 })();
