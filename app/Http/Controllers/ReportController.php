@@ -36,9 +36,13 @@ class ReportController extends Controller
             });
             $bottlesBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
             $awardsBase->whereHas('student.enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
@@ -365,6 +369,8 @@ class ReportController extends Controller
         if (Auth::user()->isTeacher()) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
@@ -439,6 +445,8 @@ class ReportController extends Controller
         if (Auth::user()->isTeacher()) {
             $summaryQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
@@ -462,6 +470,8 @@ class ReportController extends Controller
         if (Auth::user()->isTeacher()) {
             $trendQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
         if ($dateFrom) {
@@ -505,6 +515,8 @@ class ReportController extends Controller
         if (Auth::user()->isTeacher()) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
@@ -589,6 +601,8 @@ class ReportController extends Controller
         if (Auth::user()->isTeacher()) {
             $trendQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
         if ($dateFrom) {
@@ -1069,6 +1083,8 @@ class ReportController extends Controller
         if ($isTeacher) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
