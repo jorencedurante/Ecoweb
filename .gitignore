@@ -9,3 +9,28 @@
 .env
 .env.*
 !.env.example
+
+# Dependency directories
+vendor/
+node_modules/
+
+# Laravel storage and public symlink
+public/storage/
+
+# Test caches
+.phpunit.result.cache
+
+# Private storage (may contain sensitive uploads/data)
+storage/app/private/
+
+# Log files
+storage/logs/*.log
+
+# IDE and OS files
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# Temporary debug files
+tmp_*.php
