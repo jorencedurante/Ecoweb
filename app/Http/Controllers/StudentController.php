@@ -256,7 +256,8 @@ class StudentController extends Controller
 
     public function archived(Request $request)
     {
-        $query = Student::query()->whereIn('status', ['Archived', 'archived']);
+        $query = Student::query()->whereIn('status', ['Archived', 'archived'])
+            ->where('archive_type', 'individual');
         $query->visibleTo(Auth::user());
 
         if ($search = $request->get('search')) {
@@ -451,7 +452,7 @@ class StudentController extends Controller
         $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
-        $student->update(['status' => 'Archived']);
+        $student->update(['status' => 'Archived', 'archive_type' => 'individual']);
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -519,8 +520,14 @@ class StudentController extends Controller
         }
 
         DB::transaction(function () use ($students, $request) {
+            $batchId = 'arch_' . $request->school_year . '_' . uniqid();
             foreach ($students as $student) {
-                $student->update(['status' => 'Archived']);
+                $student->update([
+                    'status' => 'Archived',
+                    'archive_type' => 'school_year',
+                    'archive_school_year' => $request->school_year,
+                    'archive_batch_id' => $batchId,
+                ]);
 
                 AdminActivity::create([
                     'user_id' => Auth::id(),
@@ -589,7 +596,8 @@ class StudentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Student::query()->whereIn('status', ['Archived', 'archived']);
+        $query = Student::query()->whereIn('status', ['Archived', 'archived'])
+            ->where('archive_type', 'school_year');
         $query->visibleTo($user);
 
         if ($search = $request->get('search')) {
@@ -597,18 +605,71 @@ class StudentController extends Controller
                 $q->where('lrn', 'like', "%{$search}%")
                   ->orWhere('full_name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('archive_school_year', 'like', "%{$search}%");
             });
         }
 
-        $students = $query->with(['enrollments' => function ($q) {
-            $q->orderByDesc('id');
-        }])->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->get();
+        $schoolYearFilter = $request->get('school_year');
+        $page = (int) $request->get('page', 1);
+
+        if ($schoolYearFilter) {
+            $query->where('archive_school_year', $schoolYearFilter);
+            $students = $query->with(['enrollments.teacher'])->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10, ['*'], 'page', $page);
+
+            $groups = [];
+            $syKey = $schoolYearFilter;
+            $groups[$syKey] = [
+                'school_year' => $syKey,
+                'students' => [],
+                'total_bottles' => 0,
+                'total' => $students->total(),
+                'current_page' => $students->currentPage(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'from' => $students->firstItem(),
+                'to' => $students->lastItem(),
+            ];
+
+            foreach ($students as $student) {
+                $totalBottles = (int) $student->bottleCollections()->sum('bottle_count');
+                $enrollment = $student->enrollments->first(function ($e) use ($schoolYearFilter) {
+                    return $e->school_year === $schoolYearFilter;
+                }) ?? $student->enrollments->first();
+                $groups[$syKey]['students'][] = [
+                    'id' => $student->id,
+                    'lrn' => $student->lrn,
+                    'full_name' => $student->full_name,
+                    'grade_level' => $student->grade_level,
+                    'total_points' => (int) ($student->total_points ?? 0),
+                    'total_bottles' => $totalBottles,
+                    'status' => $student->status,
+                    'archive_school_year' => $student->archive_school_year,
+                    'teacher_name' => $enrollment?->teacher?->name ?? '—',
+                ];
+                $groups[$syKey]['total_bottles'] += $totalBottles;
+            }
+
+            return response()->json([
+                'success' => true,
+                'groups' => array_values($groups),
+                'pagination' => [
+                    'school_year' => $syKey,
+                    'current_page' => $students->currentPage(),
+                    'last_page' => $students->lastPage(),
+                    'per_page' => $students->perPage(),
+                    'from' => $students->firstItem(),
+                    'to' => $students->lastItem(),
+                    'total' => $students->total(),
+                ],
+            ]);
+        }
+
+        $students = $query->with(['enrollments.teacher'])->orderBy('archive_school_year')->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->get();
 
         $groups = [];
         foreach ($students as $student) {
-            $enrollment = $student->enrollments->first();
-            $schoolYear = $enrollment?->school_year ?? 'Unknown';
+            $schoolYear = $student->archive_school_year ?? 'Unknown';
             if (!isset($groups[$schoolYear])) {
                 $groups[$schoolYear] = [
                     'school_year' => $schoolYear,
@@ -617,6 +678,9 @@ class StudentController extends Controller
                 ];
             }
             $totalBottles = (int) $student->bottleCollections()->sum('bottle_count');
+            $enrollment = $student->enrollments->first(function ($e) use ($schoolYear) {
+                return $e->school_year === $schoolYear;
+            }) ?? $student->enrollments->first();
             $groups[$schoolYear]['students'][] = [
                 'id' => $student->id,
                 'lrn' => $student->lrn,
@@ -625,6 +689,8 @@ class StudentController extends Controller
                 'total_points' => (int) ($student->total_points ?? 0),
                 'total_bottles' => $totalBottles,
                 'status' => $student->status,
+                'archive_school_year' => $student->archive_school_year,
+                'teacher_name' => $enrollment?->teacher?->name ?? '—',
             ];
             $groups[$schoolYear]['total_bottles'] += $totalBottles;
         }
@@ -745,7 +811,7 @@ class StudentController extends Controller
 
         DB::transaction(function () use ($student, $request, $newTeacherId, $previousEnrollment) {
             // Reactivate the student
-            $student->update(['status' => 'Active']);
+            $student->update(['status' => 'Active', 'archive_type' => null, 'archive_school_year' => null]);
 
             // Create a new enrollment for the new school year (bottle totals start at zero)
             StudentEnrollment::create([
@@ -777,7 +843,7 @@ class StudentController extends Controller
         $this->ensureCanManageStudents();
         $this->authorizeStudentAccess($student);
 
-        $student->update(['status' => 'Active']);
+        $student->update(['status' => 'Active', 'archive_type' => null, 'archive_school_year' => null]);
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -787,6 +853,149 @@ class StudentController extends Controller
         ]);
 
         return redirect()->route('admin.students.archived')->with('success', 'Student restored successfully!');
+    }
+
+    public function unarchive(Request $request, Student $student)
+    {
+        $this->ensureCanManageStudents();
+
+        $user = Auth::user();
+
+        // Teacher authorization: must have an enrollment (any status) with this teacher
+        if ($user->isTeacher()) {
+            $hasAccess = $student->enrollments()
+                ->where('teacher_id', $user->id)
+                ->exists();
+
+            if (!$hasAccess) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this student record.'
+                ], 403);
+            }
+        }
+
+        $archiveSchoolYear = $student->archive_school_year;
+
+        // Check for conflicting active enrollment in a newer school year
+        if ($archiveSchoolYear) {
+            $newerActiveEnrollment = $student->enrollments()
+                ->where('status', 'active')
+                ->where('school_year', '>', $archiveSchoolYear)
+                ->first();
+
+            if ($newerActiveEnrollment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Cannot unarchive: {$student->full_name} already has an active enrollment for school year {$newerActiveEnrollment->school_year}."
+                ], 422);
+            }
+        }
+
+        $student->update([
+            'status' => 'Active',
+            'archive_type' => null,
+            'archive_school_year' => null,
+        ]);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Unarchived Student',
+            "description" => "Unarchived {$student->full_name} for school year {$archiveSchoolYear}.",
+            'module' => 'Students',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$student->full_name} has been unarchived and restored to active students.",
+            'student_id' => $student->id,
+        ]);
+    }
+
+    public function unarchiveAll(Request $request)
+    {
+        $this->ensureCanManageStudents();
+
+        $user = Auth::user();
+
+        $request->validate([
+            'school_year' => 'required|string|max:20',
+        ]);
+
+        $schoolYear = $request->school_year;
+
+        // Find all students archived via Archive All for this school year and teacher.
+        // archive_batch_id is server-generated and not required from the client;
+        // school_year + archive_type + teacher ownership is sufficient for identification.
+        $query = Student::query()
+            ->whereIn('status', ['Archived', 'archived'])
+            ->where('archive_type', 'school_year')
+            ->where('archive_school_year', $schoolYear)
+            ->visibleTo($user);
+
+        $students = $query->get();
+
+        if ($students->count() === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "No archived students found for school year '{$schoolYear}'.",
+            ], 422);
+        }
+
+        // Check for conflicting active enrollments in newer school years
+        $conflicts = [];
+        foreach ($students as $student) {
+            $newerActive = $student->enrollments()
+                ->where('status', 'active')
+                ->where('school_year', '>', $schoolYear)
+                ->first();
+
+            if ($newerActive) {
+                $conflicts[] = [
+                    'student_id' => $student->id,
+                    'name' => $student->full_name,
+                    'lrn' => $student->lrn,
+                    'newer_school_year' => $newerActive->school_year,
+                ];
+            }
+        }
+
+        if (count($conflicts) > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot unarchive: some students already have active enrollments in newer school years.',
+                'conflicts' => $conflicts,
+                'conflict_count' => count($conflicts),
+            ], 422);
+        }
+
+        $restoredCount = 0;
+        DB::transaction(function () use ($students, $schoolYear, &$restoredCount) {
+            foreach ($students as $student) {
+                $student->update([
+                    'status' => 'Active',
+                    'archive_type' => null,
+                    'archive_school_year' => null,
+                    'archive_batch_id' => null,
+                ]);
+
+                AdminActivity::create([
+                    'user_id' => Auth::id(),
+                    'action' => 'Unarchived Student (Bulk)',
+                    "description" => "Unarchived {$student->full_name} from school year {$schoolYear} via bulk restore.",
+                    'module' => 'Students',
+                ]);
+
+                $restoredCount++;
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => "Restored {$restoredCount} student(s) from school year {$schoolYear} to active students.",
+            'restored_count' => $restoredCount,
+            'school_year' => $schoolYear,
+        ]);
     }
 
     public function info(Student $student)

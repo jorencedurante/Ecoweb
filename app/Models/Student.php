@@ -16,6 +16,7 @@ class Student extends Model
         'father_name', 'mother_maiden_name', 'guardian_name', 'guardian_relationship',
         'contact_number', 'learning_modality', 'remarks',
         'grade_level', 'qr_code', 'total_points', 'status', 'teacher_id',
+        'archive_type', 'archive_school_year', 'archive_batch_id',
     ];
 
     protected $appends = ['full_name'];

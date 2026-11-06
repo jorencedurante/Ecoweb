@@ -102,6 +102,8 @@ Route::middleware(['auth', 'account.active'])->group(function () {
         Route::patch('/students/{student}/re-enroll', [StudentController::class, 'reEnroll'])->name('students.re-enroll');
         Route::get('/students/{student}/historical', [StudentController::class, 'historical'])->name('students.historical');
         Route::patch('/students/{student}/restore', [StudentController::class, 'restore'])->name('students.restore');
+Route::patch('/students/{student}/unarchive', [StudentController::class, 'unarchive'])->name('students.unarchive');
+Route::patch('/students/unarchive-all', [StudentController::class, 'unarchiveAll'])->name('students.unarchive-all');
         Route::get('/students/{student}/info', [StudentController::class, 'info'])->name('students.info');
         Route::get('/students/{student}/achievements', [StudentController::class, 'achievements'])->name('students.achievements');
         Route::patch('/students/{student}/achievements/progress', [StudentController::class, 'updateAchievementProgress'])->name('students.achievements.progress.update');
