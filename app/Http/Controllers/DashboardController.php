@@ -25,12 +25,18 @@ class DashboardController extends Controller
             });
             $bottlesQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
             $awardsQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
             $claimsQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 
@@ -55,6 +61,8 @@ class DashboardController extends Controller
         if (Auth::user()->isTeacher()) {
             $weeklyBaseQuery->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
         $weeklyData = $weeklyBaseQuery
