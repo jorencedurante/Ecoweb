@@ -20,6 +20,7 @@
                 <div class="stat-label">Total Bottles Collected</div>
             </div>
         </div>
+        @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
         <div class="stat-card">
             <div class="stat-icon yellow">👨‍🏫</div>
             <div class="stat-info">
@@ -27,11 +28,22 @@
                 <div class="stat-label">Total Teachers</div>
             </div>
         </div>
+        @endif
+
+        @if(Auth::user()->isSuperAdmin())
+        <div class="stat-card">
+            <div class="stat-icon blue">🛡️</div>
+            <div class="stat-info">
+                <div class="stat-value">{{ $totalAdmins }}</div>
+                <div class="stat-label">Total Admins</div>
+            </div>
+        </div>
+        @endif
         <div class="stat-card">
             <div class="stat-icon purple">🏆</div>
             <div class="stat-info">
                 <div class="stat-value">{{ $totalAwards }}</div>
-                <div class="stat-label">Certificates / Awards</div>
+                <div class="stat-label">Certificates</div>
             </div>
         </div>
         <div class="stat-card">
@@ -68,7 +80,7 @@
             <div class="donut-placeholder" style="background: conic-gradient(var(--green) 0% {{ $malePct }}%, #E0E0E0 {{ $malePct }}% 100%);">
                 <div class="donut-inner">
                     <span>{{ $malePct }}%</span>
-                    <span style="font-size:10px;color:#999;">Male</span>
+                    <span style="font-size:10px;color:#6b7280;">Male</span>
                 </div>
             </div>
             <div class="donut-legend">

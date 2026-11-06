@@ -6,7 +6,10 @@
     <title>EcoCollect - Smart Waste Management for Schools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body class="public-landing-page">
 
@@ -15,12 +18,12 @@
 <nav class="public-nav">
     <div class="public-nav-inner">
         <a href="{{ route('landing') }}" class="public-nav-brand">
-            <span class="public-nav-logo">EC</span>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="public-nav-logo-img">
             <span style="font-size:18px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span>
         </a>
         <ul class="public-nav-links">
-            <li><a href="{{ route('landing') }}">Home</a></li>
-            <li><a href="{{ route('student.lookup') }}">Student Record</a></li>
+            <li><a href="{{ route('landing') }}" class="{{ request()->is('/') ? 'active' : '' }}">Home</a></li>
+            <li><a href="{{ route('public.items') }}" class="{{ request()->is('items') ? 'active' : '' }}">Items</a></li>
             <li><a href="#top-students">Leaderboard</a></li>
         </ul>
     </div>
@@ -29,9 +32,7 @@
 <section class="hero-section">
     <div class="hero-inner">
         <div class="hero-left">
-            <div class="hero-logo-circle">
-                <span style="font-size:32px;font-weight:800;">EC</span>
-            </div>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="hero-ecocollect-logo">
             <div class="hero-brand-text">
                 <span style="color:#22C55E;font-size:28px;font-weight:800;letter-spacing:2px;">ECO</span><span style="color:#fff;font-size:28px;font-weight:700;letter-spacing:2px;">COLLECT</span>
             </div>
@@ -73,7 +74,7 @@
             </div>
             <div class="search-card-right">
                 <form method="GET" action="{{ route('student.lookup') }}" class="student-search-form">
-                    <input type="text" name="lrn" placeholder="Enter your LRN" value="{{ request('lrn') }}" required>
+                    <input type="text" name="lrn" placeholder="Enter your LRN" value="{{ request('lrn') }}" required aria-label="Enter your LRN">
                     <button type="submit">🔍 Search</button>
                 </form>
             </div>
@@ -96,7 +97,7 @@
                 <div class="preview-stats">
                     <div class="preview-stat"><div class="ps-value">{{ number_format($student->bottleCollections->sum('points_earned')) }}</div><div class="ps-label">Total Points</div></div>
                     <div class="ps-divider"></div>
-                    <div class="preview-stat"><div class="ps-value">{{ $student->bottleCollections->sum('bottle_count') }}</div><div class="ps-label">Bottle Collections</div></div>
+                    <div class="preview-stat"><div class="ps-value">{{ number_format($student->bottleCollections->count()) }}</div><div class="ps-label">Bottle Collections</div></div>
                     <div class="ps-divider"></div>
                     <div class="preview-stat"><div class="ps-value">{{ $student->earnedAchievements->count() }}</div><div class="ps-label">Achievements</div></div>
                     <div class="ps-divider"></div>
@@ -106,13 +107,13 @@
         </section>
     @elseif(session('error'))
         <section class="preview-section">
-            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;">
+            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;" role="alert">
                 <p style="font-size:15px;font-weight:500;">{{ session('error') }}</p>
             </div>
         </section>
     @elseif($errors->any())
         <section class="preview-section">
-            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;">
+            <div class="preview-card" style="text-align:center;padding:30px;color:#EF4444;" role="alert">
                 <p style="font-size:15px;font-weight:500;">{{ $errors->first('lrn') }}</p>
             </div>
         </section>
@@ -124,6 +125,18 @@
         </section>
     @endif
 
+    @if(session('success'))
+        <section class="preview-section">
+            <div class="public-alert success" role="status">{{ session('success') }}</div>
+        </section>
+    @endif
+
+    @if($errors->any())
+        <section class="preview-section">
+            <div class="public-alert error" role="alert">{{ $errors->first() }}</div>
+        </section>
+    @endif
+
     <section class="top-students-section" id="top-students">
         <div class="ts-header">
             <div class="ts-trophy">🏆</div>
@@ -132,8 +145,9 @@
         <div class="ts-grid">
             <div class="ts-card">
                 <div class="ts-card-title">📅 Current Quarter</div>
+                <div class="table-responsive">
                 <table class="ts-table">
-                    <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
+                    <thead><tr><th scope="col">Rank</th><th scope="col">Student Name</th><th scope="col">Points</th><th scope="col">Bottle Collections</th></tr></thead>
                     <tbody>
                         @forelse($currentQuarterTopStudents as $index => $student)
                             <tr>
@@ -147,11 +161,13 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
             <div class="ts-card">
                 <div class="ts-card-title">📅 Previous Quarter</div>
+                <div class="table-responsive">
                 <table class="ts-table">
-                    <thead><tr><th>Rank</th><th>Student Name</th><th>Points</th><th>Bottle Collections</th></tr></thead>
+                    <thead><tr><th scope="col">Rank</th><th scope="col">Student Name</th><th scope="col">Points</th><th scope="col">Bottle Collections</th></tr></thead>
                     <tbody>
                         @forelse($previousQuarterTopStudents as $index => $student)
                             <tr>
@@ -165,6 +181,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </section>
@@ -196,22 +213,15 @@
 </div>
 
 <footer class="public-footer">
-    <div class="footer-inner">
-        <div class="footer-left">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#22C55E,#00AEEF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">EC</span>
-                <div><span style="font-size:16px;font-weight:700;letter-spacing:1px;"><span style="color:#22C55E;">ECO</span><span style="color:#fff;">COLLECT</span></span><br><span style="font-size:11px;color:rgba(255,255,255,0.5);">Smart Waste Management for a Cleaner Tomorrow</span></div>
+    <div class="footer-container">
+        <div class="footer-brand">
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="footer-logo-img">
+            <div>
+                <h3><span>ECO</span>COLLECT</h3>
+                <p>Smart Waste Management for a Cleaner Tomorrow</p>
             </div>
         </div>
-        <div class="footer-center">
-            &copy; {{ date('Y') }} EcoCollect. All rights reserved.
-        </div>
-        <div class="footer-right">
-            <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.8);margin-bottom:8px;">Quick Links</div>
-            <a href="{{ route('landing') }}">Home</a>
-            <a href="{{ route('student.lookup') }}">Student Record</a>
-            <a href="#top-students">Leaderboard</a>
-        </div>
+        <p class="footer-copy">&copy; {{ date('Y') }} EcoCollect. All rights reserved.</p>
     </div>
 </footer>
 

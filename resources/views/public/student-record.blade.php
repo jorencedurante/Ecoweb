@@ -6,7 +6,7 @@
     <title>{{ $student->full_name }} - EcoCollect Record</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
     <style>
         .record-nav {
             background: var(--sidebar-bg);
@@ -149,11 +149,14 @@
             .record-card .rc-body { padding: 16px; }
         }
     </style>
+    <link rel="icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('image/Page-logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('image/Page-logo.jpg') }}">
 </head>
 <body>
     <nav class="record-nav">
         <a href="{{ route('landing') }}" class="nav-brand">
-            <span class="nav-logo">EC</span>
+            <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" style="height:32px;width:auto;object-fit:contain;">
             ECOCOLLECT
         </a>
         <ul class="nav-links">
@@ -173,7 +176,7 @@
             <div class="rc-body">
                 <div class="summary-row">
                     <div class="summary-item">
-                        <div class="si-value">{{ $student->bottleCollections->sum('bottle_count') }}</div>
+                        <div class="si-value">{{ $student->bottleCollections->count() }}</div>
                         <div class="si-label">Total Bottles</div>
                     </div>
                     <div class="summary-item">
@@ -200,7 +203,7 @@
                 @if($bottleCollections->count() > 0)
                     <table class="detail-table">
                         <thead>
-                            <tr><th>Date</th><th>Time</th><th>Bottle Count</th><th>Points Earned</th></tr>
+                            <tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Bottle Count</th><th scope="col">Points Earned</th></tr>
                         </thead>
                         <tbody>
                             @foreach($bottleCollections as $c)

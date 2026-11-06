@@ -14,6 +14,7 @@ class StudentAchievement extends Model
         'achievement_quest_id',
         'awarded_date',
         'awarded_by',
+        'enrollment_id',
     ];
 
     protected $casts = [

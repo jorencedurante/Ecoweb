@@ -11,6 +11,7 @@ const mockStudents = [
     { id: 'STU004', lrn: '123456789015', firstName: 'Patricia', middleName: 'R.', lastName: 'Tabadero', fullName: 'Patricia R. Tabadero', gradeLevel: 'Grade 3', gender: 'Female', qrCode: 'Q004', totalPoints: 32, bottlesCollected: 30, status: 'Active' },
     { id: 'STU005', lrn: '123456789016', firstName: 'Denver', middleName: 'P.', lastName: 'Tabadero', fullName: 'Denver P. Tabadero', gradeLevel: 'Grade 2', gender: 'Male', qrCode: 'Q005', totalPoints: 45, bottlesCollected: 42, status: 'Active' },
     { id: 'STU006', lrn: '123456789017', firstName: 'Karen', middleName: 'N.', lastName: 'Tabadero', fullName: 'Karen N. Tabadero', gradeLevel: 'Grade 6', gender: 'Female', qrCode: 'Q006', totalPoints: 40, bottlesCollected: 38, status: 'Active' },
+    { id: 'STU007', lrn: '123456789018', firstName: 'Sophia', middleName: 'M.', lastName: 'Cruz', fullName: 'Sophia M. Cruz', gradeLevel: 'Kindergarten', gender: 'Female', qrCode: 'Q007', totalPoints: 15, bottlesCollected: 12, status: 'Active' },
 ];
 
 const mockTeachers = [
@@ -37,11 +38,12 @@ const mockCollections = [
 document.addEventListener('DOMContentLoaded', () => {
     initModals();
     initPasswordToggle();
+    initPasswordSubmitCheck();
     initSettingsTabs();
     initQrGeneration();
     initSidebarActive();
     initTableSearch();
-    initFilters();
+    // initFilters() removed — filtering is handled by GET forms
     initPagination();
 });
 
@@ -89,10 +91,13 @@ function initModals() {
 }
 
 function populateEditModal(studentId) {
-    // TODO: Fetch student records from database
-    const student = mockStudents.find(s => s.id === studentId) || mockStudents[0];
+    // Legacy mock filler — only runs on legacy camelCase forms. The real
+    // Student Management edit modal is populated by the students page script.
     const modal = document.getElementById('editStudentModal');
     if (!modal) return;
+    if (!modal.querySelector('[name="firstName"]')) return;
+
+    const student = mockStudents.find(s => s.id === studentId) || mockStudents[0];
 
     modal.querySelector('[name="firstName"]').value = student.firstName;
     modal.querySelector('[name="middleName"]').value = student.middleName || '';
@@ -112,6 +117,64 @@ function initPasswordToggle() {
             const type = input.type === 'password' ? 'text' : 'password';
             input.type = type;
             btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
+        });
+    });
+}
+
+// ---------- Password Match Check on Submit ----------
+function initPasswordSubmitCheck() {
+    document.querySelectorAll('form').forEach(form => {
+        const password = form.querySelector('input[name="password"]');
+        const confirm = form.querySelector('input[name="password_confirmation"]');
+        if (!password || !confirm) return;
+
+        const showPasswordAlert = () => {
+            let alertBox = form.querySelector('.password-confirm-alert');
+            if (!alertBox) {
+                alertBox = document.createElement('div');
+                alertBox.className = 'password-confirm-alert';
+                alertBox.style.display = 'none';
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn && submitBtn.parentNode) {
+                    submitBtn.parentNode.insertBefore(alertBox, submitBtn);
+                } else {
+                    form.appendChild(alertBox);
+                }
+            }
+
+            alertBox.textContent = "Password didn't match. Try again.";
+            alertBox.style.transition = 'none';
+            alertBox.style.display = 'block';
+            alertBox.style.opacity = '1';
+            alertBox.style.transform = 'translateY(0)';
+
+            setTimeout(() => {
+                alertBox.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                alertBox.style.opacity = '0';
+                alertBox.style.transform = 'translateY(-8px)';
+
+                setTimeout(() => {
+                    alertBox.style.display = 'none';
+                }, 500);
+            }, 4000);
+        };
+
+        form.addEventListener('submit', event => {
+            if (password.value !== confirm.value) {
+                event.preventDefault();
+                confirm.classList.add('password-invalid');
+                showPasswordAlert();
+                confirm.focus();
+            }
+        });
+
+        confirm.addEventListener('input', () => {
+            confirm.classList.remove('password-invalid');
+
+            const alertBox = form.querySelector('.password-confirm-alert');
+            if (alertBox) {
+                alertBox.style.display = 'none';
+            }
         });
     });
 }
@@ -159,12 +222,25 @@ function initQrGeneration() {
 // ---------- Sidebar Active State ----------
 function initSidebarActive() {
     const currentPath = window.location.pathname;
-    document.querySelectorAll('.nav-item').forEach(item => {
+    const items = Array.from(document.querySelectorAll('#sidebar-nav .nav-item'));
+
+    // Pick a single best match (longest matching href) so only one item is highlighted.
+    let best = null;
+    let bestLength = -1;
+
+    items.forEach(item => {
         const href = item.getAttribute('href');
-        if (href && currentPath.includes(href)) {
-            item.classList.add('active');
+        if (!href || href === '#' || href.charAt(0) !== '/') return;
+        if (currentPath.includes(href) && href.length > bestLength) {
+            best = item;
+            bestLength = href.length;
         }
     });
+
+    if (best && !best.classList.contains('active')) {
+        best.classList.add('active');
+        best.setAttribute('aria-current', 'page');
+    }
 }
 
 // ---------- Table Search (Students) ----------
@@ -196,16 +272,6 @@ function initTableSearch() {
     });
 }
 
-// ---------- Filter Buttons ----------
-function initFilters() {
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // TODO: Implement advanced filtering
-            alert('Filter functionality placeholder - connect to database later');
-        });
-    });
-}
-
 // ---------- Pagination ----------
 function initPagination() {
     document.querySelectorAll('.page-btn').forEach(btn => {
@@ -217,25 +283,4 @@ function initPagination() {
             // TODO: Load actual page data from database
         });
     });
-}
-
-// ---------- View Report / Back Navigation ----------
-function viewReport(url) {
-    // Placeholder navigation - in real app this would navigate to route
-    window.location.href = url;
-}
-
-// ---------- Archive / Delete (Placeholder) ----------
-function archiveStudent(studentId) {
-    if (confirm('Are you sure you want to archive this student?')) {
-        // TODO: Send archive request to backend
-        alert(`Student ${studentId} archived! (Placeholder - no database connected)`);
-    }
-}
-
-function archiveTeacher(teacherId) {
-    if (confirm('Are you sure you want to remove this teacher?')) {
-        // TODO: Send delete request to backend
-        alert(`Teacher ${teacherId} removed! (Placeholder - no database connected)`);
-    }
 }

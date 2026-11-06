@@ -4,44 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class CertificateAward extends Model
 {
     protected $table = 'certificate_awards';
 
     protected $fillable = [
-        'student_id',
-        'certificate_type',
-        'certificate_title',
-        'award_title',
-        'award_description',
-        'school_principal_name',
-        'program_coordinator_name',
-        'awarded_by',
-        'awarded_date',
-        'template_file_path',
-        'generated_file_path',
-        'pdf_file_path',
-        'status',
-        'issued_by',
-        'show_logo',
-        'show_certificate_title',
-        'show_student_name',
-        'show_award_description',
-        'show_award_date',
-        'show_principal_name',
-        'show_program_coordinator_name',
+        'student_id', 'teacher_id', 'award_title', 'award_description',
+        'certificate_file', 'template_file', 'canvas_data', 'awarded_date',
+        'generated_file_path', 'pdf_file_path', 'status', 'issued_by', 'signed_by',
     ];
 
     protected $casts = [
         'awarded_date' => 'date',
-        'show_logo' => 'boolean',
-        'show_certificate_title' => 'boolean',
-        'show_student_name' => 'boolean',
-        'show_award_description' => 'boolean',
-        'show_award_date' => 'boolean',
-        'show_principal_name' => 'boolean',
-        'show_program_coordinator_name' => 'boolean',
+        'canvas_data' => 'array',
     ];
 
     public function student(): BelongsTo
@@ -52,5 +29,96 @@ class CertificateAward extends Model
     public function issuer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    /**
+     * Locate the FINAL completed certificate file, checking real existence
+     * on the correct disk. Canonical order: PDF, generated composite image,
+     * then legacy uploaded certificate_file. Template paths are NEVER
+     * returned here — they are original blank backgrounds, not finished
+     * certificates.
+     */
+    public function finalCertificateFile(): ?array
+    {
+        $candidates = [
+            ['disk' => 'local', 'path' => $this->pdf_file_path],
+            ['disk' => 'local', 'path' => $this->generated_file_path],
+            ['disk' => 'public', 'path' => $this->certificate_file],
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate['path'] && Storage::disk($candidate['disk'])->exists($candidate['path'])) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    public function hasFinalCertificateFile(): bool
+    {
+        return $this->finalCertificateFile() !== null;
+    }
+
+    /**
+     * Locate the best INLINE display file (viewer/preview <img>): prefer the
+     * composite generated image, then the PDF, then the legacy uploaded
+     * certificate_file. Never a template.
+     */
+    public function displayCertificateFile(): ?array
+    {
+        $candidates = [
+            ['disk' => 'local', 'path' => $this->generated_file_path],
+            ['disk' => 'local', 'path' => $this->pdf_file_path],
+            ['disk' => 'public', 'path' => $this->certificate_file],
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate['path'] && Storage::disk($candidate['disk'])->exists($candidate['path'])) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Locate the original template background image on whichever disk it
+     * was stored on (legacy saveCanvas used the public disk; the award flow
+     * uses the private local disk). Used only for client-side reconstruction
+     * of legacy canvas_data awards, never as a finished certificate.
+     */
+    public function templateImagePath(): ?array
+    {
+        if (!$this->template_file) {
+            return null;
+        }
+
+        foreach (['public', 'local'] as $disk) {
+            if (Storage::disk($disk)->exists($this->template_file)) {
+                return ['disk' => $disk, 'path' => $this->template_file];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the completed certificate can be rendered for viewing:
+     * a real final file exists, or saved canvas_data plus an available
+     * template allow the legacy client-side reconstruction.
+     */
+    public function canRenderCertificate(): bool
+    {
+        if ($this->hasFinalCertificateFile()) {
+            return true;
+        }
+
+        return !empty($this->canvas_data) && $this->templateImagePath() !== null;
     }
 }

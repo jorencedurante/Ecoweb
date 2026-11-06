@@ -9,16 +9,384 @@ use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ClaimController extends Controller
 {
-    public function index()
+    private function filterStudentsByRole($query)
     {
-        $items = ClaimItem::with('creator')->latest()->paginate(15);
-        $claims = StudentClaim::with(['student', 'item', 'admin'])->latest()->paginate(15);
-        $students = Student::where('status', '!=', 'Archived')->orderBy('first_name')->get();
+        if (Auth::user()->isTeacher()) {
+            $query->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        return $query;
+    }
 
-        return view('pages.claims', compact('items', 'claims', 'students'));
+    public function index(Request $request)
+    {
+        ClaimItem::where('quantity', '<=', 0)
+            ->where('status', 'Available')
+            ->update(['status' => 'Unavailable']);
+
+        $claimItemsQuery = ClaimItem::query();
+
+        $claimItemSearch = trim($request->get('claim_item_search', ''));
+        $claimItemStatus = $request->get('claim_item_status');
+        $claimItemMinPoints = $request->get('claim_item_min_points');
+        $claimItemMaxPoints = $request->get('claim_item_max_points');
+
+        if ($claimItemSearch !== '') {
+            $claimItemsQuery->where(function ($query) use ($claimItemSearch) {
+                if (\Schema::hasColumn('claim_items', 'item_name')) {
+                    $query->where('item_name', 'like', "%{$claimItemSearch}%");
+                }
+
+                if (\Schema::hasColumn('claim_items', 'name')) {
+                    $query->orWhere('name', 'like', "%{$claimItemSearch}%");
+                }
+
+                if (\Schema::hasColumn('claim_items', 'description')) {
+                    $query->orWhere('description', 'like', "%{$claimItemSearch}%");
+                }
+            });
+        }
+
+        if (!empty($claimItemStatus)) {
+            $claimItemsQuery->where('status', $claimItemStatus);
+        }
+
+        if ($claimItemMinPoints !== null && $claimItemMinPoints !== '') {
+            $claimItemsQuery->where('points_required', '>=', $claimItemMinPoints);
+        }
+
+        if ($claimItemMaxPoints !== null && $claimItemMaxPoints !== '') {
+            $claimItemsQuery->where('points_required', '<=', $claimItemMaxPoints);
+        }
+
+        $claimItems = $claimItemsQuery
+            ->orderByDesc('created_at')
+            ->paginate(10)
+            ->withQueryString();
+
+        $claimItemsForSearch = ClaimItem::query()
+            ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
+            ->get();
+
+        $studentsForHistorySearch = Student::query()
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        $itemsForHistorySearch = ClaimItem::query()
+            ->orderBy(\Schema::hasColumn('claim_items', 'item_name') ? 'item_name' : 'name')
+            ->get();
+
+        \Log::info('Claim Items Filter Debug', [
+            'claim_item_search' => $request->get('claim_item_search'),
+            'claim_item_status' => $request->get('claim_item_status'),
+            'claim_item_min_points' => $request->get('claim_item_min_points'),
+            'claim_item_max_points' => $request->get('claim_item_max_points'),
+            'claim_items_count' => $claimItems->count(),
+        ]);
+
+        // Pending claims with role filtering
+        $pendingQuery = StudentClaim::with(['student', 'item'])
+            ->where('status', 'Pending');
+
+        // Live filters for pending claims
+        $pendingStudentSearch = trim($request->get('pending_student_search', ''));
+        $pendingItemSearch = trim($request->get('pending_item_search', ''));
+
+        if ($pendingStudentSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
+                $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
+                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
+                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
+                    });
+                });
+            });
+        }
+
+        if ($pendingItemSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingItemSearch) {
+                $q->where('item_name', 'like', "%{$pendingItemSearch}%")
+                  ->orWhereHas('item', function ($itemQuery) use ($pendingItemSearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$pendingItemSearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$pendingItemSearch}%");
+                      }
+                  });
+            });
+        }
+
+        if (Auth::user()->isTeacher()) {
+            $pendingQuery->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        // Get ALL matching claims first, then group by student (NOT paginate before grouping)
+        $allPendingClaims = $pendingQuery->latest()->get();
+        $groupedByStudent = $allPendingClaims->groupBy('student_id');
+
+        // Track whether any search filter is active for empty-state messaging
+        $hasActiveSearch = $pendingStudentSearch !== '' || $pendingItemSearch !== '';
+        $hasAnyMatches = $groupedByStudent->count() > 0;
+
+        // Paginate student groups manually (10 groups per page)
+        $studentIds = $groupedByStudent->keys()->toArray();
+        $pendingPage = (int) $request->get('pending_page', 1);
+        $pendingPerPage = 10;
+        $pendingOffset = max(0, ($pendingPage - 1) * $pendingPerPage);
+        $pendingPageStudentIds = array_slice($studentIds, $pendingOffset, $pendingPerPage);
+        $pendingPaginatedGroups = [];
+        foreach ($pendingPageStudentIds as $sid) {
+            $pendingPaginatedGroups[$sid] = $groupedByStudent[$sid];
+        }
+        $pendingHasMorePages = count($studentIds) > $pendingPage * $pendingPerPage;
+
+        // Initialize $pendingClaims for the main Claims view (used by @include in claims.blade.php)
+        $pendingClaims = $allPendingClaims;
+
+        // Claim history
+        $claimsQuery = StudentClaim::with(['student', 'item', 'admin'])
+            ->where(function ($q) {
+                $q->whereIn('status', ['Approved', 'Rejected', 'Claimed'])
+                  ->orWhereNull('status');
+            });
+
+        if (Auth::user()->isTeacher()) {
+            $claimsQuery->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        if ($request->filled('history_search')) {
+            $historySearch = $request->history_search;
+            $claimsQuery->where(function ($q) use ($historySearch) {
+                $q->where('item_name', 'like', "%{$historySearch}%")
+                  ->orWhere('remarks', 'like', "%{$historySearch}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
+                      $studentQuery->where(function ($sq) use ($historySearch) {
+                          $sq->where('first_name', 'like', "%{$historySearch}%")
+                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
+                            ->orWhere('last_name', 'like', "%{$historySearch}%")
+                            ->orWhere('lrn', 'like', "%{$historySearch}%")
+                            ->orWhere('student_id', 'like', "%{$historySearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
+                      });
+                  })
+                  ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$historySearch}%");
+                      }
+                  })
+                  ->orWhereHas('admin', function ($adminQuery) use ($historySearch) {
+                      $adminQuery->where('name', 'like', "%{$historySearch}%");
+                  });
+            });
+        }
+
+        if ($request->filled('history_item')) {
+            $claimsQuery->where('claim_item_id', $request->history_item);
+        }
+
+        if ($request->filled('history_date_from')) {
+            $claimsQuery->whereDate('claim_date', '>=', $request->history_date_from);
+        }
+
+        if ($request->filled('history_date_to')) {
+            $claimsQuery->whereDate('claim_date', '<=', $request->history_date_to);
+        }
+
+        $allClaims = $claimsQuery->latest('claim_date')->get();
+        $claimHistoryByStudent = $allClaims->groupBy('student_id');
+        $claims = $allClaims;
+
+        // Paginate claim history by student groups (max 10 student groups per page)
+        $historyStudentIds = $claimHistoryByStudent->keys()->toArray();
+        $historyPage = $request->get('history_page', 1);
+        $historyPerPage = 10;
+        $historyOffset = ($historyPage - 1) * $historyPerPage;
+        $historyPageStudentIds = array_slice($historyStudentIds, $historyOffset, $historyPerPage);
+        $historyPaginatedByStudent = [];
+        foreach ($historyPageStudentIds as $sid) {
+            $historyPaginatedByStudent[$sid] = $claimHistoryByStudent[$sid];
+        }
+        $historyHasMorePages = count($historyStudentIds) > $historyPage * $historyPerPage;
+
+        $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $students->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $students = $students->orderBy('first_name')->get();
+        $availableItems = ClaimItem::where('status', 'Available')->where('quantity', '>', 0)->get();
+        $allClaimItems = ClaimItem::orderBy('item_name')->get();
+
+        // Students for claim select dropdown
+        $studentsForClaimQuery = Student::query()->whereNotIn('status', ['Archived', 'archived']);
+        if (Auth::user()->isTeacher()) {
+            $studentsForClaimQuery->whereHas('enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+        $studentsForClaim = $studentsForClaimQuery->orderBy('last_name')->orderBy('first_name')->get();
+
+        // Approved claims grouped by student (Admin/Super Admin only)
+        $approvedClaimsByStudent = collect();
+        if (in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            $approvedQuery = StudentClaim::with(['student', 'item', 'admin', 'approver'])
+                ->where('status', 'Approved')
+                ->where('is_archived', false);
+
+            // Filters for approved claims
+            if ($request->filled('approved_search')) {
+                $search = $request->approved_search;
+                $approvedQuery->where(function ($q) use ($search) {
+                    $q->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('remarks', 'like', "%{$search}%")
+                      ->orWhereHas('student', function ($studentQuery) use ($search) {
+                          $studentQuery->where(function ($sq) use ($search) {
+                              $sq->where('lrn', 'like', "%{$search}%")
+                                ->orWhere('student_id', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                          });
+                      });
+                });
+            }
+
+            if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+                $quarter = $request->approved_quarter;
+                $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+                switch ($quarter) {
+                    case 'Q1':
+                        $approvedQuery->whereMonth('claim_date', '>=', 1)
+                                       ->whereMonth('claim_date', '<=', 3)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q2':
+                        $approvedQuery->whereMonth('claim_date', '>=', 4)
+                                       ->whereMonth('claim_date', '<=', 6)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q3':
+                        $approvedQuery->whereMonth('claim_date', '>=', 7)
+                                       ->whereMonth('claim_date', '<=', 9)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q4':
+                        $approvedQuery->whereMonth('claim_date', '>=', 10)
+                                       ->whereMonth('claim_date', '<=', 12)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                }
+            } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+                $approvedQuery->whereYear('claim_date', $request->approved_year);
+            }
+
+            $approvedClaimsByStudent = $approvedQuery->latest('claim_date')
+                ->get()
+                ->groupBy('student_id');
+
+            // Paginate approved claims by student groups (max 10 per page)
+            $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
+            $approvedPage = $request->get('approved_page', 1);
+            $approvedPerPage = 10;
+            $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
+            $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
+            $approvedPaginatedByStudent = [];
+            foreach ($approvedPageStudentIds as $sid) {
+                $approvedPaginatedByStudent[$sid] = $approvedClaimsByStudent[$sid];
+            }
+            $approvedHasMorePages = count($approvedStudentIds) > $approvedPage * $approvedPerPage;
+        }
+
+        // Archived/released claims grouped by student (Admin/Super Admin only)
+        $archivedClaimsByStudent = collect();
+        if (in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            $archivedQuery = StudentClaim::with(['student', 'item', 'approver', 'releaser'])
+                ->where('status', 'Approved')
+                ->where('is_archived', true);
+
+            if ($request->filled('approved_search')) {
+                $search = $request->approved_search;
+                $archivedQuery->where(function ($q) use ($search) {
+                    $q->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('remarks', 'like', "%{$search}%")
+                      ->orWhereHas('student', function ($studentQuery) use ($search) {
+                          $studentQuery->where(function ($sq) use ($search) {
+                              $sq->where('lrn', 'like', "%{$search}%")
+                                ->orWhere('student_id', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                          });
+                      });
+                });
+            }
+
+            if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+                $quarter = $request->approved_quarter;
+                $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+                switch ($quarter) {
+                    case 'Q1':
+                        $archivedQuery->whereMonth('claim_date', '>=', 1)
+                                       ->whereMonth('claim_date', '<=', 3)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q2':
+                        $archivedQuery->whereMonth('claim_date', '>=', 4)
+                                       ->whereMonth('claim_date', '<=', 6)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q3':
+                        $archivedQuery->whereMonth('claim_date', '>=', 7)
+                                       ->whereMonth('claim_date', '<=', 9)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                    case 'Q4':
+                        $archivedQuery->whereMonth('claim_date', '>=', 10)
+                                       ->whereMonth('claim_date', '<=', 12)
+                                       ->whereYear('claim_date', $year);
+                        break;
+                }
+            } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+                $archivedQuery->whereYear('claim_date', $request->approved_year);
+            }
+
+            $archivedClaimsByStudent = $archivedQuery->latest('released_at')
+                ->get()
+                ->groupBy('student_id');
+
+            // Paginate archived claims by student groups (max 10 per page)
+            $archivedStudentIds = $archivedClaimsByStudent->keys()->toArray();
+            $archivedPage = $request->get('archived_page', 1);
+            $archivedPerPage = 10;
+            $archivedOffset = ($archivedPage - 1) * $archivedPerPage;
+            $archivedPageStudentIds = array_slice($archivedStudentIds, $archivedOffset, $archivedPerPage);
+            $archivedPaginatedByStudent = [];
+            foreach ($archivedPageStudentIds as $sid) {
+                $archivedPaginatedByStudent[$sid] = $archivedClaimsByStudent[$sid];
+            }
+            $archivedHasMorePages = count($archivedStudentIds) > $archivedPage * $archivedPerPage;
+        }
+
+        return view('pages.claims', compact(
+            'claimItems', 'claimItemsForSearch', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
+            'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim', 'studentsForHistorySearch', 'itemsForHistorySearch',
+            'historyHasMorePages', 'historyPage', 'approvedHasMorePages', 'approvedPage', 'archivedHasMorePages', 'archivedPage'
+        ));
     }
 
     public function storeItem(Request $request)
@@ -45,66 +413,642 @@ class ClaimController extends Controller
         return redirect()->route('claims.index')->with('success', 'Claim item added successfully.');
     }
 
+    public function updateItem(Request $request, ClaimItem $claimItem)
+    {
+        $validated = $request->validate([
+            'item_name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'points_required' => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:0',
+            'status' => 'required|in:Available,Unavailable',
+        ]);
+
+        $claimItem->update($validated);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Updated Claim Item',
+            'description' => 'Updated claim item: ' . $validated['item_name'],
+            'module' => 'Claims',
+        ]);
+
+        return redirect()->route('claims.index')->with('success', 'Claim item updated successfully.');
+    }
+
     public function claimItem(Request $request)
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'claim_item_id' => 'required|exists:claim_items,id',
+            'quantity' => 'required|integer|min:1',
             'remarks' => 'nullable|string',
+        ], [
+            'student_id.required' => 'Please select a valid student from the search results.',
+            'student_id.exists' => 'The selected student does not exist.',
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
+        if (Auth::user()->isTeacher() && $student->teacher_id !== Auth::id()) {
+            abort(403, 'You cannot claim items for students assigned to another teacher.');
+        }
         $item = ClaimItem::findOrFail($validated['claim_item_id']);
 
         if ($item->status !== 'Available') {
-            return back()->withErrors(['claim_item_id' => 'This item is not available.'])->withInput();
+            return back()->withErrors(['claim_error' => 'This item is not available.'])->withInput();
         }
 
-        if ($item->quantity <= 0) {
-            return back()->withErrors(['claim_item_id' => 'This item is out of stock.'])->withInput();
+        $quantity = (int) $validated['quantity'];
+        $totalPointsRequired = $item->points_required * $quantity;
+
+        if ($item->quantity < $quantity) {
+            return back()->withErrors(['claim_error' => 'Not enough item stock available. Only ' . $item->quantity . ' left.'])->withInput();
         }
 
         $pointsBefore = $student->total_points ?? 0;
-        $pointsRequired = $item->points_required;
 
-        if ($pointsBefore < $pointsRequired) {
+        if ($pointsBefore < $totalPointsRequired) {
             return back()->withErrors([
-                'student_id' => 'Insufficient points. Student does not have enough points to claim this item.'
+                'claim_error' => 'Insufficient points. Required: ' . number_format($totalPointsRequired) . ' pts.'
             ])->withInput();
         }
 
-        $pointsAfter = $pointsBefore - $pointsRequired;
+        $pointsAfter = $pointsBefore - $totalPointsRequired;
 
-        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $pointsRequired, $validated) {
+        // Link the claim to the student's current active enrollment so
+        // school-year claim activity stays isolated from historical records.
+        $currentEnrollment = $student->enrollments()
+            ->when(Auth::user()->isTeacher(), fn ($q) => $q->where('teacher_id', Auth::id()))
+            ->where('status', 'active')
+            ->latest('id')
+            ->first();
+
+        DB::transaction(function () use ($student, $item, $pointsBefore, $pointsAfter, $totalPointsRequired, $quantity, $validated, $currentEnrollment) {
             $student->update(['total_points' => $pointsAfter]);
-            $item->decrement('quantity');
+            $item->decrement('quantity', $quantity);
+            $item->refresh();
+
+            if ($item->quantity <= 0) {
+                $item->update(['status' => 'Unavailable']);
+            }
 
             StudentClaim::create([
                 'student_id' => $student->id,
                 'claim_item_id' => $item->id,
+                'quantity' => $quantity,
                 'item_name' => $item->item_name,
-                'points_deducted' => $pointsRequired,
+                'points_deducted' => $totalPointsRequired,
                 'points_before' => $pointsBefore,
                 'points_after' => $pointsAfter,
                 'claim_date' => now()->toDateString(),
                 'claimed_by' => Auth::id(),
                 'remarks' => $validated['remarks'] ?? null,
+                'status' => 'Approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'enrollment_id' => $currentEnrollment?->id,
             ]);
         });
 
         AdminActivity::create([
             'user_id' => Auth::id(),
             'action' => 'Claimed Item',
-            'description' => "{$student->full_name} claimed {$item->item_name} for {$pointsRequired} points.",
+            'description' => "{$student->full_name} claimed {$item->item_name} for {$totalPointsRequired} points.",
             'module' => 'Claims',
         ]);
 
         return redirect()->route('claims.index')->with('success', 'Item claimed successfully. Student points have been updated.');
     }
 
-    public function history()
+    public function approve(StudentClaim $claim)
     {
-        $claims = StudentClaim::with(['student', 'item', 'admin'])->latest()->paginate(20);
-        return view('pages.claims-history', compact('claims'));
+        $student = $claim->student;
+
+        if (!$student) {
+            return back()->withErrors(['claim' => 'Invalid claim request.']);
+        }
+
+        if (in_array(Auth::user()->role, ['teacher', 'Teacher']) && $student->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($claim->status !== 'Pending') {
+            return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
+        }
+
+        try {
+            $quantity = DB::transaction(function () use ($claim) {
+                $lockedClaim = StudentClaim::whereKey($claim->id)->lockForUpdate()->first();
+
+                if (!$lockedClaim || $lockedClaim->status !== 'Pending') {
+                    throw ValidationException::withMessages([
+                        'claim' => 'This claim request is no longer pending.',
+                    ]);
+                }
+
+                $quantity = max(1, (int) $lockedClaim->quantity);
+
+                if ($lockedClaim->is_reserved) {
+                    // The points and item pieces were already reserved when the
+                    // request was submitted. Approval must not deduct anything
+                    // again - only the status and approval metadata change.
+                    $lockedClaim->update([
+                        'status' => 'Approved',
+                        'claimed_by' => Auth::id(),
+                        'approved_by' => Auth::id(),
+                        'approved_at' => now(),
+                    ]);
+
+                    return $quantity;
+                }
+
+                // Legacy pending claim created before the reservation workflow:
+                // nothing was reserved yet, so approval deducts exactly once.
+                $student = Student::whereKey($lockedClaim->student_id)->lockForUpdate()->first();
+                $item = ClaimItem::whereKey($lockedClaim->claim_item_id)->lockForUpdate()->first();
+
+                if (!$student || !$item) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Invalid claim request.',
+                    ]);
+                }
+
+                $totalPointsRequired = (int) $item->points_required * $quantity;
+                $remainingQuantity = (int) $item->quantity - $quantity;
+
+                if ($item->status !== 'Available' || $remainingQuantity < 0) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Not enough item stock available. Only ' . max(0, (int) $item->quantity) . ' left.',
+                    ]);
+                }
+
+                $pointsBefore = (int) ($student->total_points ?? 0);
+
+                if ($pointsBefore < $totalPointsRequired) {
+                    throw ValidationException::withMessages([
+                        'claim' => 'Student no longer has enough points. Required: ' . number_format($totalPointsRequired) . ' pts.',
+                    ]);
+                }
+
+                $pointsAfter = $pointsBefore - $totalPointsRequired;
+
+                $student->update([
+                    'total_points' => $pointsAfter,
+                ]);
+
+                $item->update([
+                    'quantity' => $remainingQuantity,
+                    'status' => $remainingQuantity <= 0 ? 'Unavailable' : 'Available',
+                ]);
+
+                $lockedClaim->update([
+                    'points_deducted' => $totalPointsRequired,
+                    'points_before' => $pointsBefore,
+                    'points_after' => $pointsAfter,
+                    'status' => 'Approved',
+                    'claimed_by' => Auth::id(),
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                ]);
+
+                return $quantity;
+            });
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Approved Claim',
+            'description' => "Approved {$student->full_name}'s claim for {$claim->item_name} (qty: {$quantity}).",
+            'module' => 'Claims',
+        ]);
+
+        return back()->with('success', 'Item claim approved successfully.');
+    }
+
+    public function reject(Request $request, StudentClaim $claim)
+    {
+        $request->validate([
+            'rejected_reason' => 'nullable|string|max:500',
+        ]);
+
+        if (in_array(Auth::user()->role, ['teacher', 'Teacher']) && $claim->student->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($claim->status !== 'Pending') {
+            return back()->withErrors(['claim' => 'This claim request is no longer pending.']);
+        }
+
+        try {
+            $restoredReservation = DB::transaction(function () use ($claim, $request) {
+                $lockedClaim = StudentClaim::whereKey($claim->id)->lockForUpdate()->first();
+
+                if (!$lockedClaim || $lockedClaim->status !== 'Pending') {
+                    throw ValidationException::withMessages([
+                        'claim' => 'This claim request is no longer pending.',
+                    ]);
+                }
+
+                $restoredReservation = false;
+
+                if ($lockedClaim->is_reserved) {
+                    // Refund only what this claim originally reserved - never a
+                    // recalculated amount - and only once (the status flip below
+                    // happens inside this same locked transaction).
+                    $refundPoints = max(0, (int) $lockedClaim->points_deducted);
+                    $refundQuantity = max(0, (int) $lockedClaim->quantity);
+
+                    $student = Student::whereKey($lockedClaim->student_id)->lockForUpdate()->first();
+
+                    if (!$student) {
+                        throw ValidationException::withMessages([
+                            'claim' => 'Invalid claim request.',
+                        ]);
+                    }
+
+                    if ($refundPoints > 0) {
+                        $student->increment('total_points', $refundPoints);
+                    }
+
+                    if ($lockedClaim->claim_item_id && $refundQuantity > 0) {
+                        $item = ClaimItem::whereKey($lockedClaim->claim_item_id)->lockForUpdate()->first();
+
+                        if ($item) {
+                            $restoredQuantity = (int) $item->quantity + $refundQuantity;
+
+                            $item->update([
+                                'quantity' => $restoredQuantity,
+                                'status' => $restoredQuantity <= 0 ? 'Unavailable' : 'Available',
+                            ]);
+                        }
+                    }
+
+                    $restoredReservation = true;
+                }
+
+                // Legacy pending claim: its points and stock were never
+                // reserved, so there is nothing to return.
+                $lockedClaim->update([
+                    'status' => 'Rejected',
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'rejected_reason' => $request->rejected_reason,
+                ]);
+
+                return $restoredReservation;
+            });
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Rejected Claim',
+            'description' => "Rejected {$claim->student->full_name}'s claim for {$claim->item_name}.",
+            'module' => 'Claims',
+        ]);
+
+        return back()->with(
+            'success',
+            $restoredReservation
+                ? 'Item claim rejected. Reserved points and item pieces have been restored.'
+                : 'Item claim rejected successfully.'
+        );
+    }
+
+    public function archive(StudentClaim $claim)
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            abort(403, 'Only Admin and Super Admin can archive released item requests.');
+        }
+
+        if ($claim->status !== 'Approved') {
+            return back()->with('error', 'Only approved item requests can be archived.');
+        }
+
+        DB::transaction(function () use ($claim) {
+            $claim->update([
+                'is_archived' => true,
+                'released_at' => now(),
+                'released_by' => Auth::id(),
+            ]);
+
+            AdminActivity::create([
+                'user_id' => Auth::id(),
+                'action' => 'Archived Item Request',
+                'description' => "Marked " . ($claim->student?->full_name ?? 'Unknown Student') . "'s request for {$claim->item_name} as released/archived.",
+                'module' => 'Claims',
+            ]);
+        });
+
+        return back()->with('success', 'Item request marked as released and archived successfully.');
+    }
+
+    public function archiveAllByStudent($studentId)
+    {
+        if (!in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin'])) {
+            abort(403, 'Only Admin and Super Admin can archive item requests.');
+        }
+
+        $claims = StudentClaim::where('student_id', $studentId)
+            ->where('status', 'Approved')
+            ->where('is_archived', false)
+            ->get();
+
+        if ($claims->isEmpty()) {
+            return back()->with('error', 'No approved active item requests found for this student.');
+        }
+
+        $studentName = $claims->first()->student->full_name ?? 'Unknown';
+        $count = $claims->count();
+
+        foreach ($claims as $claim) {
+            $claim->update([
+                'is_archived' => true,
+                'released_at' => now(),
+                'released_by' => Auth::id(),
+            ]);
+        }
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Bulk Archived Item Requests',
+            'description' => "Marked all {$count} approved request(s) for {$studentName} as released/archived.",
+            'module' => 'Claims',
+        ]);
+
+        return back()->with('success', "All {$count} approved item requests for {$studentName} were marked as released.");
+    }
+
+    public function filterItems(Request $request)
+    {
+        $claimItemsQuery = ClaimItem::query();
+
+        if ($request->filled('claim_item_search')) {
+            $claimItemSearch = trim($request->get('claim_item_search', ''));
+            if ($claimItemSearch !== '') {
+                $claimItemsQuery->where(function ($query) use ($claimItemSearch) {
+                    $query->where('item_name', 'like', "%{$claimItemSearch}%")
+                          ->orWhere('description', 'like', "%{$claimItemSearch}%");
+                });
+            }
+        }
+
+        if ($request->filled('claim_item_status') && $request->claim_item_status !== 'All Status') {
+            $claimItemsQuery->where('status', $request->claim_item_status);
+        }
+
+        if ($request->filled('claim_item_min_points')) {
+            $claimItemsQuery->where('points_required', '>=', $request->claim_item_min_points);
+        }
+
+        if ($request->filled('claim_item_max_points')) {
+            $claimItemsQuery->where('points_required', '<=', $request->claim_item_max_points);
+        }
+
+        $claimItems = $claimItemsQuery->orderByDesc('created_at')->paginate(10)->withQueryString();
+
+        return view('partials.claim-items-table', compact('claimItems'))->render();
+    }
+
+    public function filterHistory(Request $request)
+    {
+        $claims = StudentClaim::with(['student', 'item', 'admin'])
+            ->where(function ($q) {
+                $q->whereIn('status', ['Approved', 'Rejected', 'Claimed'])
+                  ->orWhereNull('status');
+            });
+
+        if (Auth::user()->isTeacher()) {
+            $claims->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        if ($request->filled('history_search')) {
+            $historySearch = $request->history_search;
+            $claims->where(function ($q) use ($historySearch) {
+                $q->where('item_name', 'like', "%{$historySearch}%")
+                  ->orWhere('remarks', 'like', "%{$historySearch}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
+                      $studentQuery->where(function ($sq) use ($historySearch) {
+                          $sq->where('first_name', 'like', "%{$historySearch}%")
+                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
+                            ->orWhere('last_name', 'like', "%{$historySearch}%")
+                            ->orWhere('lrn', 'like', "%{$historySearch}%")
+                            ->orWhere('student_id', 'like', "%{$historySearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
+                      });
+                  })
+                  ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$historySearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$historySearch}%");
+                      }
+                  })
+                  ->orWhereHas('admin', function ($adminQuery) use ($historySearch) {
+                      $adminQuery->where('name', 'like', "%{$historySearch}%");
+                  });
+            });
+        }
+
+        if ($request->filled('history_item')) {
+            $claims->where('claim_item_id', $request->history_item);
+        }
+
+        if ($request->filled('history_date_from')) {
+            $claims->whereDate('claim_date', '>=', $request->history_date_from);
+        }
+
+        if ($request->filled('history_date_to')) {
+            $claims->whereDate('claim_date', '<=', $request->history_date_to);
+        }
+
+        $allClaims = $claims->latest('claim_date')->get();
+        $claimHistoryByStudent = $allClaims->groupBy('student_id');
+        $claims = $allClaims;
+
+        return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
+    }
+
+    public function filterApproved(Request $request)
+    {
+        $approvedQuery = StudentClaim::with(['student', 'item', 'admin', 'approver'])
+            ->where('status', 'Approved')
+            ->where('is_archived', false);
+
+        // Filters for approved claims
+        if ($request->filled('approved_search')) {
+            $search = $request->approved_search;
+            $approvedQuery->where(function ($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhere('remarks', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($studentQuery) use ($search) {
+                      $studentQuery->where(function ($sq) use ($search) {
+                          $sq->where('lrn', 'like', "%{$search}%")
+                            ->orWhere('student_id', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+                      });
+                  });
+            });
+        }
+
+        if ($request->filled('approved_quarter') && $request->approved_quarter !== '') {
+            $quarter = $request->approved_quarter;
+            $year = $request->filled('approved_year') ? $request->approved_year : date('Y');
+            switch ($quarter) {
+                case 'Q1':
+                    $approvedQuery->whereMonth('claim_date', '>=', 1)
+                                   ->whereMonth('claim_date', '<=', 3)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q2':
+                    $approvedQuery->whereMonth('claim_date', '>=', 4)
+                                   ->whereMonth('claim_date', '<=', 6)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q3':
+                    $approvedQuery->whereMonth('claim_date', '>=', 7)
+                                   ->whereMonth('claim_date', '<=', 9)
+                                   ->whereYear('claim_date', $year);
+                    break;
+                case 'Q4':
+                    $approvedQuery->whereMonth('claim_date', '>=', 10)
+                                   ->whereMonth('claim_date', '<=', 12)
+                                   ->whereYear('claim_date', $year);
+                    break;
+            }
+        } elseif ($request->filled('approved_year') && $request->approved_year !== '') {
+            $approvedQuery->whereYear('claim_date', $request->approved_year);
+        }
+
+        $allClaims = $approvedQuery->latest('claim_date')->get();
+        $approvedClaimsByStudent = $allClaims->groupBy('student_id');
+
+        // Paginate approved claims by student groups (max 10 per page)
+        $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
+        $approvedPage = $request->get('approved_page', 1);
+        $approvedPerPage = 10;
+        $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
+        $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
+        $approvedPaginatedByStudent = [];
+        foreach ($approvedPageStudentIds as $sid) {
+            $approvedPaginatedByStudent[$sid] = $approvedClaimsByStudent[$sid];
+        }
+        $approvedHasMorePages = count($approvedStudentIds) > $approvedPage * $approvedPerPage;
+
+        return view('partials.approved-claims-table', compact('approvedPaginatedByStudent', 'approvedClaimsByStudent', 'approvedHasMorePages', 'approvedPage'))->render();
+    }
+
+    public function searchStudents(Request $request)
+    {
+        $search = trim($request->get('search', $request->get('q', '')));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $students = Student::query()
+            ->where(function ($query) use ($search) {
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('lrn', 'like', "%{$search}%")
+                    ->orWhere('student_id', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
+            })
+            ->limit(10)
+            ->get();
+
+        return response()->json($students->map(function ($student) {
+            $name = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+
+            return [
+                'id' => $student->id,
+                'name' => $name ?: 'Unnamed Student',
+                'lrn' => $student->lrn ?? '',
+                'student_id' => $student->student_id ?? '',
+                'grade_level' => $student->grade_level ?? '',
+                'total_points' => $student->total_points ?? 0,
+            ];
+        }));
+    }
+
+    public function filterPending(Request $request)
+    {
+        $pendingStudentSearch = trim($request->get('pending_student_search', ''));
+        $pendingItemSearch = trim($request->get('pending_item_search', ''));
+
+        $pendingQuery = StudentClaim::with(['student', 'item'])
+            ->where('status', 'Pending');
+
+        if ($pendingStudentSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
+                $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
+                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
+                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
+                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
+                    });
+                });
+            });
+        }
+
+        if ($pendingItemSearch !== '') {
+            $pendingQuery->where(function ($q) use ($pendingItemSearch) {
+                $q->where('item_name', 'like', "%{$pendingItemSearch}%")
+                  ->orWhereHas('item', function ($itemQuery) use ($pendingItemSearch) {
+                      if (\Schema::hasColumn('claim_items', 'item_name')) {
+                          $itemQuery->where('item_name', 'like', "%{$pendingItemSearch}%");
+                      }
+                      if (\Schema::hasColumn('claim_items', 'description')) {
+                          $itemQuery->orWhere('description', 'like', "%{$pendingItemSearch}%");
+                      }
+                  });
+            });
+        }
+
+        if (Auth::user()->isTeacher()) {
+            $pendingQuery->whereHas('student.enrollments', function ($q) {
+                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            });
+        }
+
+        // Get ALL matching claims first, then group by student (NOT paginate before grouping)
+        $allPendingClaims = $pendingQuery->latest()->get();
+        $groupedByStudent = $allPendingClaims->groupBy('student_id');
+
+        // Track whether any search filter is active for empty-state messaging
+        $hasActiveSearch = $pendingStudentSearch !== '' || $pendingItemSearch !== '';
+        $hasAnyMatches = $groupedByStudent->count() > 0;
+
+        // Paginate student groups manually (10 groups per page)
+        $pendingStudentIds = $groupedByStudent->keys()->toArray();
+        $pendingPage = (int) $request->get('pending_page', 1);
+        $pendingPerPage = 10;
+        $pendingOffset = ($pendingPage - 1) * $pendingPerPage;
+        $pendingPageStudentIds = array_slice($pendingStudentIds, $pendingOffset, $pendingPerPage);
+        $pendingPaginatedGroups = [];
+        foreach ($pendingPageStudentIds as $sid) {
+            $pendingPaginatedGroups[$sid] = $groupedByStudent[$sid];
+        }
+        $pendingHasMorePages = count($pendingStudentIds) > $pendingPage * $pendingPerPage;
+
+        return view('partials.pending-claims-table', compact(
+            'pendingPaginatedGroups',
+            'pendingPage',
+            'pendingHasMorePages',
+            'pendingStudentIds',
+            'groupedByStudent',
+            'hasActiveSearch',
+            'hasAnyMatches',
+            'pendingStudentSearch',
+            'pendingItemSearch'
+        ))->render();
     }
 }
