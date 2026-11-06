@@ -65,17 +65,16 @@ class BottleCollectionController extends Controller
         } elseif (Auth::user()->isAdmin()) {
             // Admin sees all records (no school/campus scope in this system)
         } elseif (Auth::user()->isTeacher()) {
-            $studentIds = Student::where('teacher_id', Auth::id())
-                ->orWhereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id())->where('status', 'active');
+            $studentIds = Student::where('status', '!=', 'Archived')
+                ->where(function ($q) {
+                    $q->where('teacher_id', Auth::id())
+                      ->orWhereHas('enrollments', function ($qq) {
+                          $qq->where('teacher_id', Auth::id())->where('status', 'active');
+                      });
                 })
                 ->pluck('id');
 
-            if ($studentIds->isNotEmpty()) {
-                $query->whereIn('student_id', $studentIds);
-            } else {
-                $query->where('created_by', Auth::id());
-            }
+            $query->whereIn('student_id', $studentIds);
         }
 
         $search = $request->get('search');

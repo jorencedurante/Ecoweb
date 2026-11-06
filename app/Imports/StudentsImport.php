@@ -256,6 +256,22 @@ class StudentsImport
                 $sf1Data = $this->extractSf1Details($row, $colMap, $rowNumber);
             }
 
+            // Read school year from Column U (or mapped column) if present
+            $rowSchoolYear = '';
+            if (isset($colMap['school_year'])) {
+                $rawSchoolYear = trim((string) ($row[$colMap['school_year']] ?? ''));
+                if ($rawSchoolYear !== '') {
+                    $normalizedYear = $this->normalizeSchoolYear($rawSchoolYear);
+                    if ($normalizedYear) {
+                        $rowSchoolYear = $normalizedYear;
+                    } else {
+                        $this->errors[] = "Row {$rowNumber} (LRN: {$lrn}): Invalid school year format '{$rawSchoolYear}'. Expected YYYY-YYYY.";
+                        $this->skipped++;
+                        continue;
+                    }
+                }
+            }
+
             $student = Student::where('lrn', $lrn)->first();
 
             if ($student) {
@@ -279,7 +295,8 @@ class StudentsImport
                 $this->newStudents++;
             }
 
-            $this->createOrUpdateEnrollment($student, $teacherId, $gradeLevel, $fileName);
+            $this->schoolYear = $rowSchoolYear;
+            $this->createOrUpdateEnrollment($student, $teacherId, $rowGradeLevel, $fileName);
             $this->imported++;
             $this->createQrForImportedStudent($student);
         }
@@ -676,6 +693,8 @@ class StudentsImport
                 $map['remarks'] = $index;
             } elseif (!isset($map['grade_level']) && str_contains($text, 'grade') && str_contains($text, 'level')) {
                 $map['grade_level'] = $index;
+            } elseif (!isset($map['school_year']) && str_contains($text, 'school') && str_contains($text, 'year')) {
+                $map['school_year'] = $index;
             } elseif (!isset($map['school_name']) && str_contains($text, 'school') && str_contains($text, 'name') && !str_contains($text, 'school id')) {
                 $map['school_name'] = $index;
             }
@@ -990,6 +1009,27 @@ class StudentsImport
 
         $valid = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
         return in_array($grade, $valid) ? $grade : null;
+    }
+
+    private function normalizeSchoolYear(?string $year): ?string
+    {
+        if (!$year) return null;
+
+        $year = trim((string) $year);
+        $year = preg_replace('/[–—\/]/', '-', $year);
+
+        if (!preg_match('/^(\d{4})-(\d{4})$/', $year, $m)) {
+            return null;
+        }
+
+        $start = (int) $m[1];
+        $end = (int) $m[2];
+
+        if ($end !== $start + 1) {
+            return null;
+        }
+
+        return $year;
     }
 
     private function isEmptyRow(array $data): bool
