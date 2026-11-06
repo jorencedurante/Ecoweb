@@ -22,6 +22,8 @@ class QrCodeController extends Controller
         if (Auth::user()->isTeacher()) {
             $query->whereHas('student.enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
+            })->whereHas('student', function ($q) {
+                $q->where('status', '!=', 'Archived');
             });
         }
 

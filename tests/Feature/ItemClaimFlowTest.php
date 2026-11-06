@@ -238,17 +238,19 @@ class ItemClaimFlowTest extends TestCase
             'quantity' => 1,
         ])->assertSessionHas('success');
 
+        // Multiple pending claims for the same student+item are now allowed.
         $second = $this->post(route('public.items.request'), [
             'lrn' => $student->lrn,
             'claim_item_id' => $item->id,
             'quantity' => 1,
         ]);
+        $second->assertSessionHas('success');
 
-        $second->assertSessionHasErrors();
-
-        $this->assertSame(1, StudentClaim::where('student_id', $student->id)->count());
-        $this->assertSame(13, (int) $item->fresh()->quantity);
-        $this->assertSame(400, (int) $student->fresh()->total_points);
+        // Both requests are stored separately.
+        $this->assertSame(2, StudentClaim::where('student_id', $student->id)->count());
+        // Each request reserves 100 points and 1 piece of stock.
+        $this->assertSame(12, (int) $item->fresh()->quantity);
+        $this->assertSame(300, (int) $student->fresh()->total_points);
     }
 
     public function test_failed_claim_creation_rolls_back_point_and_stock_deductions(): void

@@ -196,9 +196,14 @@ class BottleCollectionController extends Controller
         ->where('status', 'active')
         ->latest('id')
         ->first();
-    if ($currentEnrollment) {
-        $validated['enrollment_id'] = $currentEnrollment->id;
+
+    if (!$currentEnrollment) {
+        return back()->withErrors([
+            'student_id' => 'This student has no active enrollment. A bottle collection requires an active school-year enrollment.',
+        ])->withInput();
     }
+
+    $validated['enrollment_id'] = $currentEnrollment->id;
 
     BottleCollection::create($validated);
 

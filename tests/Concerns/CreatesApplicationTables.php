@@ -113,6 +113,7 @@ trait CreatesApplicationTables
             Schema::create('bottle_collections', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
+                $table->unsignedBigInteger('enrollment_id')->nullable()->after('student_id');
                 $table->string('lrn', 50)->nullable();
                 $table->date('collection_date');
                 $table->time('collection_time')->nullable();
@@ -120,6 +121,15 @@ trait CreatesApplicationTables
                 $table->integer('points_earned')->default(0);
                 $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->timestamps();
+
+                $table->foreign('enrollment_id')
+                    ->references('id')->on('student_enrollments')->nullOnDelete();
+            });
+        } elseif (!Schema::hasColumn('bottle_collections', 'enrollment_id')) {
+            Schema::table('bottle_collections', function (Blueprint $table) {
+                $table->unsignedBigInteger('enrollment_id')->nullable()->after('student_id');
+                $table->foreign('enrollment_id')
+                    ->references('id')->on('student_enrollments')->nullOnDelete();
             });
         }
 
