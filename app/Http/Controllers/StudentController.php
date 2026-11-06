@@ -207,8 +207,9 @@ class StudentController extends Controller
 
     public function filterStudents(Request $request)
     {
+        $user = Auth::user();
         $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
-        $query->visibleTo(Auth::user());
+        $query->visibleTo($user);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -222,7 +223,7 @@ class StudentController extends Controller
             });
         }
 
-        if (Auth::user()->isAdminLevel()) {
+        if ($user->isAdminLevel()) {
             if ($gradeLevel = $request->get('grade_level')) {
                 $query->where('grade_level', $gradeLevel);
             }
@@ -233,7 +234,15 @@ class StudentController extends Controller
         }
 
         $students = $query->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
-        $actionsColClass = Auth::user()->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
+        $actionsColClass = $user->role === 'admin' ? 'stu-actions-3' : 'stu-actions-5';
+
+        // Count active enrollments with NULL school_year for this teacher
+        $nullSchoolYearCount = StudentEnrollment::whereNull('school_year')
+            ->where('status', 'active')
+            ->when($user->isTeacher(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->id);
+            })
+            ->count();
 
         $filterable = [
             'search' => 'Search',
@@ -250,7 +259,8 @@ class StudentController extends Controller
         return view('partials.students-table', compact(
             'students',
             'appliedFilters',
-            'actionsColClass'
+            'actionsColClass',
+            'nullSchoolYearCount'
         ))->render();
     }
 
@@ -563,6 +573,26 @@ class StudentController extends Controller
             ], 422);
         }
 
+        $schoolYear = trim($request->input('school_year'));
+
+        // Validate consecutive years: YYYY-YYYY where second = first + 1
+        if (!preg_match('/^(\d{4})-(\d{4})$/', $schoolYear, $m)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School year must use YYYY-YYYY format (e.g. 2026-2027).',
+            ], 422);
+        }
+
+        $start = (int) $m[1];
+        $end = (int) $m[2];
+
+        if ($end !== $start + 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School year must be consecutive: the second year must equal the first year plus one (e.g. 2026-2027).',
+            ], 422);
+        }
+
         $enrollments = StudentEnrollment::whereNull('school_year')
             ->where('status', 'active')
             ->whereHas('student', function ($q) use ($user) {
@@ -579,15 +609,15 @@ class StudentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($enrollments, $request) {
+        DB::transaction(function () use ($enrollments, $schoolYear) {
             foreach ($enrollments as $enrollment) {
-                $enrollment->update(['school_year' => $request->school_year]);
+                $enrollment->update(['school_year' => $schoolYear]);
             }
         });
 
         return response()->json([
             'success' => true,
-            'message' => "Assigned school year '{$request->school_year}' to {$count} student(s).",
+            'message' => "Assigned school year '{$schoolYear}' to {$count} student(s).",
             'student_count' => $count,
         ]);
     }
@@ -853,6 +883,135 @@ class StudentController extends Controller
         ]);
 
         return redirect()->route('admin.students.archived')->with('success', 'Student restored successfully!');
+    }
+
+    public function moveToSchoolYear(Request $request, Student $student)
+    {
+        $this->ensureCanManageStudents();
+
+        $user = Auth::user();
+
+        // Teacher authorization: must have an enrollment (any status) with this teacher
+        if ($user->isTeacher()) {
+            $hasAccess = $student->enrollments()
+                ->where('teacher_id', $user->id)
+                ->exists();
+
+            if (!$hasAccess) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this student record.'
+                ], 403);
+            }
+        }
+
+        // Validate student is archived
+        if (!in_array($student->status, ['Archived', 'archived'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only archived students can be moved to School-Year Archives.'
+            ], 422);
+        }
+
+        // Validate student is individually archived (not already in school-year group)
+        if ($student->archive_type !== 'individual') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only individually archived students can be moved to School-Year Archives.'
+            ], 422);
+        }
+
+        // Determine the original school year.
+        // 1. Use school_year from request (teacher correction workflow).
+        // 2. Fall back to archive_school_year on the student.
+        // 3. Fall back to verified school year from historical enrollments.
+        $requestedYear = trim($request->input('school_year', ''));
+        $schoolYear = $requestedYear;
+
+        if ($schoolYear === '') {
+            $schoolYear = trim($student->archive_school_year ?? '');
+        }
+
+        if ($schoolYear === '') {
+            $enrollmentSchoolYear = $student->enrollments()
+                ->whereNotNull('school_year')
+                ->where('school_year', '!=', '')
+                ->orderByDesc('id')
+                ->value('school_year');
+
+            if ($user->isTeacher() && empty($enrollmentSchoolYear)) {
+                $teacherEnrollment = $student->enrollments()
+                    ->where('teacher_id', $user->id)
+                    ->whereNotNull('school_year')
+                    ->where('school_year', '!=', '')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($teacherEnrollment) {
+                    $enrollmentSchoolYear = $teacherEnrollment->school_year;
+                }
+            }
+
+            if (!empty($enrollmentSchoolYear)) {
+                $schoolYear = $enrollmentSchoolYear;
+                // Persist the verified year on the archived record.
+                $student->update(['archive_school_year' => $schoolYear]);
+            }
+        }
+
+        // If a school year was requested (correction workflow), validate format
+        // and update only the affected archived enrollment's school_year.
+        if ($requestedYear !== '') {
+            if (!preg_match('/^\d{4}-\d{4}$/', $requestedYear)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid school year format. Use YYYY-YYYY (e.g. 2026-2027).',
+                ], 422);
+            }
+
+            $schoolYear = $requestedYear;
+
+            // Update only the teacher's enrollment school_year (correction).
+            if ($user->isTeacher()) {
+                $student->enrollments()
+                    ->where('teacher_id', $user->id)
+                    ->update(['school_year' => $schoolYear]);
+            }
+
+            // Persist on the archived record.
+            $student->update(['archive_school_year' => $schoolYear]);
+
+            AdminActivity::create([
+                'user_id' => Auth::id(),
+                'action' => 'Corrected School Year',
+                "description" => "Corrected school year for {$student->full_name} to {$schoolYear}.",
+                'module' => 'Students',
+            ]);
+        }
+
+        if ($schoolYear === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot move: this student has no original school year recorded. Please specify the original school year to proceed.',
+                'requires_school_year' => true,
+            ], 422);
+        }
+
+        // Move: change archive_type from individual to school_year.
+        // The student remains archived; archive_school_year, grade_level,
+        // teacher_id, and all historical records are unchanged.
+        $student->update(['archive_type' => 'school_year']);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Moved to School-Year Archives',
+            "description" => "Moved {$student->full_name} to School-Year Archives (SY {$schoolYear}).",
+            'module' => 'Students',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$student->full_name} moved to School-Year Archives (SY {$schoolYear}).",
+        ]);
     }
 
     public function unarchive(Request $request, Student $student)
@@ -1291,7 +1450,7 @@ class StudentController extends Controller
                 'remarks' => $student->remarks,
                 'section' => $currentEnrollment?->section,
                 'school_year' => $currentEnrollment?->school_year,
-                'teacher_name' => $student->teacher?->name,
+                'teacher_name' => $currentEnrollment?->teacher?->name,
                 'is_archived' => in_array($student->status, ['Archived', 'archived']),
                 'details_url' => route('students.info', $student),
             ],

@@ -145,6 +145,29 @@
             border-color: #f87171 !important;
         }
 
+        /* Move to School-Year Archives button */
+        .move-to-sy-btn {
+            min-width: 38px !important;
+            min-height: 38px !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            background: #6366f1 !important;
+            color: #fff !important;
+            border: none !important;
+            border-radius: 6px !important;
+        }
+        .move-to-sy-btn:hover {
+            background: #4f46e5 !important;
+        }
+
+        .move-to-sy-btn svg {
+            width: 16px !important;
+            height: 16px !important;
+            stroke: #fff !important;
+            fill: none !important;
+            stroke-width: 2 !important;
+        }
+
         /* Unarchive confirmation modal */
         .unarchive-modal {
             display: none;
@@ -238,6 +261,103 @@
             border-color: #b91c1c;
         }
 
+        /* Move to School-Year Archives modal */
+        .move-modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        .move-modal.show {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .move-modal-content {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 480px;
+            margin: 20px;
+        }
+        .move-modal-header {
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 8px 8px 0 0;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .move-modal-header .modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #4f46e5;
+            margin: 0;
+        }
+        .move-modal-body {
+            padding: 20px;
+        }
+        .move-modal-body p {
+            margin: 0 0 16px 0;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .move-modal-detail {
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .move-modal-detail strong {
+            color: #111827;
+        }
+        .move-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+            border-radius: 0 0 8px 8px;
+        }
+        .move-modal-btn-cancel {
+            padding: 8px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .move-modal-btn-cancel:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .move-modal-btn-confirm {
+            padding: 8px 16px;
+            border: 1px solid #6366f1;
+            border-radius: 6px;
+            background: #6366f1;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .move-modal-btn-confirm:hover {
+            background: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .move-modal-btn-confirm:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
             .sy-table {
                 min-width: 700px !important;
@@ -290,12 +410,27 @@
                         <td><span style="color:var(--gray);font-weight:600;">{{ ucfirst($student->status) }}</span></td>
                         <td>
                             <div class="action-btns">
-                                <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs" aria-label="View info for {{ $student->full_name }}">View Info</a>
+                                <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs view-info-btn" aria-label="View Information for {{ $student->full_name }}" title="View Information">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </a>
                                 @if(Auth::user()->role !== 'admin')
                                 <form method="POST" action="{{ route('students.restore', $student->id) }}" style="display:inline;" onsubmit="return confirm('Restore this student to active students?');">
                                     @csrf @method('PATCH')
-                                    <button type="submit" class="btn btn-restore btn-xs" aria-label="Restore {{ $student->full_name }}">Restore</button>
+                                    <button type="submit" class="btn btn-restore btn-xs unarchive-btn" aria-label="Restore Student" title="Restore Student">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                            <path d="M3 3v5h5"/>
+                                        </svg>
+                                    </button>
                                 </form>
+                                <button type="button" class="move-to-sy-btn btn btn-xs" data-student-id="{{ $student->id }}" data-student-name="{{ $student->full_name }}" data-student-lrn="{{ $student->lrn }}" data-student-grade="{{ $student->grade_level }}" data-student-year="{{ $student->archive_school_year ?? $student->enrollments->firstWhere('school_year', '!=', null)->school_year ?? '' }}" data-student-teacher="{{ $student->teacher?->name ?? '—' }}" aria-label="Move to School-Year Archives" title="Move to School-Year Archives">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3 2-3h5a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                                </button>
                                 @endif
                             </div>
                         </td>
@@ -368,6 +503,34 @@
                 <div class="unarchive-modal-footer">
                     <button type="button" class="unarchive-modal-btn-cancel" id="unarchiveAllModalCancel">Cancel</button>
                     <button type="button" class="unarchive-modal-btn-confirm" id="unarchiveAllModalConfirm">Confirm Unarchive All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Move to School-Year Archives Confirmation Modal -->
+        <div class="move-modal" id="moveModal">
+            <div class="move-modal-content">
+                <div class="move-modal-header">
+                    <i class="fas fa-folder-arrow-up" style="font-size:18px;color:#6366f1;"></i>
+                    <h2 class="modal-title">Move to School-Year Archives?</h2>
+                </div>
+                <div class="move-modal-body">
+                    <p id="moveModalMessage">This archived student will be moved to the School-Year Archives group for their original school year. The student will remain archived and all historical records will be preserved.</p>
+                    <div class="move-modal-detail" id="moveModalStudentName"><strong>Name:</strong> <span id="moveModalStudentNameValue"></span></div>
+                    <div class="move-modal-detail" id="moveModalStudentLRN"><strong>LRN:</strong> <span id="moveModalStudentLRNValue"></span></div>
+                    <div class="move-modal-detail" id="moveModalStudentGrade"><strong>Grade Level:</strong> <span id="moveModalStudentGradeValue"></span></div>
+                    <div class="move-modal-detail" id="moveModalStudentYear"><strong>School Year:</strong> <span id="moveModalStudentYearValue"></span></div>
+                    <div class="move-modal-detail" id="moveModalStudentTeacher"><strong>Assigned Teacher:</strong> <span id="moveModalStudentTeacherValue"></span></div>
+                    <div class="move-modal-detail" id="moveModalYearNotice" style="display:none;color:#dc2626;font-size:12px;">Original school year not recorded. Please select below.</div>
+                    <div id="moveModalYearSelector" style="display:none;margin-top:8px;">
+                        <label for="moveModalSchoolYear" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Original School Year</label>
+                        <input type="text" id="moveModalSchoolYear" name="school_year" placeholder="e.g. 2026-2027" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+                        <p id="moveModalYearError" style="display:none;color:#dc2626;font-size:11px;margin-top:4px;">Please enter a valid school year (e.g. 2026-2027).</p>
+                    </div>
+                </div>
+                <div class="move-modal-footer">
+                    <button type="button" class="move-modal-btn-cancel" id="moveModalCancel">Cancel</button>
+                    <button type="button" class="move-modal-btn-confirm" id="moveModalConfirm">Confirm Move</button>
                 </div>
             </div>
         </div>
@@ -889,6 +1052,176 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && unarchiveAllModal.classList.contains('show')) {
                 closeUnarchiveAllModal();
+            }
+        });
+    }
+
+    // Move to School-Year Archives confirmation modal
+    let pendingMoveStudentId = null;
+
+    function openMoveModal(studentId, studentName, studentLRN, studentGrade, studentYear, studentTeacher) {
+        pendingMoveStudentId = studentId;
+
+        document.getElementById('moveModalStudentNameValue').textContent = studentName;
+        document.getElementById('moveModalStudentLRNValue').textContent = studentLRN;
+        document.getElementById('moveModalStudentGradeValue').textContent = studentGrade;
+        document.getElementById('moveModalStudentYearValue').textContent = studentYear || '—';
+        document.getElementById('moveModalStudentTeacherValue').textContent = studentTeacher;
+
+        const yearNotice = document.getElementById('moveModalYearNotice');
+        const yearSelector = document.getElementById('moveModalYearSelector');
+        const yearInput = document.getElementById('moveModalSchoolYear');
+        const yearError = document.getElementById('moveModalYearError');
+        const confirmBtn = document.getElementById('moveModalConfirm');
+
+        if (!studentYear || studentYear.trim() === '') {
+            // No verified school year: show selector, disable confirm until valid year entered
+            yearNotice.style.display = '';
+            yearSelector.style.display = '';
+            yearInput.value = '';
+            yearError.style.display = 'none';
+            confirmBtn.disabled = true;
+
+            yearInput.addEventListener('input', function() {
+                const val = this.value.trim();
+                const valid = /^\d{4}-\d{4}$/.test(val);
+                yearError.style.display = valid ? 'none' : '';
+                confirmBtn.disabled = !valid;
+            }, { once: true });
+        } else {
+            // Verified school year exists: hide selector, enable confirm
+            yearNotice.style.display = 'none';
+            yearSelector.style.display = 'none';
+            yearError.style.display = 'none';
+            confirmBtn.disabled = false;
+        }
+
+        const modal = document.getElementById('moveModal');
+        modal.classList.add('show');
+    }
+
+    function closeMoveModal() {
+        pendingMoveStudentId = null;
+        const modal = document.getElementById('moveModal');
+        modal.classList.remove('show');
+    }
+
+    // Move button click handler (individually archived panel)
+    document.addEventListener('click', function(e) {
+        const moveBtn = e.target.closest('.move-to-sy-btn');
+        if (moveBtn) {
+            const studentId = moveBtn.getAttribute('data-student-id');
+            const studentName = moveBtn.getAttribute('data-student-name');
+            const studentLRN = moveBtn.getAttribute('data-student-lrn');
+            const studentGrade = moveBtn.getAttribute('data-student-grade');
+            const studentYear = moveBtn.getAttribute('data-student-year');
+            const studentTeacher = moveBtn.getAttribute('data-student-teacher');
+            openMoveModal(studentId, studentName, studentLRN, studentGrade, studentYear, studentTeacher);
+            return;
+        }
+    });
+
+    // Move modal close handlers
+    const moveModal = document.getElementById('moveModal');
+    if (moveModal) {
+        document.getElementById('moveModalCancel').addEventListener('click', closeMoveModal);
+
+        document.getElementById('moveModalConfirm').addEventListener('click', function() {
+            if (!pendingMoveStudentId) return;
+
+            const studentId = pendingMoveStudentId;
+            const yearInput = document.getElementById('moveModalSchoolYear');
+            const schoolYear = yearInput && yearInput.style.display !== 'none' ? yearInput.value.trim() : null;
+
+            closeMoveModal();
+
+            const btn = document.getElementById('moveModalConfirm');
+            const originalText = btn.textContent;
+            btn.textContent = 'Moving...';
+            btn.disabled = true;
+
+            const body = schoolYear ? { school_year: schoolYear } : {};
+
+            fetch("{{ route('students.move-to-school-year', 0) }}".replace('/0', '/' + studentId), {
+                method: 'PATCH',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(body),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'Move failed');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Remove the student row from the individually archived table
+                    const row = document.querySelector(`.move-to-sy-btn[data-student-id="${studentId}"]`)?.closest('tr');
+                    if (row) {
+                        row.remove();
+                    }
+
+                    // Check if table is now empty
+                    const tbody = document.querySelector('#panel-individually tbody');
+                    const remainingRows = tbody ? tbody.querySelectorAll('tr') : [];
+                    if (remainingRows.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-light);">No archived students found.</td></tr>';
+                    }
+
+                    // Reload school-year archives if loaded
+                    if (syLoaded) {
+                        syGroupState = {};
+                        loadSchoolYearArchives();
+                    }
+
+                    btn.textContent = 'Moved!';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                    }, 1000);
+                } else {
+                    alert(data.message || 'Move failed.');
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error('Move error:', err);
+                alert(err.message || 'Unable to move student.');
+                btn.textContent = originalText;
+                btn.disabled = false;
+                // Re-open modal if school year is required
+                if (err.message && err.message.includes('no original school year')) {
+                    const moveBtn = document.querySelector(`.move-to-sy-btn[data-student-id="${studentId}"]`);
+                    if (moveBtn) {
+                        const studentName = moveBtn.getAttribute('data-student-name');
+                        const studentLRN = moveBtn.getAttribute('data-student-lrn');
+                        const studentGrade = moveBtn.getAttribute('data-student-grade');
+                        const studentYear = moveBtn.getAttribute('data-student-year');
+                        const studentTeacher = moveBtn.getAttribute('data-student-teacher');
+                        openMoveModal(studentId, studentName, studentLRN, studentGrade, studentYear, studentTeacher);
+                    }
+                }
+            });
+        });
+
+        // Close on backdrop click
+        moveModal.addEventListener('click', function(e) {
+            if (e.target === moveModal) closeMoveModal();
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && moveModal.classList.contains('show')) {
+                closeMoveModal();
             }
         });
     }

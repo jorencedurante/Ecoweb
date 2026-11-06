@@ -682,6 +682,7 @@
                     <input type="text" id="fixSchoolYear" name="school_year" placeholder="2026-2027" value="{{ old('school_year') }}" required aria-label="School year" maxlength="20" pattern="\d{4}-\d{4}">
                     <small class="form-hint">Format: YYYY-YYYY (e.g. 2026-2027)</small>
                 </div>
+                <div id="fixSchoolYearError" style="color:var(--red);font-size:13px;margin-top:8px;display:none;"></div>
                 <div id="fixSchoolYearsZeroMessage" style="color:var(--red);font-size:13px;margin-top:8px;display:none;">No eligible students found.</div>
                 <div class="form-group">
                     <label class="confirm-checkbox" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
@@ -1777,6 +1778,10 @@ function initStudentOverview() {
 
     confirmBtn.addEventListener('click', function () {
         const year = input.value.trim();
+        const errorEl = document.getElementById('fixSchoolYearError');
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+
         if (!/^\d{4}-\d{4}$/.test(year) || !checkbox.checked) return;
 
         confirmBtn.disabled = true;
@@ -1802,12 +1807,14 @@ function initStudentOverview() {
                 window.location.reload();
             } else {
                 confirmBtn.disabled = false;
-                alert(data.message || 'Failed to assign school year.');
+                errorEl.textContent = data.message || 'Failed to assign school year.';
+                errorEl.style.display = '';
             }
         })
         .catch(() => {
             confirmBtn.disabled = false;
-            alert('Failed to assign school year. Please try again.');
+            errorEl.textContent = 'Failed to assign school year. Please try again.';
+            errorEl.style.display = '';
         });
     });
 })();
