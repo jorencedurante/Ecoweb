@@ -292,7 +292,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
+        $students = $query->with('enrollments')->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
 
         return view('pages.students-archived', compact('students', 'gradeLevels'));
