@@ -60,17 +60,42 @@
 
                     <div class="form-group" style="margin-top:16px;">
                         <label for="adviserSelect">Select Teacher / Adviser</label>
+                        @php
+                            $isTeacherRole = Auth::user()->isTeacher();
+                        @endphp
                         <select id="adviserSelect" name="adviser_id"
                                 style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
                                 aria-label="Select teacher or adviser">
-                            <option value="" disabled {{ $selectedAdviser ? '' : 'selected' }}>Select Teacher / Adviser</option>
+                            <option value="" disabled selected>Select Teacher / Adviser</option>
                             @foreach($teachers as $t)
-                                <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) $selectedAdviser === (string) $t->id ? 'selected' : '' }}>
-                                    {{ $t->name }} · {{ ucfirst(str_replace('_', ' ', $t->role)) }}{{ $t->position ? ' — ' . $t->position : '' }}
+                                <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) old('adviser_id') === (string) $t->id ? 'selected' : '' }}>
+                                    {{ $t->name }}{{ !$isTeacherRole ? ' · ' . ucfirst(str_replace('_', ' ', $t->role)) . ($t->position ? ' — ' . $t->position : '') : '' }}
                                 </option>
                             @endforeach
                         </select>
-                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">The adviser name appears on the adviser line of the certificate automatically.</div>
+                        <div id="assignedTeacherHint" style="font-size:11px;color:var(--text-light);margin-top:4px;display:{{ $studentAssignedTeacherName ? 'block' : 'none' }};">
+                            Assigned teacher for selected student: <strong id="assignedTeacherHintName">{{ $studentAssignedTeacherName }}</strong>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the teacher or adviser whose name appears on the certificate.</div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:16px;">
+                        <label for="principalSelect">School OIC / Principal</label>
+                        <select id="principalSelect" name="principal_id"
+                                style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
+                                aria-label="Select School OIC or Principal" {{ $signatories->isEmpty() ? 'disabled' : '' }}>
+                            @if($signatories->isEmpty())
+                                <option value="" disabled selected>No School OIC / Principal available</option>
+                            @else
+                                <option value="" disabled selected>Select School OIC / Principal</option>
+                                @foreach($signatories as $s)
+                                    <option value="{{ $s->id }}" data-name="{{ $s->name }}" data-role="{{ $s->role }}" {{ (string) old('principal_id') === (string) $s->id ? 'selected' : '' }}>
+                                        {{ $s->name }} · {{ ucfirst(str_replace('_', ' ', $s->role)) }}{{ $s->position ? ' — ' . $s->position : '' }}
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the School OIC or Principal whose name appears in the right signature area.</div>
                     </div>
 
                     <div class="font-settings" id="fontSettings" style="margin-top:16px;">
@@ -93,6 +118,10 @@
                             <span>Adviser Name Size</span>
                             <input type="number" id="adviserFontSize" class="fs-input" min="10" max="120" step="1" value="18" aria-label="Adviser name font size" style="max-width:120px;">
                         </label>
+                        <label class="fs-field">
+                            <span>OIC/Principal Size</span>
+                            <input type="number" id="principalFontSize" class="fs-input" min="10" max="120" step="1" value="18" aria-label="Principal name font size" style="max-width:120px;">
+                        </label>
                     </div>
 
                     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
@@ -111,6 +140,7 @@
                             <img id="certificateBg" class="certificate-bg" src="" alt="Certificate Template" style="display:none;">
                             <div id="certificateStudentName" class="certificate-name-overlay" data-role="student_name"></div>
                             <div id="certificateAdviserName" class="certificate-adviser-overlay" data-role="adviser_name"></div>
+                            <div id="certificatePrincipalName" class="certificate-principal-overlay" data-role="principal_name"></div>
                             <div id="emptyTemplateMessage" class="empty-template-message">
                                 Upload a certificate template to start.
                             </div>
@@ -361,7 +391,8 @@
     padding: 0 20px;
 }
 .certificate-name-overlay,
-.certificate-adviser-overlay {
+.certificate-adviser-overlay,
+.certificate-principal-overlay {
     position: absolute;
     display: none;
     text-align: center;
@@ -392,8 +423,16 @@
     top: 87%;
     height: 5.3%;
 }
+.certificate-principal-overlay {
+    width: 13.25%;
+    left: 73.87%;
+    transform: translateX(-50%);
+    top: 87%;
+    height: 5.3%;
+}
 .certificate-name-overlay.is-visible,
-.certificate-adviser-overlay.is-visible {
+.certificate-adviser-overlay.is-visible,
+.certificate-principal-overlay.is-visible {
     display: block;
     pointer-events: auto;
     cursor: move;
@@ -401,13 +440,16 @@
 /* subtle dashed feedback only on hover / while dragging — preview stays clean */
 .certificate-name-overlay.is-visible:hover,
 .certificate-adviser-overlay.is-visible:hover,
+.certificate-principal-overlay.is-visible:hover,
 .certificate-name-overlay.is-visible.is-dragging,
-.certificate-adviser-overlay.is-visible.is-dragging {
+.certificate-adviser-overlay.is-visible.is-dragging,
+.certificate-principal-overlay.is-visible.is-dragging {
     outline: 2px dashed rgba(37, 99, 235, 0.6);
     outline-offset: -2px;
 }
 .certificate-name-overlay.is-dragging,
-.certificate-adviser-overlay.is-dragging {
+.certificate-adviser-overlay.is-dragging,
+.certificate-principal-overlay.is-dragging {
     outline-color: rgba(37, 99, 235, 0.95);
     background: rgba(255, 255, 255, 0.25);
 }
@@ -569,28 +611,38 @@
     var adviserLineCenterX = 26.13; // center of the LEFT Class Adviser line (never School OIC)
     var adviserLineY = 92.32;       // top edge of the Class Adviser line
     var adviserBoxWidth = 13.25;    // usable length of the Class Adviser line
+    var principalLineCenterX = 73.87; // center of the RIGHT School OIC/Principal line
+    var principalLineY = 92.32;       // top edge of the School OIC/Principal line
+    var principalBoxWidth = 13.25;
 
     // Shared font style; separate preferred size per name.
     var sharedFontFamily = 'Georgia';
     var studentPreferredFontSize = 24;
     var adviserPreferredFontSize = 18;
+    var principalPreferredFontSize = 18;
 
     var studentCfg = { centerX: studentLineCenterX, top: 57.3, height: 7, baseline: studentLineY, width: 30, min: 16, color: '#1F2937', weight: '700', centered: true };
     var adviserCfg = { centerX: adviserLineCenterX, top: 87, height: 5.3, baseline: adviserLineY, width: adviserBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
+    var principalCfg = { centerX: principalLineCenterX, top: 87, height: 5.3, baseline: principalLineY, width: principalBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
 
     // Optional manual position overrides set by dragging (% of the image).
     // null = use the existing automatic alignment (the default).
     var studentPosOverride = null; // { centerX, baseline }
     var adviserPosOverride = null;
+    var principalPosOverride = null;
     var activeDrag = null;         // overlay currently being dragged
 
     var selectedStudentId = null;
     var selectedStudentName = '';
     var selectedAdviserId = null;
     var selectedAdviserName = '';
+    var selectedPrincipalId = null;
+    var selectedPrincipalName = '';
+    var selectedPrincipalRole = '';
 
     var studentBox = document.getElementById('certificateStudentName');
     var adviserBox = document.getElementById('certificateAdviserName');
+    var principalBox = document.getElementById('certificatePrincipalName');
 
     function $(id) { return document.getElementById(id); }
 
@@ -776,6 +828,16 @@
             }
         }
 
+        if (principalBox && principalBox.classList.contains('is-visible')) {
+            var pCfg = effectiveCfg(principalCfg, principalPosOverride);
+            applyBoxStyle(principalBox, pCfg);
+            var pFit = fitTextToBox(principalBox, { maxSize: principalPreferredFontSize, minSize: pCfg.min, weight: pCfg.weight, family: sharedFontFamily });
+            positionBaselineBox(principalBox, pCfg, pFit.size);
+            if (!warning && !pFit.fits) {
+                warning = 'The School OIC/Principal name "' + (principalBox.textContent || '').trim() + '" cannot fit above the signature line even at the smallest readable font size. Please check the certificate template.';
+            }
+        }
+
         showWarning(warning);
     }
 
@@ -806,6 +868,21 @@
         adviserBox.textContent = '';
         adviserBox.classList.remove('is-visible');
         adviserBox.style.fontSize = '';
+        refreshAll();
+    }
+
+    function showPrincipalName() {
+        if (!principalBox || !selectedPrincipalName) return;
+        principalBox.textContent = selectedPrincipalName;
+        principalBox.classList.add('is-visible');
+        refreshAll();
+    }
+
+    function hidePrincipalName() {
+        if (!principalBox) return;
+        principalBox.textContent = '';
+        principalBox.classList.remove('is-visible');
+        principalBox.style.fontSize = '';
         refreshAll();
     }
 
@@ -884,6 +961,19 @@
         closeResults();
         $('studentSearch').blur();
         showStudentName();
+        // Indicate assigned teacher (do not auto-select adviser dropdown)
+        var hint = $('assignedTeacherHint');
+        var hintName = $('assignedTeacherHintName');
+        var assignedName = student.assigned_teacher_name || '';
+        if (hint && hintName) {
+            if (assignedName) {
+                hintName.textContent = assignedName;
+                hint.style.display = 'block';
+            } else {
+                hintName.textContent = '';
+                hint.style.display = 'none';
+            }
+        }
     }
 
     $('studentSearch').addEventListener('input', function () {
@@ -954,6 +1044,8 @@
         info.innerHTML = '<span></span>';
         hideStudentName();
         closeResults();
+        var hint = $('assignedTeacherHint');
+        if (hint) { hint.style.display = 'none'; }
     });
 
     // --- TEACHER / ADVISER SELECTION ---
@@ -973,6 +1065,29 @@
 
     $('adviserSelect').addEventListener('change', syncAdviserFromSelect);
 
+    // --- PRINCIPAL / SCHOOL OIC SELECTION ---
+    function syncPrincipalFromSelect() {
+        var select = $('principalSelect');
+        if (!select) return;
+        var option = select.options[select.selectedIndex];
+        if (!select.value || !option) {
+            selectedPrincipalId = null;
+            selectedPrincipalName = '';
+            selectedPrincipalRole = '';
+            hidePrincipalName();
+            return;
+        }
+        selectedPrincipalId = select.value;
+        selectedPrincipalName = option.getAttribute('data-name') || option.textContent.trim();
+        selectedPrincipalRole = option.getAttribute('data-role') || '';
+        showPrincipalName();
+    }
+
+    var principalSelectEl = document.getElementById('principalSelect');
+    if (principalSelectEl) {
+        principalSelectEl.addEventListener('change', syncPrincipalFromSelect);
+    }
+
     // --- FONT SETTINGS (shared style, independent sizes) ---
     $('certFontFamily').addEventListener('change', function () {
         sharedFontFamily = this.value;
@@ -985,6 +1100,10 @@
     $('adviserFontSize').addEventListener('input', function () {
         var v = parseInt(this.value, 10);
         if (v > 0) { adviserPreferredFontSize = v; refreshAll(); }
+    });
+    $('principalFontSize').addEventListener('input', function () {
+        var v = parseInt(this.value, 10);
+        if (v > 0) { principalPreferredFontSize = v; refreshAll(); }
     });
 
     // --- OPTIONAL DRAG POSITIONING (manual override on top of automatic alignment) ---
@@ -1083,11 +1202,16 @@
     if (adviserBox) {
         attachDrag(adviserBox, function () { return adviserPosOverride; }, function (v) { adviserPosOverride = v; }, adviserCfg);
     }
+    if (principalBox) {
+        attachDrag(principalBox, function () { return principalPosOverride; }, function (v) { principalPosOverride = v; }, principalCfg);
+    }
 
     // --- RESET NAME POSITIONS (clears only the manual overrides) ---
     $('resetNamePositionsBtn').addEventListener('click', function () {
         studentPosOverride = null;
         adviserPosOverride = null;
+        principalPosOverride = null;
+        principalPosOverride = null;
         refreshAll();
     });
 
@@ -1139,16 +1263,43 @@
                 left: aLeft,
                 top: aTop,
                 width: aCfg.width,
-                height: aHeight,
+                height: aCfg.height,
                 baseline: aCfg.baseline,
                 x: aLeft + aCfg.width / 2,
-                y: aTop + aHeight / 2,
+                y: aTop + aCfg.height / 2,
                 fontSize: aFit.refSize,
                 fontSizePref: adviserPreferredFontSize,
                 fontSizeMin: aCfg.min,
                 fontFamily: sharedFontFamily,
                 color: aCfg.color,
                 fontWeight: aCfg.weight,
+                textAlign: 'center'
+            });
+        }
+
+        if (principalBox && principalBox.classList.contains('is-visible') && selectedPrincipalName) {
+            var pCfg = effectiveCfg(principalCfg, principalPosOverride);
+            var pText = (principalBox.textContent || '').trim();
+            var pFit = fitTextToBox(principalBox, { maxSize: principalPreferredFontSize, minSize: pCfg.min, weight: pCfg.weight, family: sharedFontFamily });
+            var pLeft = boxLeft(pCfg);
+            var pTop = canvasH > 0 ? (principalBox.offsetTop / canvasH) * 100 : pCfg.top;
+            var pHeight = canvasH > 0 ? (principalBox.offsetHeight / canvasH) * 100 : pCfg.height;
+            data.push({
+                type: 'principal_name',
+                text: pText,
+                left: pLeft,
+                top: pTop,
+                width: pCfg.width,
+                height: pCfg.height,
+                baseline: pCfg.baseline,
+                x: pLeft + pCfg.width / 2,
+                y: pTop + pCfg.height / 2,
+                fontSize: pFit.refSize,
+                fontSizePref: principalPreferredFontSize,
+                fontSizeMin: pCfg.min,
+                fontFamily: sharedFontFamily,
+                color: pCfg.color,
+                fontWeight: pCfg.weight,
                 textAlign: 'center'
             });
         }
@@ -1175,7 +1326,7 @@
 
         var nameHtml = '';
         data.forEach(function (box) {
-            if (box.type !== 'student_name' && box.type !== 'adviser_name') return;
+            if (box.type !== 'student_name' && box.type !== 'adviser_name' && box.type !== 'principal_name') return;
             var width = box.width;
             var height = box.height || 6;
             var left = typeof box.left === 'number' ? box.left : ((box.x || 50) - width / 2);
@@ -1284,11 +1435,15 @@
         }
         if (!selectedStudentId) return 'Search and select a student first.';
         if (!selectedAdviserId) return 'Select a teacher / adviser first.';
+        if (!selectedPrincipalId) return 'Select a School OIC / Principal first.';
         if (!studentBox || !studentBox.classList.contains('is-visible') || !(studentBox.textContent || '').trim()) {
             return 'The student name is not shown on the certificate.';
         }
         if (!adviserBox || !adviserBox.classList.contains('is-visible') || !(adviserBox.textContent || '').trim()) {
             return 'The adviser name is not shown on the certificate.';
+        }
+        if (!principalBox || !principalBox.classList.contains('is-visible') || !(principalBox.textContent || '').trim()) {
+            return 'The School OIC / Principal name is not shown on the certificate.';
         }
         var warning = $('certNameWarning');
         if (warning && !warning.hidden) {
@@ -1305,6 +1460,7 @@
         return [
             String(selectedStudentId || ''),
             String(selectedAdviserId || ''),
+            String(selectedPrincipalId || ''),
             templateSignature,
             JSON.stringify(collectCanvasData())
         ].join('|');
@@ -1335,7 +1491,7 @@
                 var scaleX = out.width / Math.max(1, canvas.clientWidth);
                 var scaleY = out.height / Math.max(1, canvas.clientHeight);
 
-                var boxes = [studentBox, adviserBox];
+                var boxes = [studentBox, adviserBox, principalBox];
                 for (var i = 0; i < boxes.length; i++) {
                     var box = boxes[i];
                     if (!box || !box.classList.contains('is-visible')) continue;
@@ -1397,6 +1553,7 @@
             var form = new FormData();
             form.append('student_id', selectedStudentId);
             form.append('adviser_id', selectedAdviserId);
+            form.append('principal_id', selectedPrincipalId || '');
             form.append('template_file', $('template_file').files[0]);
             form.append('generated_file', blob, 'certificate.jpg');
             form.append('canvas_data', JSON.stringify(collectCanvasData()));
@@ -1451,6 +1608,7 @@
         }
 
         syncAdviserFromSelect();
+        syncPrincipalFromSelect();
 
         refreshAll();
 

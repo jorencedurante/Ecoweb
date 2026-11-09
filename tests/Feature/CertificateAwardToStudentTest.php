@@ -30,6 +30,23 @@ class CertificateAwardToStudentTest extends TestCase
         return UploadedFile::fake()->createWithContent($name, base64_decode(self::ONE_PIXEL_JPEG));
     }
 
+    private function createPrincipal(array $overrides = []): User
+    {
+        $index = User::count() + 1;
+        $user = User::create(array_merge([
+            'name' => "Principal User {$index}",
+            'username' => "principal{$index}",
+            'email' => "principal{$index}@ecocollect.test",
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ], $overrides));
+        $user->markEmailAsVerified();
+
+        return $user;
+    }
+
     private function canvasData(int $studentId, int $adviserId, array $overrides = []): string
     {
         $studentBox = array_merge([
@@ -71,21 +88,23 @@ class CertificateAwardToStudentTest extends TestCase
         return json_encode([$studentBox, $adviserBox]);
     }
 
-    private function awardPayload(Student $student, User $adviser, array $overrides = []): array
+    private function awardPayload(Student $student, User $adviser, array $overrides = [], ?User $principal = null): array
     {
+        $principal = $principal ?: $this->createPrincipal();
         return array_merge([
             'student_id' => $student->id,
             'adviser_id' => $adviser->id,
+            'principal_id' => $principal->id,
             'template_file' => $this->realJpeg('template.jpg'),
             'generated_file' => $this->realJpeg(),
             'canvas_data' => $this->canvasData($student->id, $adviser->id),
         ], $overrides);
     }
 
-    private function awardCertificate(User $acting, Student $student, User $adviser, array $overrides = []): CertificateAward
+    private function awardCertificate(User $acting, Student $student, User $adviser, array $overrides = [], ?User $principal = null): CertificateAward
     {
         $response = $this->actingAs($acting)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, $overrides));
+            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, $overrides, $principal));
 
         $response->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', false);
 
@@ -152,7 +171,7 @@ class CertificateAwardToStudentTest extends TestCase
         $response = $this->actingAs($admin)->postJson(route('admin.certificate.award'), []);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['student_id', 'adviser_id', 'template_file', 'generated_file', 'canvas_data']);
+        $response->assertJsonValidationErrors(['student_id', 'adviser_id', 'principal_id', 'template_file', 'generated_file', 'canvas_data']);
         $this->assertSame(0, CertificateAward::count());
     }
 
@@ -226,13 +245,14 @@ class CertificateAwardToStudentTest extends TestCase
         $admin = $this->createAdmin();
         $adviser = $this->createTeacher();
         $student = $this->createStudent();
+        $principal = $this->createPrincipal();
 
         $first = $this->actingAs($admin)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser));
+            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
         $first->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', false);
 
         $second = $this->actingAs($admin)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser));
+            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
         $second->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', true);
         $second->assertJsonPath('id', $first->json('id'));
 
@@ -242,7 +262,7 @@ class CertificateAwardToStudentTest extends TestCase
         $changedLayout = $this->canvasData($student->id, $adviser->id, ['top' => 60]);
         $third = $this->actingAs($admin)->postJson(
             route('admin.certificate.award'),
-            $this->awardPayload($student, $adviser, ['canvas_data' => $changedLayout])
+            $this->awardPayload($student, $adviser, ['canvas_data' => $changedLayout], $principal)
         );
         $third->assertOk()->assertJsonPath('duplicate', false);
         $this->assertSame(2, CertificateAward::count());
@@ -251,17 +271,16 @@ class CertificateAwardToStudentTest extends TestCase
     public function test_teacher_awards_only_for_assigned_students(): void
     {
         $teacher = $this->createTeacher();
-        $adviser = $this->createTeacher();
         $enrolledStudent = $this->createStudent($teacher);
         $foreignStudent = $this->createStudent();
 
         $allowed = $this->actingAs($teacher)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($enrolledStudent, $adviser));
+            ->postJson(route('admin.certificate.award'), $this->awardPayload($enrolledStudent, $teacher));
         $allowed->assertOk();
         $this->assertSame(1, CertificateAward::count());
 
         $denied = $this->actingAs($teacher)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($foreignStudent, $adviser));
+            ->postJson(route('admin.certificate.award'), $this->awardPayload($foreignStudent, $teacher));
         $denied->assertStatus(404);
         $this->assertSame(1, CertificateAward::count());
 
@@ -295,14 +314,13 @@ class CertificateAwardToStudentTest extends TestCase
     public function test_print_view_falls_back_to_legacy_reconstruction_without_generated_file(): void
     {
         $teacher = $this->createTeacher();
-        $adviser = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
             'student_id' => $student->id,
-            'adviser_id' => $adviser->id,
+            'adviser_id' => $teacher->id,
             'template_file' => UploadedFile::fake()->create('t.jpg', 10, 'image/jpeg'),
-            'canvas_data' => $this->canvasData($student->id, $adviser->id),
+            'canvas_data' => $this->canvasData($student->id, $teacher->id),
         ]);
         $response->assertRedirect();
 
@@ -319,9 +337,8 @@ class CertificateAwardToStudentTest extends TestCase
     {
         $owner = $this->createTeacher();
         $other = $this->createTeacher();
-        $adviser = $this->createTeacher();
         $student = $this->createStudent($owner);
-        $award = $this->awardCertificate($owner, $student, $adviser);
+        $award = $this->awardCertificate($owner, $student, $owner);
 
         $this->actingAs($other)->get(route('admin.certificate.download', $award))->assertForbidden();
         $this->actingAs($other)->get(route('admin.certificate.print', $award))->assertForbidden();

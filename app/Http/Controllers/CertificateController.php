@@ -28,12 +28,41 @@ class CertificateController extends Controller
             ->latest()
             ->get();
 
-        $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+        $user = Auth::user();
+        if ($user->isTeacher()) {
+            $teachers = collect([$user])->map(function ($u) {
+                return (object) ['id' => $u->id, 'name' => $u->name, 'role' => $u->role, 'position' => $u->position];
+            });
+        } else {
+            $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name', 'role', 'position']);
+        }
+
+        $signatories = User::whereIn('role', ['admin', 'super_admin'])
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'role', 'position']);
 
-        return view('pages.certificate', compact('quests', 'teachers'));
+        $studentAssignedTeacher = null;
+        $studentAssignedTeacherName = null;
+        if ($request->filled('student_id')) {
+            $student = Student::find($request->student_id);
+            if ($student) {
+                $enrollment = $student->enrollments()
+                    ->where('status', 'active')
+                    ->latest('id')
+                    ->with('teacher:id,name')
+                    ->first();
+                if ($enrollment && $enrollment->teacher_id) {
+                    $studentAssignedTeacher = (int) $enrollment->teacher_id;
+                    $studentAssignedTeacherName = $enrollment->teacher?->name;
+                }
+            }
+        }
+
+        return view('pages.certificate', compact('quests', 'teachers', 'signatories', 'studentAssignedTeacher', 'studentAssignedTeacherName'));
     }
 
     public function store(Request $request)
@@ -90,39 +119,63 @@ class CertificateController extends Controller
         $validated = $request->validate([
             'student_id' => 'nullable|exists:students,id',
             'adviser_id' => 'nullable|exists:users,id',
+            'principal_id' => 'nullable|exists:users,id',
             'award_title' => 'nullable|string|max:255',
             'award_description' => 'nullable|string',
             'template_file' => 'required|file|mimes:jpg,jpeg,png|max:10240',
             'canvas_data' => 'nullable|string',
         ]);
 
+        $user = Auth::user();
         if ($request->filled('student_id')) {
             $studentQuery = Student::query();
-            if (Auth::user()->isTeacher()) {
-                $studentQuery->whereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id());
+            if ($user->isTeacher()) {
+                $studentQuery->whereHas('enrollments', function ($q) use ($user) {
+                    $q->where('teacher_id', $user->id)->where('status', 'active');
                 });
             }
             $studentQuery->findOrFail($validated['student_id']);
         }
 
         $adviserName = null;
-        if ($request->filled('adviser_id')) {
-            $adviserName = User::whereKey($validated['adviser_id'])->value('name');
+        $adviserId = $request->filled('adviser_id') ? (int) $validated['adviser_id'] : null;
+        if ($adviserId) {
+            if ($user->isTeacher() && $adviserId !== (int) $user->id) {
+                abort(403, 'Teachers may only select themselves as adviser.');
+            }
+            $adviserName = User::whereKey($adviserId)
+                ->whereIn('role', ['teacher', 'admin', 'super_admin'])
+                ->where('status', 'active')
+                ->value('name');
+            if (!$adviserName) {
+                return redirect()->back()->withErrors(['adviser_id' => 'Selected adviser is not available.'])->withInput();
+            }
+        }
+
+        $principalName = null;
+        if ($request->filled('principal_id')) {
+            $principalName = User::whereKey($validated['principal_id'])
+                ->whereIn('role', ['admin', 'super_admin'])
+                ->where('status', 'active')
+                ->value('name');
+            if (!$principalName) {
+                return redirect()->back()->withErrors(['principal_id' => 'Selected School OIC / Principal is not available.'])->withInput();
+            }
         }
 
         $templatePath = $request->file('template_file')->store('certificate-templates', 'public');
 
         $award = CertificateAward::create([
             'student_id' => $validated['student_id'] ?? null,
-            'teacher_id' => Auth::user()->isTeacher() ? Auth::id() : null,
-            'issued_by' => Auth::id(),
+            'teacher_id' => $user->isTeacher() ? $user->id : ($adviserId ?: null),
+            'issued_by' => $user->id,
             'award_title' => ($validated['award_title'] ?? null) ?: 'Certificate',
             'award_description' => $validated['award_description'] ?? null,
             'awarded_date' => now()->toDateString(),
             'template_file' => $templatePath,
             'canvas_data' => !empty($validated['canvas_data']) ? json_decode($validated['canvas_data'], true) : null,
             'signed_by' => $adviserName,
+            'principal_name' => $principalName,
             'status' => 'Active',
         ]);
 
@@ -142,15 +195,17 @@ class CertificateController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'adviser_id' => 'required|exists:users,id',
+            'principal_id' => 'required|exists:users,id',
             'template_file' => 'required|file|mimes:jpg,jpeg,png|max:10240',
             'generated_file' => 'required|file|mimes:jpg,jpeg,png|max:15360',
             'canvas_data' => 'required|string|max:200000',
         ]);
 
+        $user = Auth::user();
         $studentQuery = Student::query();
-        if (Auth::user()->isTeacher()) {
-            $studentQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+        if ($user->isTeacher()) {
+            $studentQuery->whereHas('enrollments', function ($q) use ($user) {
+                $q->where('teacher_id', $user->id)->where('status', 'active');
             });
         }
         $student = $studentQuery->findOrFail($validated['student_id']);
@@ -164,6 +219,22 @@ class CertificateController extends Controller
                 'message' => 'The selected adviser is not available to sign certificates.',
             ], 422);
         }
+        if ($user->isTeacher() && (int) $adviser->id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Teachers may only select themselves as adviser.',
+            ], 403);
+        }
+
+        $principal = User::whereKey($validated['principal_id'])
+            ->whereIn('role', ['admin', 'super_admin'])
+            ->where('status', 'active')
+            ->first();
+        if (!$principal) {
+            return response()->json([
+                'message' => 'The selected School OIC / Principal is not available.',
+            ], 422);
+        }
+        $principalName = $principal->name;
 
         $canvas = json_decode($validated['canvas_data'], true);
         if (!is_array($canvas)) {
@@ -171,7 +242,7 @@ class CertificateController extends Controller
         }
 
         $studentBox = null;
-        $adviserBox = null;
+        $principalBox = null;
         foreach ($canvas as $box) {
             if (!is_array($box)) {
                 continue;
@@ -180,6 +251,8 @@ class CertificateController extends Controller
                 $studentBox = $box;
             } elseif (($box['type'] ?? '') === 'adviser_name') {
                 $adviserBox = $box;
+            } elseif (($box['type'] ?? '') === 'principal_name') {
+                $principalBox = $box;
             }
         }
 
@@ -202,6 +275,13 @@ class CertificateController extends Controller
                 }
             }
         }
+        if ($principalBox) {
+            foreach (['left', 'top', 'width'] as $key) {
+                if (!isset($principalBox[$key]) || !is_numeric($principalBox[$key]) || !is_finite((float) $principalBox[$key])) {
+                    return response()->json(['message' => 'Invalid certificate layout data.'], 422);
+                }
+            }
+        }
 
         $template = $request->file('template_file');
         $generated = $request->file('generated_file');
@@ -210,13 +290,14 @@ class CertificateController extends Controller
         // second record; a changed payload is a different certificate and passes.
         $fingerprint = md5(
             $student->id . '|' . $adviser->id . '|' . $validated['canvas_data'] . '|'
-            . md5_file($template->getRealPath())
+            . md5_file($template->getRealPath()) . '|' . $principalName
         );
-        $fingerprintKey = 'certificate-award-fingerprint:' . Auth::id() . ':' . $fingerprint;
+        $user = Auth::user();
+        $fingerprintKey = 'certificate-award-fingerprint:' . $user->id . ':' . $fingerprint;
 
         try {
-            return Cache::lock('certificate-award:' . Auth::id(), 10)->block(5, function () use (
-                $request, $validated, $student, $adviser, $canvas, $template, $generated, $fingerprintKey
+            return Cache::lock('certificate-award:' . $user->id, 10)->block(5, function () use (
+                $request, $validated, $student, $adviser, $canvas, $template, $generated, $fingerprintKey, $user, $principalName
             ) {
                 $existingId = Cache::get($fingerprintKey);
                 if ($existingId && CertificateAward::whereKey($existingId)->exists()) {
@@ -244,8 +325,8 @@ class CertificateController extends Controller
                 try {
                     $award = CertificateAward::create([
                         'student_id' => $student->id,
-                        'teacher_id' => Auth::user()->isTeacher() ? Auth::id() : null,
-                        'issued_by' => Auth::id(),
+                        'teacher_id' => $user->isTeacher() ? $user->id : null,
+                        'issued_by' => $user->id,
                         'award_title' => 'Certificate',
                         'awarded_date' => now()->toDateString(),
                         'template_file' => $templatePath,
@@ -253,6 +334,7 @@ class CertificateController extends Controller
                         'pdf_file_path' => $pdfPath,
                         'canvas_data' => $canvas,
                         'signed_by' => $adviser->name,
+                        'principal_name' => $principalName !== '' ? $principalName : null,
                         'status' => 'Active',
                     ]);
                 } catch (\Throwable $e) {

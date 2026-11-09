@@ -161,9 +161,7 @@ class AuthController extends Controller
         $user = User::where('email', $validated['email'])->first();
 
         if ($user->hasVerifiedEmail()) {
-            return Auth::check()
-                ? redirect()->route('admin.dashboard')->with('success', 'Email already verified.')
-                : redirect()->route('login')->with('success', 'Email already verified. You may now log in.');
+            return redirect()->route('login')->with('success', 'Email already verified. You may now log in.');
         }
 
         if (!$user->email_verification_code || !Hash::check($validated['otp'], $user->email_verification_code)) {
@@ -181,10 +179,12 @@ class AuthController extends Controller
         $user->markEmailAsVerified();
 
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard')->with('success', 'Email verified successfully.');
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
-        return redirect()->route('login')->with('success', 'Email verified successfully. You may now log in.');
+        return redirect()->route('login')->with('success', 'Your account has been verified successfully. Please log in to continue.');
     }
 
     public function resendOtp(Request $request)

@@ -184,19 +184,18 @@ class CertificateAwardAutoGenerateTest extends TestCase
     public function test_save_canvas_stores_adviser(): void
     {
         $teacher = $this->createTeacher();
-        $adviser = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
             'student_id' => $student->id,
-            'adviser_id' => $adviser->id,
+            'adviser_id' => $teacher->id,
             'award_title' => 'With Adviser',
             'template_file' => UploadedFile::fake()->create('t.jpg', 10, 'image/jpeg'),
             'canvas_data' => json_encode([
                 [
                     'type' => 'adviser_name',
-                    'teacher_id' => $adviser->id,
-                    'text' => $adviser->name,
+                    'teacher_id' => $teacher->id,
+                    'text' => $teacher->name,
                     'x' => 72, 'y' => 87, 'width' => 34,
                     'fontSize' => 26, 'fontSizePref' => 26, 'fontSizeMin' => 10,
                     'fontFamily' => 'Georgia', 'color' => '#1F2937', 'fontWeight' => '600',
@@ -209,11 +208,11 @@ class CertificateAwardAutoGenerateTest extends TestCase
 
         $award = CertificateAward::where('award_title', 'With Adviser')->first();
         $this->assertNotNull($award);
-        $this->assertSame($adviser->name, $award->signed_by);
+        $this->assertSame($teacher->name, $award->signed_by);
 
         $print = $this->actingAs($teacher)->get(route('admin.certificate.print', $award->id));
         $print->assertOk();
         $print->assertSee('certificate-adviser-print', false);
-        $print->assertSee($adviser->name);
+        $print->assertSee($teacher->name);
     }
 }

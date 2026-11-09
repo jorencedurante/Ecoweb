@@ -60,7 +60,8 @@
         }
 
         .certificate-student-name-print,
-        .certificate-adviser-print {
+        .certificate-adviser-print,
+        .certificate-principal-print {
             position: absolute;
             z-index: 11;
             display: flex;
@@ -130,7 +131,8 @@
             }
 
             .certificate-student-name-print,
-            .certificate-adviser-print {
+            .certificate-adviser-print,
+            .certificate-principal-print {
                 display: flex !important;
                 position: absolute !important;
                 z-index: 11 !important;
@@ -157,9 +159,9 @@
             @foreach($canvasData as $box)
             @php
                 $boxType = $box['type'] ?? '';
-                $isNameBox = in_array($boxType, ['student_name', 'adviser_name']);
-                $boxWidth = $box['width'] ?? ($boxType === 'adviser_name' ? 23 : 30);
-                $defaultHeight = $boxType === 'adviser_name' ? 5 : 7;
+                $isNameBox = in_array($boxType, ['student_name', 'adviser_name', 'principal_name']);
+                $boxWidth = $box['width'] ?? ($boxType === 'adviser_name' || $boxType === 'principal_name' ? 23 : 30);
+                $defaultHeight = $boxType === 'adviser_name' || $boxType === 'principal_name' ? 5 : 7;
                 $boxHeight = $box['height'] ?? $defaultHeight;
                 if (isset($box['left'])) {
                     $boxLeft = $box['left'];
@@ -168,7 +170,8 @@
                     $boxLeft = ($box['x'] ?? 50) - ($boxWidth / 2);
                     $boxTop = ($box['y'] ?? 50) - ($boxHeight / 2);
                 }
-                $boxNameClass = $boxType === 'adviser_name' ? 'certificate-adviser-print' : 'certificate-student-name-print';
+                $boxNameClass = $boxType === 'adviser_name' ? 'certificate-adviser-print'
+                    : ($boxType === 'principal_name' ? 'certificate-principal-print' : 'certificate-student-name-print');
             @endphp
             @if($isNameBox)
             <div class="{{ $boxNameClass }}"
@@ -221,7 +224,7 @@
         (function () {
             var REF_W = 1123;
             var LINE_HEIGHT = 1.15;
-            var els = document.querySelectorAll('.certificate-student-name-print, .certificate-adviser-print');
+            var els = document.querySelectorAll('.certificate-student-name-print, .certificate-adviser-print, .certificate-principal-print');
 
             function fitAll() {
                 if (!els.length) return;

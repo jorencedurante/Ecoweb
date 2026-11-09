@@ -66,11 +66,30 @@ class CertificateAccessTest extends TestCase
         ];
     }
 
-    private function awardCertificate(User $acting, Student $student, User $adviser): CertificateAward
+    private function createPrincipal(array $overrides = []): User
     {
+        $index = User::count() + 1;
+        $user = User::create(array_merge([
+            'name' => "Principal User {$index}",
+            'username' => "principal{$index}",
+            'email' => "principal{$index}@ecocollect.test",
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ], $overrides));
+        $user->markEmailAsVerified();
+
+        return $user;
+    }
+
+    private function awardCertificate(User $acting, Student $student, User $adviser, ?User $principal = null): CertificateAward
+    {
+        $principal = $principal ?: $this->createPrincipal();
         $response = $this->actingAs($acting)->postJson(route('admin.certificate.award'), [
             'student_id' => $student->id,
             'adviser_id' => $adviser->id,
+            'principal_id' => $principal->id,
             'template_file' => $this->realJpeg('template.jpg'),
             'generated_file' => $this->realJpeg(),
             'canvas_data' => json_encode($this->canvasData($student->id, $adviser->id)),
