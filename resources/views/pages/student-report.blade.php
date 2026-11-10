@@ -11,7 +11,7 @@
 @endif
 
 @section('content')
-    <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
     @if(auth()->user()->isTeacher())
         {{-- ==================== TEACHER: STUDENT RANKING ==================== --}}
@@ -20,7 +20,7 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form method="GET" action="{{ route('admin.student-report') }}" class="filter-form">
+                <form method="GET" action="{{ route(portal_prefix() . '.student-report') }}" class="filter-form">
                     <div class="filter-search">
                         <label>Search</label>
                         <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN">
@@ -31,7 +31,7 @@
                     </div>
                     <div class="filter-controls">
                         <button class="btn btn-filter" type="submit">Filter</button>
-                        <a href="{{ route('admin.student-report') }}" class="btn btn-reset">Clear</a>
+                        <a href="{{ route(portal_prefix() . '.student-report') }}" class="btn btn-reset">Clear</a>
                     </div>
                 </form>
             </div>
@@ -40,7 +40,7 @@
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Student Ranking</h4>
-                <a href="{{ route('reports.student-ranking.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+                <a href="{{ route(portal_prefix() . '.reports.student-ranking.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
             <div class="table-responsive">
             <table>
@@ -674,7 +674,7 @@
         const controller = new AbortController();
         abortController = controller;
 
-        const url = "{{ route('admin.student-report.details', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
+        const url = "{{ route(portal_prefix() . '.student-report.details', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
 
         try {
             const response = await fetch(url, {
@@ -783,7 +783,7 @@
 
             // Print button
             if (printBtn) {
-                printBtn.href = "{{ route('reports.student.print', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
+                printBtn.href = "{{ route(portal_prefix() . '.reports.student.print', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
             }
 
             openModal();
@@ -969,7 +969,7 @@
                     <div class="sr-cert-title">${escapeHtml(c.award_title || 'N/A')}</div>
                     <div class="sr-cert-desc">${escapeHtml(c.award_description || 'N/A')}</div>
                     <div class="sr-cert-date">${escapeHtml(c.awarded_date || 'N/A')}</div>
-                    ${c.can_render ? `<a href="#" class="sr-cert-action" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); window.open('{{ route('admin.certificate.print', '__PLACEHOLDER__') }}'.replace('__PLACEHOLDER__', ${c.id}), '_blank');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
+                    ${c.can_render ? `<a href="#" class="sr-cert-action" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); window.open('{{ route(portal_prefix() . '.certificate.print', '__PLACEHOLDER__') }}'.replace('__PLACEHOLDER__', ${c.id}), '_blank');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
                 </div>
             `).join('');
         }

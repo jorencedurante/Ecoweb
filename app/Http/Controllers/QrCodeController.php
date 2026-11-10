@@ -92,7 +92,7 @@ class QrCodeController extends Controller
             ->first();
 
         if ($existingQr) {
-            return redirect()->route('admin.qrcode')
+            return redirect()->route(portal_prefix() . '.qrcode')
                 ->with('info', 'QR code already generated for this student.');
         }
 
@@ -127,7 +127,7 @@ class QrCodeController extends Controller
             'module' => 'QR Code',
         ]);
 
-        return redirect()->route('admin.qrcode')->with('success', 'QR Code generated successfully for ' . $student->full_name . '!')->with('generated_qr_id', $qrRecord->id);
+        return redirect()->route(portal_prefix() . '.qrcode')->with('success', 'QR Code generated successfully for ' . $student->full_name . '!')->with('generated_qr_id', $qrRecord->id);
     }
 
     public function download(QrCode $qrCode)

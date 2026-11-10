@@ -11,7 +11,7 @@
 @endif
 
 @section('content')
-    <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
     @if(auth()->user()->isTeacher())
         {{-- ==================== TEACHER: ITEM CLAIMS ==================== --}}
@@ -20,7 +20,7 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form method="GET" action="{{ route('admin.admin-activities') }}" class="filter-form">
+                <form method="GET" action="{{ route(portal_prefix() . '.admin-activities') }}" class="filter-form">
                     <div class="filter-search">
                         <label>Search</label>
                         <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN">
@@ -31,7 +31,7 @@
                     </div>
                     <div class="filter-controls">
                         <button class="btn btn-filter" type="submit">Filter</button>
-                        <a href="{{ route('admin.admin-activities') }}" class="btn btn-reset">Clear</a>
+                        <a href="{{ route(portal_prefix() . '.admin-activities') }}" class="btn btn-reset">Clear</a>
                     </div>
                 </form>
             </div>
@@ -40,7 +40,7 @@
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Item Claims</h4>
-                <a href="{{ route('reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+                <a href="{{ route(portal_prefix() . '.reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
             <div class="table-responsive">
             <table id="teacherClaimsTable">
@@ -197,7 +197,7 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form id="saFilterForm" class="sa-filter-form" method="GET" action="{{ route('admin.admin-activities') }}" onsubmit="return false;">
+                <form id="saFilterForm" class="sa-filter-form" method="GET" action="{{ route(portal_prefix() . '.admin-activities') }}" onsubmit="return false;">
                     <div class="filter-field sa-filter-field">
                         <label for="saTeacher">Teacher</label>
                         <select id="saTeacher" name="teacher_id" aria-label="Filter by teacher">
@@ -650,7 +650,7 @@ function loadTeacherStudents(teacherId, page = null) {
     container.style.opacity = '0.6';
     container.style.pointerEvents = 'none';
 
-    fetch('{{ route('admin.admin-activities.teacher-students') }}' + '?' + params.toString(), {
+    fetch('{{ route(portal_prefix() . '.admin-activities.teacher-students') }}' + '?' + params.toString(), {
         headers: {
             'Accept': 'text/html',
             'X-Requested-With': 'XMLHttpRequest'
@@ -747,7 +747,7 @@ document.addEventListener('click', (e) => {
     studentClaimsModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    fetch('{{ route('admin.admin-activities.student-claims') }}?student_id=' + currentStudentId, {
+    fetch('{{ route(portal_prefix() . '.admin-activities.student-claims') }}?student_id=' + currentStudentId, {
         headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'

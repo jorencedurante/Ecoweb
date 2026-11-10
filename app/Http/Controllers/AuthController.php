@@ -15,10 +15,19 @@ use App\Models\AdminActivity;
 
 class AuthController extends Controller
 {
+    private function dashboardRoute($user = null): string
+    {
+        $user = $user ?? Auth::user();
+        if ($user && method_exists($user, 'isTeacher') && $user->isTeacher()) {
+            return 'teacher.dashboard';
+        }
+        return 'admin.dashboard';
+    }
+
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route($this->dashboardRoute());
         }
         return view('auth.login');
     }
@@ -73,7 +82,7 @@ class AuthController extends Controller
                 'module' => 'Auth',
             ]);
 
-            return redirect()->intended(route('admin.dashboard'))
+            return redirect()->intended(route($this->dashboardRoute($user)))
                 ->with('success', 'Welcome back, ' . $user->name . '!');
         }
 
@@ -85,7 +94,7 @@ class AuthController extends Controller
     public function showRegister()
     {
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route($this->dashboardRoute());
         }
         return view('auth.register');
     }
@@ -139,7 +148,7 @@ class AuthController extends Controller
         if (Auth::check()) {
             $user = Auth::user();
             if ($user->hasVerifiedEmail()) {
-                return redirect()->route('admin.dashboard');
+                return redirect()->route($this->dashboardRoute($user));
             }
             $email = $email ?: $user->email;
         }
@@ -161,9 +170,7 @@ class AuthController extends Controller
         $user = User::where('email', $validated['email'])->first();
 
         if ($user->hasVerifiedEmail()) {
-            return Auth::check()
-                ? redirect()->route('admin.dashboard')->with('success', 'Email already verified.')
-                : redirect()->route('login')->with('success', 'Email already verified. You may now log in.');
+            return redirect()->route('login')->with('success', 'Email already verified. You may now log in.');
         }
 
         if (!$user->email_verification_code || !Hash::check($validated['otp'], $user->email_verification_code)) {
@@ -181,10 +188,12 @@ class AuthController extends Controller
         $user->markEmailAsVerified();
 
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard')->with('success', 'Email verified successfully.');
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
-        return redirect()->route('login')->with('success', 'Email verified successfully. You may now log in.');
+        return redirect()->route('login')->with('success', 'Your account has been verified successfully. Please log in to continue.');
     }
 
     public function resendOtp(Request $request)
@@ -200,7 +209,7 @@ class AuthController extends Controller
 
         if ($user->hasVerifiedEmail()) {
             return Auth::check()
-                ? redirect()->route('settings.edit')->with('success', 'Email already verified.')
+                ? redirect()->route(portal_prefix() . '.settings.edit')->with('success', 'Email already verified.')
                 : redirect()->route('login')->with('success', 'Email already verified. You may now log in.');
         }
 
@@ -236,7 +245,7 @@ class AuthController extends Controller
     public function showForgotPassword()
     {
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route(portal_prefix() . '.dashboard');
         }
         return view('auth.forgot-password');
     }
@@ -259,7 +268,7 @@ class AuthController extends Controller
     public function showResetPassword($token)
     {
         if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route(portal_prefix() . '.dashboard');
         }
         return view('auth.reset-password', ['token' => $token]);
     }

@@ -6,7 +6,7 @@
             </span>
         </div>
         <div class="table-toolbar-actions">
-            <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
+            <a href="{{ route(portal_prefix() . '.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
             @if(Auth::user()->role !== 'admin')
             <button type="button" class="btn btn-outline btn-sm archive-all-btn" style="border-color:var(--red);color:var(--red);" data-modal-target="archiveAllStudentModal" aria-label="Archive all students for a school year">📦 Archive All</button>
             @if($nullSchoolYearCount > 0)
@@ -46,7 +46,7 @@
                 <td class="cell-name">
                     <button type="button" class="stu-name-btn" title="Open full details"
                         data-overview-open
-                        data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                        data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                         data-student-key="{{ $student->id }}"
                         data-tab="full-details"
                         aria-label="Open full details for {{ $student->full_name }}">
@@ -69,17 +69,17 @@
                     <div class="student-actions">
                         <button type="button" class="action-icon-btn view" title="View Student" aria-label="View student overview"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="overview"><x-icon name="eye" :size="16" /></button>
                         <button type="button" class="action-icon-btn achievements" title="View Achievements" aria-label="View achievements"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="achievements"><x-icon name="trophy" :size="16" /></button>
                         <button type="button" class="action-icon-btn awards" title="View Certificates" aria-label="View certificates"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="certificates"><x-icon name="award" :size="16" /></button>
                         @if(Auth::user()->role !== 'admin')
@@ -116,7 +116,7 @@
                             data-modality="{{ $student->learning_modality }}"
                             data-remarks="{{ $student->remarks }}"><x-icon name="pencil" :size="15" /></button>
                         @if($student->status !== 'Archived')
-                        <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
+                        <form method="POST" action="{{ route(portal_prefix() . '.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
                             @csrf @method('PATCH')
                             <button type="submit" class="action-icon-btn archive" title="Archive Student" aria-label="Archive student"><x-icon name="archive" :size="15" /></button>
                         </form>

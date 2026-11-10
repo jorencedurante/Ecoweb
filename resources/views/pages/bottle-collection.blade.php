@@ -159,7 +159,7 @@
             <x-icon name="chevron-down" :size="15" class="bottle-filter-chevron" />
         </button>
         <div class="filter-body">
-            <form method="GET" action="{{ route('admin.bottle-collection') }}" class="bottle-filter-form" id="bottleFilterForm">
+            <form method="GET" action="{{ route(portal_prefix() . '.bottle-collection') }}" class="bottle-filter-form" id="bottleFilterForm">
                 <div class="bottle-filter-field">
                     <label for="bottleFilterSearch">Search Collections</label>
                     <div class="bottle-input">
@@ -266,7 +266,7 @@
                 <h3>Add bottle collection</h3>
                 <p class="subtitle">Record a new bottle collection</p>
             </div>
-            <form method="POST" action="{{ route('admin.bottle-collection.store') }}">
+            <form method="POST" action="{{ route(portal_prefix() . '.bottle-collection.store') }}">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group student-search-wrapper">
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             searchTimeout = setTimeout(function () {
-                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
+                fetch('{{ route(portal_prefix() . '.students.search') }}?q=' + encodeURIComponent(query))
                     .then(response => response.json())
                     .then(students => {
                         results.innerHTML = '';
@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===== Automatic filtering: search / collection date / quarter =====
-    const fetchUrl = '{{ route("admin.bottle-collection.fetch") }}';
+    const fetchUrl = '{{ route(portal_prefix() . '.bottle-collection.fetch') }}';
     const filterForm = document.getElementById('bottleFilterForm');
     const filterSearch = document.getElementById('bottleFilterSearch');
     const filterSearchClear = document.getElementById('bottleSearchClear');

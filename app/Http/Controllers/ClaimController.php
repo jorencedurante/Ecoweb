@@ -410,7 +410,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Claim item added successfully.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Claim item added successfully.');
     }
 
     public function updateItem(Request $request, ClaimItem $claimItem)
@@ -432,7 +432,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Claim item updated successfully.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Claim item updated successfully.');
     }
 
     public function claimItem(Request $request)
@@ -516,7 +516,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Item claimed successfully. Student points have been updated.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Item claimed successfully. Student points have been updated.');
     }
 
     public function approve(StudentClaim $claim)

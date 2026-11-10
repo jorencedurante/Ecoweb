@@ -26,11 +26,11 @@ class AchievementQuestManagementTest extends TestCase
         $teacher = $this->createTeacher();
 
         $response = $this->actingAs($teacher)->post(
-            route('achievement-quests.store'),
+            route('teacher.achievement-quests.store'),
             $this->questPayload()
         );
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route('teacher.certificate'));
         $response->assertSessionHas('success');
 
         $quest = Achievement::where('title', 'Green Streak')->first();
@@ -46,7 +46,7 @@ class AchievementQuestManagementTest extends TestCase
         $teacher = $this->createTeacher();
 
         $this->actingAs($teacher)->post(
-            route('achievement-quests.store'),
+            route('teacher.achievement-quests.store'),
             $this->questPayload(['requirement_type' => 'points', 'required_value' => 20])
         );
 
@@ -70,17 +70,17 @@ class AchievementQuestManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('achievement-quests.store'), $this->questPayload(['title' => 'Admin Quest']))
+            ->post(route('admin.achievement-quests.store'), $this->questPayload(['title' => 'Admin Quest']))
             ->assertForbidden();
         $this->assertDatabaseMissing('achievements', ['title' => 'Admin Quest']);
 
         $this->actingAs($admin)
-            ->put(route('achievement-quests.update', $quest), $this->questPayload(['title' => 'Renamed']))
+            ->put(route('admin.achievement-quests.update', $quest), $this->questPayload(['title' => 'Renamed']))
             ->assertForbidden();
         $this->assertSame('Teacher Quest', $quest->fresh()->title);
 
         $this->actingAs($admin)
-            ->delete(route('achievement-quests.destroy', $quest))
+            ->delete(route('admin.achievement-quests.destroy', $quest))
             ->assertForbidden();
         $this->assertDatabaseHas('achievements', ['id' => $quest->id]);
     }
@@ -97,9 +97,9 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacher->id,
         ]);
 
-        $this->post(route('achievement-quests.store'), $this->questPayload())->assertRedirect();
-        $this->put(route('achievement-quests.update', $quest), $this->questPayload())->assertRedirect();
-        $this->delete(route('achievement-quests.destroy', $quest))->assertRedirect();
+        $this->post(route('teacher.achievement-quests.store'), $this->questPayload())->assertRedirect();
+        $this->put(route('teacher.achievement-quests.update', $quest), $this->questPayload())->assertRedirect();
+        $this->delete(route('teacher.achievement-quests.destroy', $quest))->assertRedirect();
     }
 
     public function test_quest_limit_is_per_teacher_not_global(): void
@@ -119,12 +119,12 @@ class AchievementQuestManagementTest extends TestCase
         }
 
         $this->actingAs($teacherA)
-            ->post(route('achievement-quests.store'), $this->questPayload(['title' => 'A Sixth Quest']))
+            ->post(route('teacher.achievement-quests.store'), $this->questPayload(['title' => 'A Sixth Quest']))
             ->assertSessionHasErrors('title');
         $this->assertDatabaseMissing('achievements', ['title' => 'A Sixth Quest']);
 
         $this->actingAs($teacherB)
-            ->post(route('achievement-quests.store'), $this->questPayload(['title' => 'B First Quest']))
+            ->post(route('teacher.achievement-quests.store'), $this->questPayload(['title' => 'B First Quest']))
             ->assertSessionHas('success');
         $this->assertDatabaseHas('achievements', ['title' => 'B First Quest', 'created_by' => $teacherB->id]);
     }
@@ -142,11 +142,11 @@ class AchievementQuestManagementTest extends TestCase
         ]);
 
         $response = $this->actingAs($teacher)->put(
-            route('achievement-quests.update', $quest),
+            route('teacher.achievement-quests.update', $quest),
             $this->questPayload(['title' => 'New Title', 'requirement_type' => 'points', 'required_value' => 30])
         );
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route('teacher.certificate'));
         $quest->refresh();
         $this->assertSame('New Title', $quest->title);
         $this->assertSame(0, (int) $quest->required_bottles);
@@ -167,12 +167,12 @@ class AchievementQuestManagementTest extends TestCase
         ]);
 
         $this->actingAs($teacherB)
-            ->put(route('achievement-quests.update', $questOfA), $this->questPayload(['title' => 'Hijacked']))
+            ->put(route('teacher.achievement-quests.update', $questOfA), $this->questPayload(['title' => 'Hijacked']))
             ->assertForbidden();
         $this->assertSame('Quest Of A', $questOfA->fresh()->title);
 
         $this->actingAs($teacherB)
-            ->delete(route('achievement-quests.destroy', $questOfA))
+            ->delete(route('teacher.achievement-quests.destroy', $questOfA))
             ->assertForbidden();
         $this->assertDatabaseHas('achievements', ['id' => $questOfA->id]);
     }
@@ -190,10 +190,10 @@ class AchievementQuestManagementTest extends TestCase
         ]);
 
         $this->actingAs($teacher)
-            ->put(route('achievement-quests.update', $legacy), $this->questPayload(['title' => 'Nope']))
+            ->put(route('teacher.achievement-quests.update', $legacy), $this->questPayload(['title' => 'Nope']))
             ->assertForbidden();
         $this->actingAs($teacher)
-            ->delete(route('achievement-quests.destroy', $legacy))
+            ->delete(route('teacher.achievement-quests.destroy', $legacy))
             ->assertForbidden();
         $this->assertSame('Legacy Quest', $legacy->fresh()->title);
     }
@@ -221,7 +221,7 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacherB->id,
         ]);
 
-        $asTeacherA = $this->actingAs($teacherA)->get(route('admin.certificate'));
+        $asTeacherA = $this->actingAs($teacherA)->get(route('teacher.certificate'));
         $asTeacherA->assertOk();
         $asTeacherA->assertSee('Quest Of A', false);
         $asTeacherA->assertDontSee('Quest Of B', false);
@@ -258,7 +258,7 @@ class AchievementQuestManagementTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($teacher)->get(route('admin.certificate'));
+        $response = $this->actingAs($teacher)->get(route('teacher.certificate'));
         $response->assertOk();
         $response->assertSee('Maximum of 5 achievement quests reached', false);
         $response->assertDontSee('Add Achievement Quest', false);
@@ -288,12 +288,12 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacherB->id,
         ]);
 
-        $this->actingAs($teacherA)->post(route('admin.bottle-collection.store'), [
+        $this->actingAs($teacherA)->post(route('teacher.bottle-collection.store'), [
             'student_id' => $student->id,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
             'bottle_count' => 3,
-        ])->assertRedirect(route('admin.bottle-collection'));
+        ])->assertRedirect(route('teacher.bottle-collection'));
 
         $this->assertDatabaseHas('student_achievements', [
             'student_id' => $student->id,
@@ -327,12 +327,12 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacher->id,
         ]);
 
-        $this->actingAs($teacher)->post(route('admin.bottle-collection.store'), [
+        $this->actingAs($teacher)->post(route('teacher.bottle-collection.store'), [
             'student_id' => $student->id,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
             'bottle_count' => 1,
-        ])->assertRedirect(route('admin.bottle-collection'));
+        ])->assertRedirect(route('teacher.bottle-collection'));
 
         $this->assertDatabaseHas('student_achievements', [
             'student_id' => $student->id,
@@ -359,12 +359,16 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacher->id,
         ]);
 
-        $this->actingAs($admin)->post(route('admin.bottle-collection.store'), [
-            'student_id' => $student->id,
-            'collection_date' => now()->toDateString(),
-            'collection_time' => '08:30',
-            'bottle_count' => 5,
-        ])->assertRedirect(route('admin.bottle-collection'));
+        $response = $this->actingAs($admin)->from(route('admin.bottle-collection'))
+            ->post(route('admin.bottle-collection.store'), [
+                'student_id' => $student->id,
+                'collection_date' => now()->toDateString(),
+                'collection_time' => '08:30',
+                'bottle_count' => 5,
+            ]);
+
+        $response->assertRedirect(route('admin.bottle-collection'));
+        $response->assertSessionHasErrors('student_id');
 
         $this->assertDatabaseMissing('student_achievements', [
             'student_id' => $student->id,
@@ -453,7 +457,7 @@ class AchievementQuestManagementTest extends TestCase
             'awarded_date' => now()->toDateString(),
         ]);
 
-        $response = $this->actingAs($teacher)->get(route('students.achievements', $student->id));
+        $response = $this->actingAs($teacher)->get(route('teacher.students.achievements', $student->id));
 
         $response->assertOk();
         $response->assertSee('Assigned Quest', false);

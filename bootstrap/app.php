@@ -37,11 +37,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: $trustedProxies);
 
         $middleware->redirectUsersTo(function () {
+            $user = auth()->user();
+            if ($user && $user->isTeacher()) {
+                return route('teacher.dashboard');
+            }
             return route('admin.dashboard');
         });
 
         $middleware->alias([
             'admin.only' => \App\Http\Middleware\AdminOnly::class,
+            'teacher.only' => \App\Http\Middleware\TeacherOnly::class,
+            'admin.or.super' => \App\Http\Middleware\AdminOrSuper::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'account.active' => \App\Http\Middleware\EnsureAccountActive::class,
         ]);

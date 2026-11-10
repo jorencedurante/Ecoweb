@@ -121,7 +121,7 @@ class TeacherController extends Controller
             'module' => 'Accounts',
         ]);
 
-        return redirect()->route('admin.teachers')->with('success', ucfirst($user->role) . ' account added successfully! A verification code has been sent to their email.');
+        return redirect()->route(portal_prefix() . '.teachers')->with('success', ucfirst($user->role) . ' account added successfully! A verification code has been sent to their email.');
     }
 
     public function update(Request $request, $id)
@@ -173,7 +173,7 @@ class TeacherController extends Controller
             'module' => 'Accounts',
         ]);
 
-        return redirect()->route('admin.teachers')->with('success', ucfirst($user->role) . ' account updated successfully!');
+        return redirect()->route(portal_prefix() . '.teachers')->with('success', ucfirst($user->role) . ' account updated successfully!');
     }
 
     public function restrict(Request $request, $id)
