@@ -18,7 +18,7 @@
             </select>
         </div>
         @if($teacher)
-        <a href="{{ route('reports.student-activities.print', ['teacher_id' => $teacher->id, 'grade_level' => $gradeLevel ?? '', 'date_from' => $dateFrom ?? '', 'date_to' => $dateTo ?? '']) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:10px 16px;text-decoration:none;white-space:nowrap;align-self:center;">🖨️ Print Report</a>
+        <a href="{{ route(portal_prefix() . '.reports.student-activities.print', ['teacher_id' => $teacher->id, 'grade_level' => $gradeLevel ?? '', 'date_from' => $dateFrom ?? '', 'date_to' => $dateTo ?? '']) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:10px 16px;text-decoration:none;white-space:nowrap;align-self:center;">🖨️ Print Report</a>
         @endif
     </div>
 

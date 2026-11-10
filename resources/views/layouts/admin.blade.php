@@ -27,7 +27,7 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <a href="{{ route('admin.dashboard') }}" class="brand-link" onclick="return handleBrandClick(event)" aria-label="EcoCollect - Go to Dashboard">
+            <a href="{{ route(portal_prefix() . '.dashboard') }}" class="brand-link" onclick="return handleBrandClick(event)" aria-label="EcoCollect - Go to Dashboard">
                 <img src="{{ asset('image/ecocollect-logo.jpg') }}" alt="EcoCollect Logo" class="admin-sidebar-logo-img" width="38" height="38">
                 <span class="brand-text">ECOCOLLECT</span>
             </a>
@@ -41,7 +41,7 @@
             {{-- OVERVIEW --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-overview">
                 <p class="nav-group-label" id="nav-group-overview">Overview</p>
-                <a href="{{ route('admin.dashboard') }}" class="nav-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" data-label="Dashboard" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.dashboard') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.dashboard') ? 'active' : '' }}" data-label="Dashboard" @if(request()->routeIs(portal_prefix() . '.dashboard')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="layout-dashboard" :size="19" /></span>
                     <span class="nav-label">Dashboard</span>
                 </a>
@@ -50,20 +50,20 @@
             {{-- MANAGEMENT --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-management">
                 <p class="nav-group-label" id="nav-group-management">Management</p>
-                <a href="{{ route('admin.students') }}" class="nav-item {{ request()->routeIs('admin.students') ? 'active' : '' }}" data-label="Student" @if(request()->routeIs('admin.students')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.students') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.students') ? 'active' : '' }}" data-label="Student" @if(request()->routeIs(portal_prefix() . '.students')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="users" :size="19" /></span>
                     <span class="nav-label">Student</span>
                 </a>
-                <a href="{{ route('admin.bottle-collection') }}" class="nav-item {{ request()->routeIs('admin.bottle-collection') ? 'active' : '' }}" data-label="Bottle Collection" @if(request()->routeIs('admin.bottle-collection')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.bottle-collection') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.bottle-collection') ? 'active' : '' }}" data-label="Bottle Collection" @if(request()->routeIs(portal_prefix() . '.bottle-collection')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="recycle" :size="19" /></span>
                     <span class="nav-label">Bottle Collection</span>
                 </a>
-                <a href="{{ route('admin.certificate') }}" class="nav-item {{ request()->routeIs('admin.certificate') ? 'active' : '' }}" data-label="Certificate Award" @if(request()->routeIs('admin.certificate')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.certificate') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.certificate') ? 'active' : '' }}" data-label="Certificate Award" @if(request()->routeIs(portal_prefix() . '.certificate')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="award" :size="19" /></span>
                     <span class="nav-label">Certificate Award</span>
                 </a>
-                @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
-                <a href="{{ route('claims.index') }}" class="nav-item {{ request()->routeIs('claims.*') ? 'active' : '' }}" data-label="Claim Items" @if(request()->routeIs('claims.*')) aria-current="page" @endif>
+                @if(in_array(Auth::user()->role, ['admin','super_admin'], true))
+                <a href="{{ route(portal_prefix() . '.claims.index') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.claims.*') ? 'active' : '' }}" data-label="Claim Items" @if(request()->routeIs(portal_prefix() . '.claims.*')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="gift" :size="19" /></span>
                     <span class="nav-label">Claim Items</span>
                 </a>
@@ -73,21 +73,21 @@
             {{-- ANALYTICS --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-analytics">
                 <p class="nav-group-label" id="nav-group-analytics">Analytics</p>
-                <a href="{{ route('admin.reports') }}" class="nav-item {{ request()->routeIs('admin.reports') || request()->routeIs('admin.*-report') || request()->routeIs('admin.admin-activities') ? 'active' : '' }}" data-label="Reports" @if(request()->routeIs('admin.reports') || request()->routeIs('admin.*-report') || request()->routeIs('admin.admin-activities')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.reports') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.reports') || request()->routeIs(portal_prefix() . '.*-report') || request()->routeIs(portal_prefix() . '.admin-activities') ? 'active' : '' }}" data-label="Reports" @if(request()->routeIs(portal_prefix() . '.reports') || request()->routeIs(portal_prefix() . '.*-report') || request()->routeIs(portal_prefix() . '.admin-activities')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="chart-no-axes-combined" :size="19" /></span>
                     <span class="nav-label">Reports</span>
                 </a>
             </div>
 
-            @if(in_array(Auth::user()->role, ['admin', 'super_admin']))
+            @if(in_array(Auth::user()->role, ['admin','super_admin'], true))
             {{-- ADMINISTRATION --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-administration">
                 <p class="nav-group-label" id="nav-group-administration">Administration</p>
-                <a href="{{ route('admin.teachers') }}" class="nav-item {{ request()->is('admin/teachers*') || request()->is('admin/accounts*') ? 'active' : '' }}" data-label="Accounts" @if(request()->is('admin/teachers*') || request()->is('admin/accounts*')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.teachers') }}" class="nav-item {{ request()->is(portal_prefix() . '/teachers*') || request()->is(portal_prefix() . '/accounts*') ? 'active' : '' }}" data-label="Accounts" @if(request()->is(portal_prefix() . '/teachers*') || request()->is(portal_prefix() . '/accounts*')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="user-round-cog" :size="19" /></span>
                     <span class="nav-label">Accounts</span>
                 </a>
-                <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings') ? 'active' : '' }}" data-label="System Settings" @if(request()->routeIs('admin.settings')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.system-settings') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.system-settings') ? 'active' : '' }}" data-label="System Settings" @if(request()->routeIs(portal_prefix() . '.system-settings')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="settings" :size="19" /></span>
                     <span class="nav-label">System Settings</span>
                 </a>
@@ -97,11 +97,11 @@
             {{-- ACCOUNT --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-account">
                 <p class="nav-group-label" id="nav-group-account">Account</p>
-                <a href="{{ route('settings.edit') }}" class="nav-item {{ request()->routeIs('settings.edit') || request()->routeIs('settings.profile.update') || request()->routeIs('settings.password.update') ? 'active' : '' }}" data-label="Account Settings" @if(request()->routeIs('settings.edit') || request()->routeIs('settings.profile.update') || request()->routeIs('settings.password.update')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.settings.edit') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.settings.edit') || request()->routeIs(portal_prefix() . '.settings.profile.update') || request()->routeIs(portal_prefix() . '.settings.password.update') ? 'active' : '' }}" data-label="Account Settings" @if(request()->routeIs(portal_prefix() . '.settings.edit') || request()->routeIs(portal_prefix() . '.settings.profile.update') || request()->routeIs(portal_prefix() . '.settings.password.update')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="circle-user-round" :size="19" /></span>
                     <span class="nav-label">Account Settings</span>
                 </a>
-                <a href="{{ route('admin.qrcode') }}" class="nav-item {{ request()->routeIs('admin.qrcode') ? 'active' : '' }}" data-label="QR Code" @if(request()->routeIs('admin.qrcode')) aria-current="page" @endif>
+                <a href="{{ route(portal_prefix() . '.qrcode') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.qrcode') ? 'active' : '' }}" data-label="QR Code" @if(request()->routeIs(portal_prefix() . '.qrcode')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="qr-code" :size="19" /></span>
                     <span class="nav-label">QR Code</span>
                 </a>

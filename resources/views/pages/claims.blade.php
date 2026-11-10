@@ -21,7 +21,7 @@
         <div class="card">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">+ Add Claim Item</h4>
-                <form method="POST" action="{{ route('claim-items.store') }}">
+                <form method="POST" action="{{ route('admin.claim-items.store') }}">
                     @csrf
                     @if($errors->has('item_name') || $errors->has('points_required') || $errors->has('quantity') || $errors->has('status'))
                         <div class="form-error-message" role="alert">Please check the claim item fields.</div>
@@ -60,7 +60,7 @@
         <div class="card" style="overflow: visible;">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Claim Item for Student</h4>
-                <form method="POST" action="{{ route('claims.store') }}">
+                <form method="POST" action="{{ route(portal_prefix() . '.claims.store') }}">
                     @csrf
                     @if($errors->has('claim_error'))
                         <div class="claim-error-message" role="alert">{{ $errors->first('claim_error') }}</div>
@@ -125,7 +125,7 @@
             <div class="card-title-area">
                 <h3>Claim Items</h3>
             </div>
-            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route('claims.index') }}#claim-items-section">
+            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#claim-items-section">
                 <div class="item-search-wrapper">
                     <input
                         type="text"
@@ -156,7 +156,7 @@
             <div class="card-title-area">
                 <h3>Claim History</h3>
             </div>
-            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter" method="GET" action="{{ route('claims.index') }}#claim-history-section">
+            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#claim-history-section">
                 <div class="history-search-wrapper">
                     <input
                         type="text"
@@ -200,13 +200,13 @@
         </span>
         <div class="page-btns" style="display:flex;gap:4px;">
             @if ($historyPage > 1)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
             @endif
             @for ($i = max(1, $historyPage - 2); $i <= min($historyPage + 2, ceil(($claimHistoryByStudent->count() ?? 0) / 10)); $i++)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
             @endfor
             @if ($historyHasMorePages)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
             @endif
         </div>
     </div>
@@ -220,7 +220,7 @@
                 <h3>All Item Requests by Student</h3>
                 <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Compiled record of approved item requests for quarterly releasing.</p>
             </div>
-            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;" method="GET" action="{{ route('claims.index') }}#approved-by-student-section" onsubmit="return false;">
+            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#approved-by-student-section" onsubmit="return false;">
                 <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN..." aria-label="Search approved claims">
 
                 <select name="approved_quarter" aria-label="Filter by quarter">
@@ -804,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!claimItemsFilterForm || !claimItemsContainer) return;
         var formData = new FormData(claimItemsFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.items.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.items.filter') }}' + '?' + queryString;
         fetchPartial(url, claimItemsContainer);
     }
 
@@ -833,7 +833,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!pendingClaimsFilterForm || !pendingResultsContainer) return;
         var formData = new FormData(pendingClaimsFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.pending.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.pending.filter') }}' + '?' + queryString;
         fetchPartial(url, pendingResultsContainer);
     }
 
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!claimHistoryFilterForm || !claimHistoryContainer) return;
         var formData = new FormData(claimHistoryFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.history.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.history.filter') }}' + '?' + queryString;
         fetchPartial(url, claimHistoryContainer);
     }
 
@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var btn = e.target.closest('.btn-edit-item');
         if (!btn) return;
         var id = btn.dataset.id;
-        editForm.action = '{{ url("admin/claim-items") }}/' + id;
+        editForm.action = '{{ url("/admin/claim-items") }}/' + id;
         document.getElementById('editItemName').value = btn.dataset.name;
         document.getElementById('editItemDescription').value = btn.dataset.description || '';
         document.getElementById('editItemPoints').value = btn.dataset.points;
@@ -959,7 +959,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!approvedByStudentForm || !approvedByStudentContainer) return;
         var formData = new FormData(approvedByStudentForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.approved.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.approved.filter') }}' + '?' + queryString;
         fetchPartial(url, approvedByStudentContainer);
     }
 

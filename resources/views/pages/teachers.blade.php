@@ -10,7 +10,7 @@
             <i class="fas fa-filter"></i> Filters
         </button>
         <div class="filter-body">
-            <form method="GET" action="{{ route('admin.teachers') }}" class="filter-form" id="teacherFilterForm">
+            <form method="GET" action="{{ route(portal_prefix() . '.teachers') }}" class="filter-form" id="teacherFilterForm">
                 <div class="filter-search">
                     <label>Search</label>
                     <input type="text" name="search" id="teacherSearch" placeholder="Search accounts..." value="{{ request('search') }}" aria-label="Search accounts" data-filter="search">
@@ -107,7 +107,7 @@
                             <button type="button" class="action-icon-btn restrict" title="Restrict Account" aria-label="Restrict account"
                                 data-id="{{ $account->id }}"
                                 data-name="{{ $account->name }}">🔒</button>
-                            <form method="POST" action="{{ route('admin.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-action="archive" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
+                            <form method="POST" action="{{ route(portal_prefix() . '.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-action="archive" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button>
                             </form>
@@ -115,7 +115,7 @@
                             <button type="button" class="action-icon-btn unrestrict" title="Unrestrict Account" aria-label="Unrestrict account"
                                 data-id="{{ $account->id }}"
                                 data-name="{{ $account->name }}">🔓</button>
-                            <form method="POST" action="{{ route('admin.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-action="archive" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
+                            <form method="POST" action="{{ route(portal_prefix() . '.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-action="archive" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button>
                             </form>
@@ -958,7 +958,7 @@ function confirmArchiveAccount() {
 
 function confirmRestrictAccount() {
     var accountId = document.getElementById('restrictAccountId').value;
-    var url = '{{ url('/admin/teachers') }}' + '/' + accountId + '/restrict';
+    var url = "{{ url('/' . portal_prefix() . '/teachers') }}" + '/' + accountId + '/restrict';
     var btn = document.getElementById('btnConfirmRestrict');
 
     closeRestrictConfirmModal();
@@ -1004,7 +1004,7 @@ function confirmRestrictAccount() {
 
 function confirmUnrestrictAccount() {
     var accountId = document.getElementById('unrestrictAccountId').value;
-    var url = '{{ url('/admin/teachers') }}' + '/' + accountId + '/unrestrict';
+    var url = "{{ url('/' . portal_prefix() . '/teachers') }}" + '/' + accountId + '/unrestrict';
     var btn = document.getElementById('btnConfirmUnrestrict');
 
     closeUnrestrictConfirmModal();
@@ -1100,7 +1100,7 @@ function fetchArchivedAccounts(page) {
     var params = { page: page };
     if (search) params.search = search;
 
-    fetch('{{ route('admin.teachers.archived') }}' + '?' + new URLSearchParams(params).toString(), {
+    fetch('{{ route(portal_prefix() . '.teachers.archived') }}' + '?' + new URLSearchParams(params).toString(), {
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json',
@@ -1138,7 +1138,7 @@ function fetchArchivedAccounts(page) {
 
 function confirmUnarchiveAccount() {
     var accountId = document.getElementById('unarchiveAccountId').value;
-    var url = '{{ url('/admin/teachers') }}' + '/' + accountId + '/reactivate';
+    var url = '{{ url('/' . portal_prefix() . '/teachers') }}' + '/' + accountId + '/reactivate';
     var btn = document.getElementById('btnConfirmUnarchive');
 
     closeUnarchiveConfirmModal();
@@ -1185,7 +1185,7 @@ function confirmUnarchiveAccount() {
 
 function confirmReactivateAccount() {
     var accountId = document.getElementById('reactivateAccountId').value;
-    var url = '{{ url('/admin/teachers') }}' + '/' + accountId + '/reactivate';
+    var url = '{{ url('/' . portal_prefix() . '/teachers') }}' + '/' + accountId + '/reactivate';
     var btn = document.getElementById('btnConfirmReactivate');
 
     closeReactivateConfirmModal();
@@ -1270,10 +1270,10 @@ function renderAccountRow(account) {
         editBtn = '<button type="button" class="action-icon-btn edit" title="Edit Account" aria-label="Edit account" data-modal-target="editTeacherModal" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '" data-username="' + escapeHtml(account.username) + '" data-email="' + escapeHtml(account.email) + '" data-role="' + account.role + '" data-position="' + escapeHtml(account.position ?? '') + '" data-status="' + (account.status ?? 'active') + '">✏️</button>';
         if (account.status === 'active') {
             restrictBtn = '<button type="button" class="action-icon-btn restrict" title="Restrict Account" aria-label="Restrict account" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">🔒</button>';
-            archiveBtn = '<form method="POST" action="' + '{{ url('/admin/teachers') }}' + '/' + account.id + '/archive' + '" class="inline-action-form archive-form" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">' + '{{ csrf_field() }}' + '<input name="_method" value="PATCH" type="hidden">' + '<button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button></form>';
+            archiveBtn = '<form method="POST" action="' + '{{ url('/' . portal_prefix() . '/teachers') }}' + '/' + account.id + '/archive' + '" class="inline-action-form archive-form" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">' + '{{ csrf_field() }}' + '<input name="_method" value="PATCH" type="hidden">' + '<button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button></form>';
         } else if (account.status === 'restricted') {
             unrestrictBtn = '<button type="button" class="action-icon-btn unrestrict" title="Unrestrict Account" aria-label="Unrestrict account" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">🔓</button>';
-            archiveBtn = '<form method="POST" action="' + '{{ url('/admin/teachers') }}' + '/' + account.id + '/archive' + '" class="inline-action-form archive-form" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">' + '{{ csrf_field() }}' + '<input name="_method" value="PATCH" type="hidden">' + '<button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button></form>';
+            archiveBtn = '<form method="POST" action="' + '{{ url('/' . portal_prefix() . '/teachers') }}' + '/' + account.id + '/archive' + '" class="inline-action-form archive-form" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">' + '{{ csrf_field() }}' + '<input name="_method" value="PATCH" type="hidden">' + '<button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button></form>';
         } else if (account.status === 'archived') {
             reactivateBtn = '<button type="button" class="action-icon-btn reactivate" title="Reactivate Account" aria-label="Reactivate account" data-id="' + account.id + '" data-name="' + escapeHtml(account.name) + '">🔄</button>';
         }
@@ -1345,7 +1345,7 @@ function fetchTeacherAccounts(page, append) {
 
     showTeacherLoading(true);
 
-    var fetchUrl = '{{ route('admin.teachers.fetch') }}' + '?' + new URLSearchParams(params).toString();
+    var fetchUrl = '{{ route(portal_prefix() . '.teachers.fetch') }}' + '?' + new URLSearchParams(params).toString();
 
     fetch(fetchUrl, {
         headers: {
@@ -1500,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', function () {
     editBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
             if (editForm) {
-                editForm.action = '{{ url('/admin/teachers') }}/' + btn.dataset.id;
+                editForm.action = "{{ url('/' . portal_prefix() . '/teachers') }}/" + btn.dataset.id;
             }
             document.getElementById('editTeacherName').value = btn.dataset.name;
             document.getElementById('editTeacherUsername').value = btn.dataset.username;

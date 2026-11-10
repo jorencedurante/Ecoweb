@@ -15,7 +15,7 @@ class AuthenticationTest extends TestCase
             'password' => 'secret-password',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertAuthenticatedAs($user);
     }
 
@@ -28,7 +28,7 @@ class AuthenticationTest extends TestCase
             'password' => 'secret-password',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertAuthenticatedAs($user);
     }
 
@@ -41,7 +41,7 @@ class AuthenticationTest extends TestCase
             'password' => 'secret-password',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertAuthenticatedAs($user);
     }
 

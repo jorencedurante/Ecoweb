@@ -26,7 +26,7 @@ class SecureFormActionsTest extends TestCase
 
         $user = $this->createTeacher(['pending_email' => 'newaddress@example.com']);
 
-        $response = $this->actingAs($user)->get(route('settings.edit'), [
+        $response = $this->actingAs($user)->get(route(portal_prefix() . '.settings.edit'), [
             'X-Forwarded-Proto' => 'https',
         ]);
 

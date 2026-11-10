@@ -55,7 +55,7 @@
             <x-icon name="chevron-down" :size="15" class="stu-filter-chevron" />
         </button>
         <div class="filter-body">
-            <form method="GET" action="{{ route('admin.students') }}" id="filterForm" class="stu-toolbar-form">
+            <form method="GET" action="{{ route(portal_prefix() . '.students') }}" id="filterForm" class="stu-toolbar-form">
                 <div class="stu-field stu-field-search">
                     <label for="stuSearchInput">Search students</label>
                     <div class="stu-search">
@@ -104,13 +104,13 @@
                         $remaining = request()->query();
                         unset($remaining[$filter['key']], $remaining['page']);
                     @endphp
-                    <a class="stu-chip" href="{{ route('admin.students', $remaining) }}" title="Remove {{ strtolower($filter['label']) }} filter">
+                    <a class="stu-chip" href="{{ route(portal_prefix() . '.students', $remaining) }}" title="Remove {{ strtolower($filter['label']) }} filter">
                         <span class="stu-chip-key">{{ $filter['label'] }}</span>
                         <span class="stu-chip-value">{{ $filter['value'] }}</span>
                         <span class="stu-chip-x" aria-hidden="true"><x-icon name="x" :size="12" /></span>
                     </a>
                 @endforeach
-                <a class="stu-chip stu-chip-clear" href="{{ route('admin.students') }}">Clear all</a>
+                <a class="stu-chip stu-chip-clear" href="{{ route(portal_prefix() . '.students') }}">Clear all</a>
             </div>
             @endif
         </div>
@@ -220,7 +220,7 @@
                 <h3>Import Students</h3>
                 <p class="subtitle">Upload an Excel file (.xlsx) with student data.</p>
             </div>
-            <form method="POST" action="{{ route('admin.students.import') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route(portal_prefix() . '.students.import') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group">
@@ -251,7 +251,7 @@
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <a href="{{ route('admin.students.import.template') }}" class="btn btn-outline btn-template">📄 Download Template</a>
+                    <a href="{{ route(portal_prefix() . '.students.import.template') }}" class="btn btn-outline btn-template">📄 Download Template</a>
                     <button type="button" class="btn btn-danger" data-modal-close>Cancel</button>
                     <button type="submit" class="btn btn-success" id="importBtn" disabled>Import</button>
                 </div>
@@ -268,7 +268,7 @@
                     <p class="subtitle">Fill in the following information</p>
                 </div>
             </div>
-            <form method="POST" action="{{ route('admin.students.store') }}" class="modal-form" data-student-form>
+            <form method="POST" action="{{ route(portal_prefix() . '.students.store') }}" class="modal-form" data-student-form>
                 @csrf
                 <div class="stu-form-tabs" role="tablist" aria-label="Student form sections">
                     <button type="button" class="stu-form-tab active" role="tab" id="addTabBasic" data-form-tab="basic" aria-selected="true" aria-controls="addPanelBasic">
@@ -803,7 +803,7 @@ function populateEditStudentForm(btn) {
     if (female) female.checked = gender === 'Female';
 
     const form = document.getElementById('editStudentForm');
-    if (form) form.action = '{{ url('/admin/students') }}/' + btn.dataset.id;
+    if (form) form.action = '{{ url('/' . portal_prefix() . '/students') }}/' + btn.dataset.id;
 
     // Reset to the first tab; activateStudentFormTab() re-opens the failing tab.
     activateStudentFormTab(form, 'basic');
@@ -889,7 +889,7 @@ function initStudentToolbar() {
             if (value !== '') params.append(key, value);
         }
         if (page !== null) params.set('page', page);
-        const url = '{{ route('admin.students.filter') }}' + '?' + params.toString();
+        const url = '{{ route(portal_prefix() . '.students.filter') }}' + '?' + params.toString();
 
         tableContainer.classList.add('loading');
 
@@ -1594,7 +1594,7 @@ function initStudentOverview() {
     }
 
     function fetchCounts(year) {
-        const url = '{{ route('admin.students.archive-all') }}';
+        const url = '{{ route(portal_prefix() . '.students.archive-all') }}';
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
         fetch(url, {
@@ -1687,7 +1687,7 @@ function initStudentOverview() {
 
         confirmBtn.disabled = true;
 
-        const url = '{{ route('admin.students.archive-all') }}';
+        const url = '{{ route(portal_prefix() . '.students.archive-all') }}';
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
         fetch(url, {
@@ -1788,7 +1788,7 @@ function initStudentOverview() {
 
         confirmBtn.disabled = true;
 
-        const url = '{{ route('admin.students.fix-school-years') }}';
+        const url = '{{ route(portal_prefix() . '.students.fix-school-years') }}';
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
         fetch(url, {

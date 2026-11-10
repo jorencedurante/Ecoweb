@@ -13,7 +13,7 @@
     <div class="settings-section active" id="generalSettings">
         <div class="card">
             <div class="card-body" style="max-width:500px;">
-                <form method="POST" action="{{ route('admin.settings.general') }}">
+                <form method="POST" action="{{ route(portal_prefix() . '.settings.general') }}">
                     @csrf
                     <div class="form-group">
                         <label>Admin's Name</label>

@@ -102,5 +102,5 @@
         </div>
     </div>
 
-    <a href="{{ route('admin.reports') }}" class="btn btn-primary">View Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="btn btn-primary">View Reports</a>
 @endsection

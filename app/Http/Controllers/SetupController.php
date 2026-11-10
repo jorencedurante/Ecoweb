@@ -50,8 +50,6 @@ class SetupController extends Controller
             'email_verification_expires_at' => now()->addMinutes(10),
         ]);
 
-        Auth::login($user);
-
         try {
             Mail::to($user->email)->send(new SendOtpMail($otp, $user->name));
             Log::info('Setup Super Admin OTP sent to: ' . $user->email);

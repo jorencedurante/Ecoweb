@@ -12,14 +12,14 @@ class BottleCollectionTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher, ['total_points' => 0]);
 
-        $response = $this->actingAs($teacher)->post(route('admin.bottle-collection'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.bottle-collection'), [
             'student_id' => $student->id,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
             'bottle_count' => 5,
         ]);
 
-        $response->assertRedirect(route('admin.bottle-collection'));
+        $response->assertRedirect(route(portal_prefix() . '.bottle-collection'));
 
         $this->assertDatabaseHas('bottle_collections', [
             'student_id' => $student->id,
@@ -37,7 +37,7 @@ class BottleCollectionTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->post(route('admin.bottle-collection'), [
+        $response = $this->actingAs($teacherB)->post(route(portal_prefix() . '.bottle-collection'), [
             'student_id' => $studentOfA->id,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
@@ -68,7 +68,7 @@ class BottleCollectionTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($teacherB)->get(route('admin.bottle-collection'));
+        $response = $this->actingAs($teacherB)->get(route(portal_prefix() . '.bottle-collection'));
 
         $response->assertOk();
         $response->assertSee('BetaKid');

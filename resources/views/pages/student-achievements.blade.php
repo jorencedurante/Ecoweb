@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Waste collection achievements and milestones')
 
 @section('content')
-    <a href="{{ route('admin.students') }}" class="back-link">← Back to Students</a>
+    <a href="{{ route(portal_prefix() . '.students') }}" class="back-link">← Back to Students</a>
 
     <div class="card" style="margin-bottom:24px;">
         <div class="card-body">

@@ -22,7 +22,7 @@ class DashboardTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.dashboard'));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.dashboard'));
 
         $response->assertOk();
     }
@@ -34,7 +34,7 @@ class DashboardTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.dashboard'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.dashboard'));
 
         $response->assertOk();
     }

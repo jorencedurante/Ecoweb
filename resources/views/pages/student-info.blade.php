@@ -5,7 +5,7 @@
 @section('page-subtitle', 'View complete student details')
 
 @section('content')
-    <a href="{{ route('admin.students') }}" class="back-link" aria-label="Back to students list">← Back to Students</a>
+    <a href="{{ route(portal_prefix() . '.students') }}" class="back-link" aria-label="Back to students list">← Back to Students</a>
 
     {{-- Header --}}
     <div class="card" style="margin-bottom:24px;">
