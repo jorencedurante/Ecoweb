@@ -36,7 +36,7 @@
                     <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
                         View Requests ▼
                     </button>
-                    <form method="POST" action="{{ route('claims.archiveAllByStudent', $studentId) }}" style="display:inline;" onclick="event.stopPropagation();">
+                    <form method="POST" action="{{ route('admin.claims.archiveAllByStudent', $studentId) }}" style="display:inline;" onclick="event.stopPropagation();">
                         @csrf
                         @method('PATCH')
                         <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark all approved item requests of {{ addslashes($studentName) }} as released?')">
@@ -73,7 +73,7 @@
                                 <td style="padding:10px 14px;">{{ $claim->approver->name ?? $claim->admin->name ?? 'System' }}</td>
                                 <td style="padding:10px 14px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $claim->remarks ?? '—' }}</td>
                                 <td style="padding:10px 14px;text-align:center;">
-                                    <form method="POST" action="{{ route('claims.archive', $claim->id) }}" style="display:inline;">
+                                    <form method="POST" action="{{ route('admin.claims.archive', $claim->id) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
                                         <button type="submit" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" aria-label="Archive" onclick="return confirm('Mark this item request as released and archive it?')">
@@ -104,13 +104,13 @@
         </span>
         <div class="page-btns" style="display:flex;gap:4px;">
             @if ($approvedPage > 1)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['approved_page' => $approvedPage - 1])) }}#approved-by-student-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
+                <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['approved_page' => $approvedPage - 1])) }}#approved-by-student-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
             @endif
             @for ($i = max(1, $approvedPage - 2); $i <= min($approvedPage + 2, ceil(($approvedClaimsByStudent->count() ?? 0) / 10)); $i++)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['approved_page' => $i])) }}#approved-by-student-section" class="page-btn {{ $i == $approvedPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $approvedPage ? '#10b981' : '#374151' }};background:{{ $i == $approvedPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+                <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['approved_page' => $i])) }}#approved-by-student-section" class="page-btn {{ $i == $approvedPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $approvedPage ? '#10b981' : '#374151' }};background:{{ $i == $approvedPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
             @endfor
             @if ($approvedHasMorePages)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['approved_page' => $approvedPage + 1])) }}#approved-by-student-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
+                <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['approved_page' => $approvedPage + 1])) }}#approved-by-student-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
             @endif
         </div>
     </div>

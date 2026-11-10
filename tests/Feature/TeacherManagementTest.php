@@ -32,7 +32,7 @@ class TeacherManagementTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers'));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers'));
 
         $response->assertOk();
         $response->assertSee('Visible Teacher');
@@ -44,7 +44,7 @@ class TeacherManagementTest extends TestCase
     {
         $superAdmin = $this->createSuperAdmin();
 
-        $response = $this->actingAs($superAdmin)->post(route('admin.teachers.store'), [
+        $response = $this->actingAs($superAdmin)->post(route(portal_prefix() . '.teachers.store'), [
             'name' => 'New Teacher',
             'username' => 'newteacher1',
             'email' => 'newteacher1@example.com',
@@ -55,7 +55,7 @@ class TeacherManagementTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response->assertRedirect(route('admin.teachers'));
+        $response->assertRedirect(route(portal_prefix() . '.teachers'));
         $response->assertSessionHas('success');
 
         $user = User::where('email', 'newteacher1@example.com')->first();
@@ -75,7 +75,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $this->createTeacher(['username' => 'takenuser']);
 
-        $response = $this->actingAs($superAdmin)->post(route('admin.teachers.store'), [
+        $response = $this->actingAs($superAdmin)->post(route(portal_prefix() . '.teachers.store'), [
             'name' => 'Another Teacher',
             'username' => 'takenuser',
             'email' => 'another@example.com',
@@ -93,7 +93,7 @@ class TeacherManagementTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->post(route('admin.teachers.store'), [
+        $response = $this->actingAs($admin)->post(route(portal_prefix() . '.teachers.store'), [
             'name' => 'Nope Teacher',
             'username' => 'nope1',
             'email' => 'nope1@example.com',
@@ -120,7 +120,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher(['username' => 'edittarget', 'email' => 'edittarget@example.com']);
 
-        $response = $this->actingAs($superAdmin)->put(route('admin.teachers.update', $teacher->id), [
+        $response = $this->actingAs($superAdmin)->put(route(portal_prefix() . '.teachers.update', $teacher->id), [
             'name' => 'Edited Teacher',
             'username' => 'edittarget',
             'email' => 'edittarget@example.com',
@@ -129,7 +129,7 @@ class TeacherManagementTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response->assertRedirect(route('admin.teachers'));
+        $response->assertRedirect(route(portal_prefix() . '.teachers'));
 
         $teacher->refresh();
         $this->assertSame('Edited Teacher', $teacher->name);
@@ -142,7 +142,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher();
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.archive', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.archive', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('archived', $teacher->refresh()->status);
@@ -153,7 +153,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher(['status' => 'active']);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.restrict', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.restrict', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('restricted', $teacher->refresh()->status);
@@ -164,7 +164,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher(['status' => 'restricted']);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.unrestrict', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.unrestrict', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -180,7 +180,7 @@ class TeacherManagementTest extends TestCase
             ->where('id', '!=', $superAdmin->id)
             ->update(['role' => 'admin']);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.archive', $superAdmin->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.archive', $superAdmin->id));
 
         $response->assertStatus(422);
         $this->assertSame('active', $superAdmin->refresh()->status);
@@ -190,7 +190,7 @@ class TeacherManagementTest extends TestCase
     {
         $superAdmin = $this->createSuperAdmin();
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.restrict', $superAdmin->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.restrict', $superAdmin->id));
 
         $response->assertStatus(422);
         $this->assertSame('active', $superAdmin->refresh()->status);
@@ -200,7 +200,7 @@ class TeacherManagementTest extends TestCase
     {
         $superAdmin = $this->createSuperAdmin();
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.archive', $superAdmin->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.archive', $superAdmin->id));
 
         $response->assertStatus(422);
         $this->assertSame('active', $superAdmin->refresh()->status);
@@ -211,7 +211,7 @@ class TeacherManagementTest extends TestCase
         $admin = $this->createAdmin();
         $teacher = $this->createTeacher(['status' => 'active']);
 
-        $response = $this->actingAs($admin)->patch(route('admin.teachers.restrict', $teacher->id));
+        $response = $this->actingAs($admin)->patch(route(portal_prefix() . '.teachers.restrict', $teacher->id));
 
         $response->assertForbidden();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -222,7 +222,7 @@ class TeacherManagementTest extends TestCase
         $admin = $this->createAdmin();
         $teacher = $this->createTeacher(['status' => 'active']);
 
-        $response = $this->actingAs($admin)->patch(route('admin.teachers.archive', $teacher->id));
+        $response = $this->actingAs($admin)->patch(route(portal_prefix() . '.teachers.archive', $teacher->id));
 
         $response->assertForbidden();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -234,12 +234,12 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Searchable Annie', 'email' => 'annie@example.com']);
         $this->createAdmin(['name' => 'Filterable Adam', 'email' => 'adam@example.com']);
 
-        $search = $this->actingAs($superAdmin)->get(route('admin.teachers', ['search' => 'Searchable Annie']));
+        $search = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers', ['search' => 'Searchable Annie']));
         $search->assertOk();
         $search->assertSee('Searchable Annie');
         $search->assertDontSee('Filterable Adam');
 
-        $filter = $this->actingAs($superAdmin)->get(route('admin.teachers', ['role' => 'admin']));
+        $filter = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers', ['role' => 'admin']));
         $filter->assertOk();
         $filter->assertSee('Filterable Adam');
         $filter->assertDontSee('Searchable Annie');
@@ -300,7 +300,7 @@ class TeacherManagementTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertNotNull(auth()->user());
     }
 
@@ -324,7 +324,7 @@ class TeacherManagementTest extends TestCase
 
         $this->assertFalse($teacher->isActive());
 
-        $response = $this->get(route('admin.dashboard'));
+        $response = $this->get(route(portal_prefix() . '.dashboard'));
 
         $response->assertRedirect(route('login'));
         $response->assertSessionHas('error');
@@ -343,7 +343,7 @@ class TeacherManagementTest extends TestCase
         $teacher->forceFill(['remember_token' => 'some-remember-token'])->save();
         $this->assertSame('some-remember-token', $teacher->refresh()->remember_token);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.archive', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.archive', $teacher->id));
 
         $this->assertNull($teacher->refresh()->remember_token);
         $this->assertSame('archived', $teacher->refresh()->status);
@@ -355,7 +355,7 @@ class TeacherManagementTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.archive', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.archive', $teacher->id));
 
         $teacher->refresh();
         $this->assertSame('archived', $teacher->status);
@@ -372,13 +372,13 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Beta Teacher', 'email' => 'beta@example.com', 'role' => 'admin']);
         $this->createAdmin(['name' => 'Gamma Admin', 'email' => 'gamma@example.com', 'role' => 'admin']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['search' => 'Alpha']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['search' => 'Alpha']));
         $response->assertOk();
         $response->assertJsonStructure(['accounts', 'current_page', 'last_page', 'per_page', 'total', 'from', 'to']);
         $response->assertJsonFragment(['name' => 'Alpha Teacher']);
         $response->assertJsonMissing(['name' => 'Beta Teacher']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['role' => 'admin']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['role' => 'admin']));
         $response->assertOk();
         $data = $response->json();
         $names = array_column($data['accounts'], 'name');
@@ -386,7 +386,7 @@ class TeacherManagementTest extends TestCase
         $this->assertContains('Gamma Admin', $names);
         $this->assertNotContains('Alpha Teacher', $names);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['status' => 'archived']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['status' => 'archived']));
         $response->assertOk();
         $this->assertSame(0, $response->json('total'));
     }
@@ -397,7 +397,7 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Zara Teacher', 'username' => 'zara_user', 'email' => 'zara@example.com']);
         $this->createTeacher(['name' => 'John Teacher', 'username' => 'john_user', 'email' => 'john@example.com']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['search' => 'z']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['search' => 'z']));
         $response->assertOk();
         $data = $response->json();
         $names = array_column($data['accounts'], 'name');
@@ -410,7 +410,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $this->createTeacher(['name' => 'Only Teacher']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['search' => 'Nonexistent']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['search' => 'Nonexistent']));
         $response->assertOk();
         $this->assertSame(0, $response->json('total'));
         $this->assertEmpty($response->json('accounts'));
@@ -427,7 +427,7 @@ class TeacherManagementTest extends TestCase
 
         $this->assertSame('archived', $teacher->refresh()->status);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -443,7 +443,7 @@ class TeacherManagementTest extends TestCase
             'status' => 'archived',
         ]);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
         $this->assertSame('active', $teacher->refresh()->status);
 
         $response = $this->post(route('login.submit'), [
@@ -451,7 +451,7 @@ class TeacherManagementTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertNotNull(auth()->user());
     }
 
@@ -461,7 +461,7 @@ class TeacherManagementTest extends TestCase
         $teacher = $this->createTeacher(['status' => 'archived']);
         $student = $this->createStudent($teacher);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $teacher->refresh();
         $this->assertSame('active', $teacher->status);
@@ -476,7 +476,7 @@ class TeacherManagementTest extends TestCase
         $admin = $this->createAdmin();
         $teacher = $this->createTeacher(['status' => 'archived']);
 
-        $response = $this->actingAs($admin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($admin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertForbidden();
         $this->assertSame('archived', $teacher->refresh()->status);
@@ -487,7 +487,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher(['status' => 'active']);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertStatus(422);
         $this->assertSame('active', $teacher->refresh()->status);
@@ -498,7 +498,7 @@ class TeacherManagementTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $teacher = $this->createTeacher(['status' => 'restricted']);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -528,7 +528,7 @@ class TeacherManagementTest extends TestCase
     {
         $superAdmin = $this->createSuperAdmin();
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers'));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers'));
         $response->assertOk();
         $response->assertSee('Restricted');
     }
@@ -539,7 +539,7 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Restricted Teacher', 'email' => 'restricted@example.com', 'status' => 'restricted']);
         $this->createTeacher(['name' => 'Active Teacher', 'email' => 'active@example.com', 'status' => 'active']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.fetch', ['status' => 'restricted']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.fetch', ['status' => 'restricted']));
         $response->assertOk();
         $data = $response->json();
         $names = array_column($data['accounts'], 'name');
@@ -553,7 +553,7 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Archived Teacher', 'email' => 'archived@example.com', 'status' => 'archived']);
         $this->createTeacher(['name' => 'Active Teacher', 'email' => 'active@example.com', 'status' => 'active']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.archived'));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.archived'));
         $response->assertOk();
         $data = $response->json();
         $names = array_column($data['accounts'], 'name');
@@ -567,7 +567,7 @@ class TeacherManagementTest extends TestCase
         $this->createTeacher(['name' => 'Archived Alice', 'email' => 'alice@example.com', 'status' => 'archived']);
         $this->createTeacher(['name' => 'Archived Bob', 'email' => 'bob@example.com', 'status' => 'archived']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.teachers.archived', ['search' => 'Alice']));
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.teachers.archived', ['search' => 'Alice']));
         $response->assertOk();
         $data = $response->json();
         $names = array_column($data['accounts'], 'name');
@@ -579,7 +579,7 @@ class TeacherManagementTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.teachers.archived'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.teachers.archived'));
         $response->assertForbidden();
     }
 
@@ -590,7 +590,7 @@ class TeacherManagementTest extends TestCase
 
         $this->assertSame('archived', $teacher->refresh()->status);
 
-        $response = $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertOk();
         $this->assertSame('active', $teacher->refresh()->status);
@@ -606,7 +606,7 @@ class TeacherManagementTest extends TestCase
             'status' => 'archived',
         ]);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
         $this->assertSame('active', $teacher->refresh()->status);
 
         $response = $this->post(route('login.submit'), [
@@ -614,7 +614,7 @@ class TeacherManagementTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertNotNull(auth()->user());
     }
 
@@ -624,7 +624,7 @@ class TeacherManagementTest extends TestCase
         $teacher = $this->createTeacher(['status' => 'archived']);
         $student = $this->createStudent($teacher);
 
-        $this->actingAs($superAdmin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $this->actingAs($superAdmin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $teacher->refresh();
         $this->assertSame('active', $teacher->status);
@@ -639,7 +639,7 @@ class TeacherManagementTest extends TestCase
         $admin = $this->createAdmin();
         $teacher = $this->createTeacher(['status' => 'archived']);
 
-        $response = $this->actingAs($admin)->patch(route('admin.teachers.reactivate', $teacher->id));
+        $response = $this->actingAs($admin)->patch(route(portal_prefix() . '.teachers.reactivate', $teacher->id));
 
         $response->assertForbidden();
         $this->assertSame('archived', $teacher->refresh()->status);

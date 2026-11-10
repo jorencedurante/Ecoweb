@@ -211,19 +211,7 @@ class BottleCollectionController extends Controller
         $student->increment('total_points', $validated['bottle_count']);
 
         // Auto-award achievement quests from the student's assigned teacher only.
-        $bottleTotal = $student->bottleCollections()->sum('bottle_count');
-        $pointTotal = $student->total_points ?? $bottleTotal;
-        $quests = $student->assignedActiveQuests()->get();
-        foreach ($quests as $quest) {
-            $completedByBottles = $quest->required_bottles > 0 && $bottleTotal >= $quest->required_bottles;
-            $completedByPoints = $quest->points_required > 0 && $pointTotal >= $quest->points_required;
-            if ($completedByBottles || $completedByPoints) {
-                StudentAchievement::firstOrCreate(
-                    ['student_id' => $student->id, 'achievement_quest_id' => $quest->id],
-                    ['awarded_date' => now()->toDateString(), 'awarded_by' => Auth::id()]
-                );
-            }
-        }
+        $student->syncEarnedAchievements(Auth::id());
 
         AdminActivity::create([
             'user_id' => Auth::id(),
@@ -232,7 +220,7 @@ class BottleCollectionController extends Controller
             'module' => 'Bottle Collection',
         ]);
 
-        return redirect()->route('admin.bottle-collection')->with('success', 'Bottle collection recorded successfully!');
+        return redirect()->route(portal_prefix() . '.bottle-collection')->with('success', 'Bottle collection recorded successfully!');
     }
 
     public function studentPoints(Request $request)

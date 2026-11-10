@@ -138,6 +138,7 @@ class Student extends Model
         $totalPoints = $this->total_points ?? $totalBottles;
 
         $quests = $this->assignedActiveQuests()->get();
+        $enrollmentId = $this->enrollments()->where('status', 'active')->latest('id')->value('id');
 
         $earnedCount = 0;
 
@@ -148,7 +149,11 @@ class Student extends Model
             if ($completedByBottles || $completedByPoints) {
                 StudentAchievement::firstOrCreate(
                     ['student_id' => $this->id, 'achievement_quest_id' => $quest->id],
-                    ['awarded_date' => now()->toDateString(), 'awarded_by' => $awardedBy]
+                    [
+                        'awarded_date' => now()->toDateString(),
+                        'awarded_by' => $awardedBy,
+                        'enrollment_id' => $enrollmentId,
+                    ]
                 );
                 $earnedCount++;
             }

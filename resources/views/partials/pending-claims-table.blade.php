@@ -50,7 +50,7 @@
 @if(!request()->ajax())
 <div class="table-container" id="pendingClaimsTableContainer">
     {{-- Live Filters for Pending Claims (NOT replaced by AJAX) --}}
-    <form id="pendingClaimsFilterForm" class="table-filter-form pending-claims-filter" method="GET" action="{{ route('claims.index') }}#pending-claims-section" onsubmit="return false;">
+    <form id="pendingClaimsFilterForm" class="table-filter-form pending-claims-filter" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#pending-claims-section" onsubmit="return false;">
         <div class="filter-field">
             <input
                 type="text"
@@ -149,16 +149,21 @@
                                     </td>
                                     <td style="padding:10px 14px;text-align:center;">
                                         <div class="action-button-group">
-                                            <form method="POST" action="{{ route('claims.approve', $claim->id) }}" style="display:inline;" onsubmit="return confirm('Approve this item claim?');">
+                                            <form method="POST" action="{{ route('admin.claims.approve', $claim->id) }}" style="display:inline;" onsubmit="return confirm('Approve this item claim?');">
                                                 @csrf @method('PATCH')
+                                                @php
+                                                    $pointsAlreadyReserved = (bool) ($claim->is_reserved ?? false);
+                                                    $insufficientSpendablePoints = !$pointsAlreadyReserved
+                                                        && (($claim->student->total_points ?? 0) < $claim->points_deducted);
+                                                @endphp
                                                 <button type="submit" class="btn-approve-icon" aria-label="Approve Request" title="Approve Request"
-                                                    @if(($claim->student->total_points ?? 0) < $claim->points_deducted) disabled title="Insufficient points" @endif>
+                                                    @if($insufficientSpendablePoints) disabled title="Insufficient points" @endif>
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">
                                                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
                                                     </svg>
                                                 </button>
                                             </form>
-                                            <form method="POST" action="{{ route('claims.reject', $claim->id) }}" style="display:inline;" onsubmit="return confirm('Reject this claim?');">
+                                            <form method="POST" action="{{ route('admin.claims.reject', $claim->id) }}" style="display:inline;" onsubmit="return confirm('Reject this claim?');">
                                                 @csrf @method('PATCH')
                                                 <button type="submit" class="btn-reject-icon" aria-label="Reject Request" title="Reject Request">
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">
@@ -184,13 +189,13 @@
             </span>
             <div class="page-btns" style="display:flex;gap:4px;">
                 @if ($pendingPage > 1)
-                    <a href="{{ route('claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage - 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
+                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage - 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
                 @endif
                 @for ($i = max(1, $pendingPage - 2); $i <= min($pendingPage + 2, ceil(count($pendingStudentIds) / 10)); $i++)
-                    <a href="{{ route('claims.index', array_merge(request()->query(), ['pending_page' => $i])) }}#pending-claims-section" class="page-btn {{ $i == $pendingPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $pendingPage ? '#10b981' : '#374151' }};background:{{ $i == $pendingPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $i])) }}#pending-claims-section" class="page-btn {{ $i == $pendingPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $pendingPage ? '#10b981' : '#374151' }};background:{{ $i == $pendingPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
                 @endfor
                 @if ($pendingHasMorePages)
-                    <a href="{{ route('claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage + 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
+                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage + 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
                 @endif
             </div>
         </div>

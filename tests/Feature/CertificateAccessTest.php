@@ -86,7 +86,7 @@ class CertificateAccessTest extends TestCase
     private function awardCertificate(User $acting, Student $student, User $adviser, ?User $principal = null): CertificateAward
     {
         $principal = $principal ?: $this->createPrincipal();
-        $response = $this->actingAs($acting)->postJson(route('admin.certificate.award'), [
+        $response = $this->actingAs($acting)->postJson(route(portal_prefix() . '.certificate.award'), [
             'student_id' => $student->id,
             'adviser_id' => $adviser->id,
             'principal_id' => $principal->id,
@@ -266,15 +266,15 @@ class CertificateAccessTest extends TestCase
 
         $this->assertNull($award->teacher_id);
 
-        $overview = $this->actingAs($teacherA)->getJson(route('admin.students.overview', $student));
+        $overview = $this->actingAs($teacherA)->getJson(route(portal_prefix() . '.students.overview', $student));
         $overview->assertOk();
-        $overview->assertJsonPath('certificates.0.view_url', route('admin.certificate.download', $award));
-        $overview->assertJsonPath('certificates.0.print_url', route('admin.certificate.print', $award));
+        $overview->assertJsonPath('certificates.0.view_url', route(portal_prefix() . '.certificate.download', $award));
+        $overview->assertJsonPath('certificates.0.print_url', route(portal_prefix() . '.certificate.print', $award));
 
-        $this->actingAs($teacherA)->get(route('admin.certificate.print', $award))->assertOk();
-        $this->actingAs($teacherA)->get(route('admin.certificate.file', $award))->assertOk();
+        $this->actingAs($teacherA)->get(route(portal_prefix() . '.certificate.print', $award))->assertOk();
+        $this->actingAs($teacherA)->get(route(portal_prefix() . '.certificate.file', $award))->assertOk();
 
-        $download = $this->actingAs($teacherA)->get(route('admin.certificate.download', $award));
+        $download = $this->actingAs($teacherA)->get(route(portal_prefix() . '.certificate.download', $award));
         $download->assertOk();
         $this->assertStringContainsString('Certificate-', (string) $download->headers->get('content-disposition'));
     }
@@ -288,11 +288,11 @@ class CertificateAccessTest extends TestCase
         $student = $this->createStudent($teacherA);
         $award = $this->awardCertificate($admin, $student, $adviser);
 
-        $this->actingAs($teacherB)->get(route('admin.certificate.print', $award))->assertForbidden();
-        $this->actingAs($teacherB)->get(route('admin.certificate.file', $award))->assertForbidden();
-        $this->actingAs($teacherB)->get(route('admin.certificate.download', $award))->assertForbidden();
+        $this->actingAs($teacherB)->get(route(portal_prefix() . '.certificate.print', $award))->assertForbidden();
+        $this->actingAs($teacherB)->get(route(portal_prefix() . '.certificate.file', $award))->assertForbidden();
+        $this->actingAs($teacherB)->get(route(portal_prefix() . '.certificate.download', $award))->assertForbidden();
 
-        $overview = $this->actingAs($teacherB)->getJson(route('admin.students.overview', $student));
+        $overview = $this->actingAs($teacherB)->getJson(route(portal_prefix() . '.students.overview', $student));
         $overview->assertForbidden();
     }
 
@@ -304,9 +304,9 @@ class CertificateAccessTest extends TestCase
         $student = $this->createStudent();
         $award = $this->awardCertificate($admin, $student, $adviser);
 
-        $this->actingAs($superAdmin)->get(route('admin.certificate.print', $award))->assertOk();
-        $this->actingAs($superAdmin)->get(route('admin.certificate.file', $award))->assertOk();
-        $this->actingAs($superAdmin)->get(route('admin.certificate.download', $award))->assertOk();
+        $this->actingAs($superAdmin)->get(route(portal_prefix() . '.certificate.print', $award))->assertOk();
+        $this->actingAs($superAdmin)->get(route(portal_prefix() . '.certificate.file', $award))->assertOk();
+        $this->actingAs($superAdmin)->get(route(portal_prefix() . '.certificate.download', $award))->assertOk();
     }
 
     public function test_file_route_never_serves_bare_template_without_canvas_or_final_file(): void
@@ -325,8 +325,8 @@ class CertificateAccessTest extends TestCase
             'issued_by' => $admin->id,
         ]);
 
-        $this->actingAs($admin)->get(route('admin.certificate.file', $award))->assertNotFound();
-        $this->actingAs($admin)->get(route('admin.certificate.download', $award))->assertNotFound();
+        $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.file', $award))->assertNotFound();
+        $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.download', $award))->assertNotFound();
     }
 
     public function test_student_awards_page_shows_print_always_and_download_only_with_final_file(): void
@@ -337,18 +337,18 @@ class CertificateAccessTest extends TestCase
 
         $legacy = $this->legacyCanvasAward($student, $adviser);
 
-        $legacyPage = $this->actingAs($teacher)->get(route('students.awards', $student));
+        $legacyPage = $this->actingAs($teacher)->get(route('teacher.students.awards', $student));
         $legacyPage->assertOk();
         $legacyPage->assertSee('Print', false);
         $legacyPage->assertDontSee('btn-achievement', false);
-        $legacyPage->assertSee('/admin/certificate/' . $legacy->id . '/print', false);
+        $legacyPage->assertSee('/teacher/certificate/' . $legacy->id . '/print', false);
 
         $withFinal = $this->awardCertificate($this->createAdmin(), $student, $adviser);
 
-        $finalPage = $this->actingAs($teacher)->get(route('students.awards', $student));
+        $finalPage = $this->actingAs($teacher)->get(route('teacher.students.awards', $student));
         $finalPage->assertOk();
         $finalPage->assertSee('Download', false);
-        $finalPage->assertSee('/admin/certificate/' . $withFinal->id . '/download', false);
+        $finalPage->assertSee('/teacher/certificate/' . $withFinal->id . '/download', false);
     }
 
     public function test_print_view_uses_served_file_route_not_storage_urls(): void
@@ -358,10 +358,10 @@ class CertificateAccessTest extends TestCase
         $student = $this->createStudent();
         $award = $this->awardCertificate($admin, $student, $adviser);
 
-        $print = $this->actingAs($admin)->get(route('admin.certificate.print', $award));
+        $print = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.print', $award));
 
         $print->assertOk();
-        $print->assertSee(route('admin.certificate.file', $award), false);
+        $print->assertSee(route(portal_prefix() . '.certificate.file', $award), false);
         $print->assertDontSee('storage/certificate-awards', false);
         $print->assertDontSee("asset('storage/", false);
     }

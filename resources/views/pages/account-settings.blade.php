@@ -32,7 +32,7 @@
                 </div>
             </div>
 
-            <form id="profileSettingsForm" action="{{ route('settings.profile.update') }}" method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
+            <form id="profileSettingsForm" action="{{ route(portal_prefix() . '.settings.profile.update') }}" method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
                 @csrf
 
                 {{-- Full Name --}}
@@ -116,7 +116,7 @@
                 <button type="button" onclick="closeChangeEmailModal()" class="modal-close" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="changeEmailForm" action="{{ route('settings.email-change.initiate') }}" method="POST" style="display:flex;flex-direction:column;gap:16px;">
+                <form id="changeEmailForm" action="{{ route(portal_prefix() . '.settings.email-change.initiate') }}" method="POST" style="display:flex;flex-direction:column;gap:16px;">
                     @csrf
 
                     {{-- Current Email --}}
@@ -171,7 +171,7 @@
                 <button type="button" onclick="closeChangePasswordModal()" class="modal-close" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="changePasswordForm" action="{{ route('settings.password.update') }}" method="POST" style="display:flex;flex-direction:column;gap:16px;">
+                <form id="changePasswordForm" action="{{ route(portal_prefix() . '.settings.password.update') }}" method="POST" style="display:flex;flex-direction:column;gap:16px;">
                     @csrf
 
                     {{-- Current Password --}}
@@ -419,7 +419,7 @@
             btn.innerHTML = 'Sending...';
             document.getElementById('emailError').style.display = 'none';
 
-            fetch(form.action || '{{ route('settings.email-change.initiate') }}', {
+            fetch(form.action || '{{ route(portal_prefix() . '.settings.email-change.initiate') }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -461,7 +461,7 @@
             btn.innerHTML = 'Updating...';
             document.getElementById('passwordError').style.display = 'none';
 
-            fetch(form.action || '{{ route('settings.password.update') }}', {
+            fetch(form.action || '{{ route(portal_prefix() . '.settings.password.update') }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

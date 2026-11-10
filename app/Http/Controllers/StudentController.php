@@ -376,7 +376,7 @@ class StudentController extends Controller
             'module' => 'Students',
         ]);
 
-        return redirect()->route('admin.students')->with('success', 'Student added successfully!');
+        return redirect()->route(portal_prefix() . '.students')->with('success', 'Student added successfully!');
     }
 
     public function update(Request $request, Student $student)
@@ -454,7 +454,7 @@ class StudentController extends Controller
             'module' => 'Students',
         ]);
 
-        return redirect()->route('admin.students')->with('success', 'Student updated successfully!');
+        return redirect()->route(portal_prefix() . '.students')->with('success', 'Student updated successfully!');
     }
 
     public function archive(Student $student)
@@ -471,7 +471,7 @@ class StudentController extends Controller
             'module' => 'Students',
         ]);
 
-        return redirect()->route('admin.students')->with('success', 'Student archived successfully!');
+        return redirect()->route(portal_prefix() . '.students')->with('success', 'Student archived successfully!');
     }
 
     public function archiveAll(Request $request)
@@ -882,7 +882,7 @@ class StudentController extends Controller
             'module' => 'Students',
         ]);
 
-        return redirect()->route('admin.students.archived')->with('success', 'Student restored successfully!');
+        return redirect()->route(portal_prefix() . '.students.archived')->with('success', 'Student restored successfully!');
     }
 
     public function moveToSchoolYear(Request $request, Student $student)
@@ -1184,6 +1184,10 @@ class StudentController extends Controller
             ->latest()
             ->get();
 
+        // Apply existing automatic badge-awarding rule for any eligible
+        // completed quest (idempotent; never duplicates or changes thresholds).
+        $student->syncEarnedAchievements(Auth::id());
+
         $earnedAchievements = StudentAchievement::with('quest')
             ->where('student_id', $student->id)
             ->latest()
@@ -1322,6 +1326,10 @@ class StudentController extends Controller
         $recentCollections = (clone $collectionsQuery)->limit(5)->get();
         $collections = (clone $collectionsQuery)->limit(30)->get();
 
+        // Apply existing automatic badge-awarding rule for any eligible
+        // completed quest (idempotent; never duplicates or changes thresholds).
+        $student->syncEarnedAchievements(Auth::id());
+
         $earnedAchievements = $student->earnedAchievements()
             ->with('quest')
             ->orderByDesc('awarded_date')
@@ -1458,7 +1466,7 @@ class StudentController extends Controller
                 'school_year' => $currentEnrollment?->school_year,
                 'teacher_name' => $currentEnrollment?->teacher?->name,
                 'is_archived' => in_array($student->status, ['Archived', 'archived']),
-                'details_url' => route('students.info', $student),
+                'details_url' => route(portal_prefix() . '.students.info', $student),
             ],
             'summary' => [
                 'total_bottles' => $totalBottles,
@@ -1502,8 +1510,8 @@ class StudentController extends Controller
                     'status' => $award->status,
                     'awarded_date' => optional($award->awarded_date)->format('M d, Y'),
                     'teacher_name' => $award->teacher?->name,
-                    'view_url' => $canAccess && $hasFinal ? route('admin.certificate.download', $award) : null,
-                    'print_url' => $canAccess && $award->canRenderCertificate() ? route('admin.certificate.print', $award) : null,
+                    'view_url' => $canAccess && $hasFinal ? route(portal_prefix() . '.certificate.download', $award) : null,
+                    'print_url' => $canAccess && $award->canRenderCertificate() ? route(portal_prefix() . '.certificate.print', $award) : null,
                 ];
             })->values(),
             'meta' => [
@@ -1533,7 +1541,7 @@ class StudentController extends Controller
             $detectedGrade = $importer->detectSf1Grade(Storage::path($path));
             if ($detectedGrade && $detectedGrade !== $request->grade_level) {
                 Storage::delete($path);
-                return redirect()->route('admin.students')->with('import_result', [
+                return redirect()->route(portal_prefix() . '.students')->with('import_result', [
                     'type' => 'error',
                     'message' => "Grade level mismatch: The SF1 file contains '{$detectedGrade}' but you selected '{$request->grade_level}'. Please select the correct grade level and try again.",
                     'errors' => [],
@@ -1577,19 +1585,19 @@ class StudentController extends Controller
                 $details[] = 'No data processed.';
             }
 
-            return redirect()->route('admin.students')->with('import_result', [
+            return redirect()->route(portal_prefix() . '.students')->with('import_result', [
                 'type' => $type,
                 'message' => implode(' | ', $details),
                 'errors' => $importer->errors,
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
-            return redirect()->route('admin.students')->with('import_result', [
+            return redirect()->route(portal_prefix() . '.students')->with('import_result', [
                 'type' => 'error',
                 'message' => 'Import failed because duplicate data was found. Please check duplicate LRN or Student ID.',
                 'errors' => [$e->getMessage()],
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('admin.students')->with('import_result', [
+            return redirect()->route(portal_prefix() . '.students')->with('import_result', [
                 'type' => 'error',
                 'message' => 'Import failed: ' . $e->getMessage(),
                 'errors' => [],

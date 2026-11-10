@@ -104,7 +104,7 @@ class CertificateAwardToStudentTest extends TestCase
     private function awardCertificate(User $acting, Student $student, User $adviser, array $overrides = [], ?User $principal = null): CertificateAward
     {
         $response = $this->actingAs($acting)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, $overrides, $principal));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($student, $adviser, $overrides, $principal));
 
         $response->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', false);
 
@@ -115,7 +115,7 @@ class CertificateAwardToStudentTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertSee('id="awardToStudentBtn"', false);
@@ -168,7 +168,7 @@ class CertificateAwardToStudentTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->postJson(route('admin.certificate.award'), []);
+        $response = $this->actingAs($admin)->postJson(route(portal_prefix() . '.certificate.award'), []);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['student_id', 'adviser_id', 'principal_id', 'template_file', 'generated_file', 'canvas_data']);
@@ -182,7 +182,7 @@ class CertificateAwardToStudentTest extends TestCase
         $student = $this->createStudent();
 
         $response = $this->actingAs($admin)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $inactiveAdviser));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($student, $inactiveAdviser));
 
         $response->assertStatus(422);
         $response->assertJsonPath('message', 'The selected adviser is not available to sign certificates.');
@@ -198,7 +198,7 @@ class CertificateAwardToStudentTest extends TestCase
 
         $mismatched = $this->canvasData($otherStudent->id, $adviser->id);
         $response = $this->actingAs($admin)->postJson(
-            route('admin.certificate.award'),
+            route(portal_prefix() . '.certificate.award'),
             $this->awardPayload($student, $adviser, ['canvas_data' => $mismatched])
         );
 
@@ -231,7 +231,7 @@ class CertificateAwardToStudentTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->postJson(
-            route('admin.certificate.award'),
+            route(portal_prefix() . '.certificate.award'),
             $this->awardPayload($student, $adviser, ['canvas_data' => $broken])
         );
 
@@ -248,11 +248,11 @@ class CertificateAwardToStudentTest extends TestCase
         $principal = $this->createPrincipal();
 
         $first = $this->actingAs($admin)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
         $first->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', false);
 
         $second = $this->actingAs($admin)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($student, $adviser, [], $principal));
         $second->assertOk()->assertJsonPath('success', true)->assertJsonPath('duplicate', true);
         $second->assertJsonPath('id', $first->json('id'));
 
@@ -261,7 +261,7 @@ class CertificateAwardToStudentTest extends TestCase
         // A changed layout for the same student is a different certificate.
         $changedLayout = $this->canvasData($student->id, $adviser->id, ['top' => 60]);
         $third = $this->actingAs($admin)->postJson(
-            route('admin.certificate.award'),
+            route(portal_prefix() . '.certificate.award'),
             $this->awardPayload($student, $adviser, ['canvas_data' => $changedLayout], $principal)
         );
         $third->assertOk()->assertJsonPath('duplicate', false);
@@ -275,12 +275,12 @@ class CertificateAwardToStudentTest extends TestCase
         $foreignStudent = $this->createStudent();
 
         $allowed = $this->actingAs($teacher)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($enrolledStudent, $teacher));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($enrolledStudent, $teacher));
         $allowed->assertOk();
         $this->assertSame(1, CertificateAward::count());
 
         $denied = $this->actingAs($teacher)
-            ->postJson(route('admin.certificate.award'), $this->awardPayload($foreignStudent, $teacher));
+            ->postJson(route(portal_prefix() . '.certificate.award'), $this->awardPayload($foreignStudent, $teacher));
         $denied->assertStatus(404);
         $this->assertSame(1, CertificateAward::count());
 
@@ -295,19 +295,19 @@ class CertificateAwardToStudentTest extends TestCase
         $student = $this->createStudent();
         $award = $this->awardCertificate($admin, $student, $adviser);
 
-        $download = $this->actingAs($admin)->get(route('admin.certificate.download', $award));
+        $download = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.download', $award));
         $download->assertOk();
         $this->assertStringContainsString('attachment', (string) $download->headers->get('content-disposition'));
         $this->assertStringContainsString('Certificate-', (string) $download->headers->get('content-disposition'));
         $this->assertStringStartsWith('%PDF', $download->streamedContent());
 
-        $file = $this->actingAs($admin)->get(route('admin.certificate.file', $award));
+        $file = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.file', $award));
         $file->assertOk();
         $this->assertStringStartsWith('image/jpeg', (string) $file->headers->get('content-type'));
 
-        $print = $this->actingAs($admin)->get(route('admin.certificate.print', $award));
+        $print = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.print', $award));
         $print->assertOk();
-        $print->assertSee(route('admin.certificate.file', $award), false);
+        $print->assertSee(route(portal_prefix() . '.certificate.file', $award), false);
         $print->assertDontSee('storage/certificate-awards', false);
     }
 
@@ -316,7 +316,7 @@ class CertificateAwardToStudentTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $student->id,
             'adviser_id' => $teacher->id,
             'template_file' => UploadedFile::fake()->create('t.jpg', 10, 'image/jpeg'),
@@ -327,7 +327,7 @@ class CertificateAwardToStudentTest extends TestCase
         $award = CertificateAward::latest('id')->first();
         $this->assertNull($award->generated_file_path);
 
-        $print = $this->actingAs($teacher)->get(route('admin.certificate.print', $award));
+        $print = $this->actingAs($teacher)->get(route(portal_prefix() . '.certificate.print', $award));
         $print->assertOk();
         $print->assertSee('certificate-student-name-print', false);
         $print->assertSee('certificate-adviser-print', false);
@@ -340,9 +340,9 @@ class CertificateAwardToStudentTest extends TestCase
         $student = $this->createStudent($owner);
         $award = $this->awardCertificate($owner, $student, $owner);
 
-        $this->actingAs($other)->get(route('admin.certificate.download', $award))->assertForbidden();
-        $this->actingAs($other)->get(route('admin.certificate.print', $award))->assertForbidden();
-        $this->actingAs($other)->get(route('admin.certificate.file', $award))->assertForbidden();
+        $this->actingAs($other)->get(route(portal_prefix() . '.certificate.download', $award))->assertForbidden();
+        $this->actingAs($other)->get(route(portal_prefix() . '.certificate.print', $award))->assertForbidden();
+        $this->actingAs($other)->get(route(portal_prefix() . '.certificate.file', $award))->assertForbidden();
     }
 
     public function test_student_overview_lists_awarded_certificate_with_authorized_links(): void
@@ -352,15 +352,15 @@ class CertificateAwardToStudentTest extends TestCase
         $student = $this->createStudent();
         $award = $this->awardCertificate($admin, $student, $adviser);
 
-        $response = $this->actingAs($admin)->get(route('admin.students.overview', $student));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.students.overview', $student));
 
         $response->assertOk();
         $response->assertJsonPath('certificates.0.id', $award->id);
         $response->assertJsonPath('certificates.0.title', 'Certificate');
         $response->assertJsonPath('certificates.0.status', 'Active');
         $response->assertJsonPath('certificates.0.awarded_date', now()->format('M d, Y'));
-        $response->assertJsonPath('certificates.0.view_url', route('admin.certificate.download', $award));
-        $response->assertJsonPath('certificates.0.print_url', route('admin.certificate.print', $award));
+        $response->assertJsonPath('certificates.0.view_url', route(portal_prefix() . '.certificate.download', $award));
+        $response->assertJsonPath('certificates.0.print_url', route(portal_prefix() . '.certificate.print', $award));
         $response->assertDontSee('storage/certificate-awards', false);
     }
 }
