@@ -1573,10 +1573,11 @@ function initStudentOverview() {
     const zeroMsg = document.getElementById('archiveAllZeroMessage');
     const checkbox = document.getElementById('archiveAllConfirm');
     const confirmBtn = document.getElementById('archiveAllConfirmBtn');
-    const cancelBtn = modal.querySelector('[data-modal-close]');
     let lastOpenedTrigger = null;
 
     if (!modal || !select || !confirmBtn) return;
+
+    const cancelBtn = modal.querySelector('[data-modal-close]');
 
     function resetState() {
         select.value = '';
@@ -1723,11 +1724,12 @@ function initStudentOverview() {
     const input = document.getElementById('fixSchoolYear');
     const checkbox = document.getElementById('fixSchoolYearsConfirm');
     const confirmBtn = document.getElementById('fixSchoolYearsConfirmBtn');
-    const cancelBtn = modal.querySelector('[data-modal-close]');
     const zeroMsg = document.getElementById('fixSchoolYearsZeroMessage');
     let lastOpenedTrigger = null;
 
     if (!modal || !input || !confirmBtn) return;
+
+    const cancelBtn = modal.querySelector('[data-modal-close]');
 
     function resetState() {
         input.value = '';

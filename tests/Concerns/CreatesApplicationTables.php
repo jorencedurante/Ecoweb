@@ -177,6 +177,7 @@ trait CreatesApplicationTables
                 $table->string('status', 50)->default('Active');
                 $table->foreignId('issued_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('signed_by', 255)->nullable();
+                $table->string('principal_name', 255)->nullable();
                 $table->timestamps();
             });
         }

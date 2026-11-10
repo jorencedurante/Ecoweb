@@ -292,7 +292,7 @@ class StudentController extends Controller
             $query->where('gender', $gender);
         }
 
-        $students = $query->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
+        $students = $query->with('enrollments')->orderBy('first_name')->orderBy('last_name')->orderBy('lrn')->paginate(10)->withQueryString();
         $gradeLevels = ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
 
         return view('pages.students-archived', compact('students', 'gradeLevels'));
@@ -1266,12 +1266,16 @@ class StudentController extends Controller
                         ->orWhere('student_id', 'like', "%{$search}%");
                 });
             })
+            ->with(['enrollments' => function ($q) {
+                $q->where('status', 'active')->latest('id')->limit(1);
+            }])
             ->orderBy('full_name')
             ->limit(10)
             ->get();
 
         return response()->json($students->map(function ($student) {
             $name = $student->full_name ?? trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+            $enrollment = $student->enrollments->first();
 
             return [
                 'id' => $student->id,
@@ -1280,6 +1284,8 @@ class StudentController extends Controller
                 'student_id' => $student->student_id,
                 'grade_level' => $student->grade_level,
                 'total_points' => $student->total_points ?? 0,
+                'assigned_teacher_id' => $enrollment?->teacher_id,
+                'assigned_teacher_name' => $enrollment?->teacher?->name,
             ];
         }));
     }

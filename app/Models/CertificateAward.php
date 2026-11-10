@@ -14,6 +14,7 @@ class CertificateAward extends Model
         'student_id', 'teacher_id', 'award_title', 'award_description',
         'certificate_file', 'template_file', 'canvas_data', 'awarded_date',
         'generated_file_path', 'pdf_file_path', 'status', 'issued_by', 'signed_by',
+        'principal_name',
     ];
 
     protected $casts = [

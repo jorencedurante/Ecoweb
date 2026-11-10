@@ -426,7 +426,7 @@
                                         </svg>
                                     </button>
                                 </form>
-                                <button type="button" class="move-to-sy-btn btn btn-xs" data-student-id="{{ $student->id }}" data-student-name="{{ $student->full_name }}" data-student-lrn="{{ $student->lrn }}" data-student-grade="{{ $student->grade_level }}" data-student-year="{{ $student->archive_school_year ?? $student->enrollments->firstWhere('school_year', '!=', null)->school_year ?? '' }}" data-student-teacher="{{ $student->teacher?->name ?? '—' }}" aria-label="Move to School-Year Archives" title="Move to School-Year Archives">
+                                <button type="button" class="move-to-sy-btn btn btn-xs" data-student-id="{{ $student->id }}" data-student-name="{{ $student->full_name }}" data-student-lrn="{{ $student->lrn }}" data-student-grade="{{ $student->grade_level }}" data-student-year="{{ $student->archive_school_year ?? $student->enrollments->firstWhere('school_year', '!=', null)?->school_year ?? '' }}" data-student-teacher="{{ $student->teacher?->name ?? '—' }}" aria-label="Move to School-Year Archives" title="Move to School-Year Archives">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3 2-3h5a2 2 0 0 1 2 2z"/>
                                     </svg>
