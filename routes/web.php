@@ -180,6 +180,9 @@ Route::middleware(['auth', 'account.active'])->group(function () use ($registerP
             Route::get('/teachers/fetch', [TeacherController::class, 'fetch'])->name('admin.teachers.fetch');
             Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
             Route::put('/teachers/{teacher}', [TeacherController::class, 'update'])->name('admin.teachers.update');
+            Route::post('/teachers/{teacher}/email-change/initiate', [TeacherController::class, 'initiateEmailChange'])->name('admin.teachers.email-change.initiate')->middleware('throttle:5,1');
+            Route::post('/teachers/{teacher}/email-change/confirm', [TeacherController::class, 'confirmEmailChange'])->name('admin.teachers.email-change.confirm')->middleware('throttle:10,1');
+            Route::post('/teachers/{teacher}/change-password', [TeacherController::class, 'changePassword'])->name('admin.teachers.change-password');
             Route::patch('/teachers/{teacher}/restrict', [TeacherController::class, 'restrict'])->name('admin.teachers.restrict');
             Route::patch('/teachers/{teacher}/unrestrict', [TeacherController::class, 'unrestrict'])->name('admin.teachers.unrestrict');
             Route::patch('/teachers/{teacher}/archive', [TeacherController::class, 'archive'])->name('admin.teachers.archive');
