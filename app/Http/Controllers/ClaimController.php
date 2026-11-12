@@ -440,12 +440,17 @@ class ClaimController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'claim_item_id' => 'required|exists:claim_items,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
             'remarks' => 'nullable|string',
         ], [
             'student_id.required' => 'Please select a valid student from the search results.',
             'student_id.exists' => 'The selected student does not exist.',
         ]);
+
+        // Manual "Claim Item for Student" redeems exactly one item per submission.
+        // The UI supplies no quantity field; default to 1 server-side while still
+        // validating any quantity that may be sent.
+        $quantity = max(1, (int) ($validated['quantity'] ?? 1));
 
         $student = Student::findOrFail($validated['student_id']);
         if (Auth::user()->isTeacher() && $student->teacher_id !== Auth::id()) {
@@ -457,7 +462,6 @@ class ClaimController extends Controller
             return back()->withErrors(['claim_error' => 'This item is not available.'])->withInput();
         }
 
-        $quantity = (int) $validated['quantity'];
         $totalPointsRequired = $item->points_required * $quantity;
 
         if ($item->quantity < $quantity) {

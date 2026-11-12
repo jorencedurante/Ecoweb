@@ -333,6 +333,22 @@
         </div>
     </div>
     @endif
+
+    <!-- Claim Approve/Reject Confirmation Modal -->
+    <div class="modal-overlay" id="claimConfirmModal" role="dialog" aria-modal="true" aria-labelledby="claimConfirmTitle" style="display:none;">
+        <div class="modal-content" style="max-width:480px;width:min(480px,92vw);">
+            <div class="modal-header">
+                <h2 id="claimConfirmTitle">Confirm Action</h2>
+                <p id="claimConfirmMessage" style="margin:4px 0 0;font-size:14px;color:#6b7280;">Message</p>
+                <button type="button" class="modal-close" id="closeClaimConfirmModal" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="claimConfirmCancel">Cancel</button>
+                <button type="button" class="btn" id="claimConfirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
 @endsection
 
 <!-- Edit Item Modal -->
@@ -1054,13 +1070,98 @@ function toggleClaimHistoryStudent(id) {
     if (!el) return;
     if (el.style.display === 'none' || el.style.display === '') {
         el.style.display = 'block';
-        if (btn) btn.textContent = 'Hide History ▲';
+        if (btn) btn.textContent = 'Hide History â–²';
     } else {
         el.style.display = 'none';
-        if (btn) btn.textContent = 'View History ▼';
+        if (btn) btn.textContent = 'View History â–¼';
     }
 }
 
+</script>
+<script>
+// --- Top-center floating toast (claims approve/reject) ---
+function showClaimToast(message, isError) {
+    var existing = document.getElementById('claimToast');
+    if (existing) {
+        if (existing._claimToastHideTimer) clearTimeout(existing._claimToastHideTimer);
+        if (existing._claimToastRemoveTimer) clearTimeout(existing._claimToastRemoveTimer);
+        existing.remove();
+    }
+    var toast = document.createElement('div');
+    toast.id = 'claimToast';
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10050;display:inline-flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));width:max-content;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);pointer-events:auto;opacity:0;transition:opacity .25s ease;box-sizing:border-box;' + (isError ? 'background:#fef2f2;border:1px solid #ef5350;color:#991b1b;' : 'background:#ecfdf3;border:1px solid #22c55e;color:#166534;');
+    var icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px;font-size:14px;font-weight:700;line-height:1;';
+    icon.textContent = isError ? '!' : '✓';
+    var text = document.createElement('span');
+    text.textContent = message || '';
+    text.style.cssText = 'min-width:0;word-break:break-word;';
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () { toast.style.opacity = '1'; });
+    toast._claimToastHideTimer = setTimeout(function () {
+        toast.style.opacity = '0';
+        toast._claimToastRemoveTimer = setTimeout(function () { if (toast.parentNode) toast.remove(); }, 260);
+    }, 5000);
+}
+
+// --- Approve/Reject confirmation modal ---
+var claimConfirmTargetForm = null;
+var claimConfirmActionType = null;
+
+function openClaimConfirmModal(form, title, message, type) {
+    claimConfirmTargetForm = form;
+    claimConfirmActionType = type;
+    document.getElementById('claimConfirmTitle').textContent = title;
+    document.getElementById('claimConfirmMessage').textContent = message;
+    var actionBtn = document.getElementById('claimConfirmAction');
+    actionBtn.textContent = type === 'approve' ? 'Approve Claim' : 'Reject Claim';
+    actionBtn.className = 'btn ' + (type === 'approve' ? 'btn-success' : 'btn-danger');
+    actionBtn.disabled = false;
+    var modal = document.getElementById('claimConfirmModal');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeClaimConfirmModal() {
+    var modal = document.getElementById('claimConfirmModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    claimConfirmTargetForm = null;
+    claimConfirmActionType = null;
+}
+
+function submitClaimConfirm() {
+    if (!claimConfirmTargetForm) return;
+    var btn = document.getElementById('claimConfirmAction');
+    btn.disabled = true;
+    closeClaimConfirmModal();
+    claimConfirmTargetForm.submit();
+}
+
+document.getElementById('claimConfirmModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeClaimConfirmModal();
+});
+document.getElementById('closeClaimConfirmModal')?.addEventListener('click', closeClaimConfirmModal);
+document.getElementById('claimConfirmCancel')?.addEventListener('click', closeClaimConfirmModal);
+document.getElementById('claimConfirmAction')?.addEventListener('click', submitClaimConfirm);
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeClaimConfirmModal();
+});
+
+// Show session flash (approve/reject success or error) as a top-center toast.
+@if(session('success'))
+    showClaimToast({{ json_encode(session('success')) }}, false);
+@endif
+@if(session('error'))
+    showClaimToast({{ json_encode(session('error')) }}, true);
+@endif
 </script>
 <style>
 /* Compact action buttons for pending item claims */
