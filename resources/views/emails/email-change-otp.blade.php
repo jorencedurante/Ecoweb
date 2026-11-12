@@ -16,10 +16,10 @@
             <h2>Email Change Verification</h2>
         </div>
         <p>Hi {{ $userName }},</p>
-        <p>You requested to change your email address. Use the verification code below to confirm this change:</p>
+        <p>A request was made to change the email address on this account. Use this verification code sent to the current registered email address to authorize the change:</p>
         <div class="code">{{ $otp }}</div>
         <p>This code will expire in 10 minutes.</p>
-        <p>If you did not request an email change, please ignore this message.</p>
+        <p>If you did not request or authorize this email change, do not share this code and contact an administrator.</p>
         <div class="footer">
             <p>&copy; {{ date('Y') }} EcoCollect. All rights reserved.</p>
         </div>
