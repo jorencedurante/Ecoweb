@@ -122,6 +122,7 @@ $registerPortalRoutes = function (string $asPrefix): void {
     Route::get('/reports/print/student-ranking', [ReportController::class, 'printStudentRanking'])->name($asPrefix . 'reports.student-ranking.print');
     Route::get('/reports/print/bottle-collection', [ReportController::class, 'printBottleCollection'])->name($asPrefix . 'reports.bottle-collection.print');
     Route::get('/reports/print/item-claims', [ReportController::class, 'printItemClaims'])->name($asPrefix . 'reports.item-claims.print');
+    Route::get('/reports/print/summary-item', [ReportController::class, 'printSummaryItem'])->name($asPrefix . 'reports.summary-item.print');
     Route::get('/reports/print/student-activities', [ReportController::class, 'printStudentActivities'])->name($asPrefix . 'reports.student-activities.print');
 
     // Student Report - Student Details (AJAX) and Print Single Student

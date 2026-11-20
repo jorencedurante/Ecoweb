@@ -180,6 +180,9 @@
         var knownPoints = null;
         var lookupTimer = null;
         var lookupToken = 0;
+        // Only an LRN resolved by the lookup may be submitted. Cleared whenever
+        // the LRN changes so a previously selected student cannot be reused.
+        var resolvedLrn = null;
         
         // Store LRN state per card to maintain independence
         var cardId = lrnInput.getAttribute('data-card-id') || 'default';
@@ -189,6 +192,9 @@
         function renderLookup(state, points) {
             lookupState = state;
             knownPoints = (state === 'ok') ? points : null;
+            if (state !== 'ok') {
+                resolvedLrn = null;
+            }
 
             if (state === 'ok') {
                 if (pointsPanel) {
@@ -262,9 +268,13 @@
                 }
             }
 
-            // Never submit while a points lookup is still running.
-            if (lookupState === 'checking') {
+            // Never submit while a points lookup is still running, and never
+            // submit an LRN that has not been resolved for this form yet.
+            if (lookupState !== 'ok' || resolvedLrn !== lrnInput.value.trim()) {
                 blockSubmit = true;
+                if (!message) {
+                    message = 'Confirm the student LRN before submitting.';
+                }
             }
 
             hintEl.textContent = message;
@@ -305,6 +315,10 @@
 
                 if (result.state === 'ok') {
                     renderLookup('ok', result.points);
+                    if (lrnInput.value.trim() === lrn) {
+                        resolvedLrn = lrn;
+                        refresh();
+                    }
                 } else if (result.state === 'notfound') {
                     renderLookup('notfound');
                 } else {
@@ -322,6 +336,14 @@
         lrnInput.addEventListener('input', function () {
             lookupToken++; // invalidate any in-flight response
             clearTimeout(lookupTimer);
+
+            // Drop the previous student's resolved selection before resolving
+            // the newly entered LRN. Clear any hidden student id if present.
+            resolvedLrn = null;
+            var hiddenStudentId = form.querySelector('input[name="student_id"]');
+            if (hiddenStudentId) {
+                hiddenStudentId.value = '';
+            }
 
             var lrn = lrnInput.value.trim();
             var currentCardId = lrnInput.getAttribute('data-card-id') || 'default';
