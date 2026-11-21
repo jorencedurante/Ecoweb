@@ -134,12 +134,80 @@
     </table>
     </div>
     @if($students->hasPages())
-    <div class="pagination">
+    @php
+        $pagerCurrent = $students->currentPage();
+        $pagerLast = $students->lastPage();
+        if ($pagerLast <= 5) {
+            $pagerWindow = range(1, $pagerLast);
+        } elseif ($pagerCurrent <= 2) {
+            $pagerWindow = range(1, 3);
+        } elseif ($pagerCurrent >= $pagerLast - 1) {
+            $pagerWindow = range($pagerLast - 2, $pagerLast);
+        } else {
+            $pagerWindow = range($pagerCurrent - 1, $pagerCurrent + 1);
+        }
+        $pagerPages = array_values(array_unique(array_merge([1, $pagerLast], $pagerWindow)));
+        sort($pagerPages);
+    @endphp
+    <style>
+        /* Compact pager for the main Student table (admin + teacher). */
+        #studentsTableContainer .students-pager .page-btns {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+        #studentsTableContainer .students-pager .page-btn {
+            min-width: 30px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        #studentsTableContainer .students-pager .page-btn.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e2e8f0;
+        }
+        #studentsTableContainer .students-pager .page-ellipsis {
+            padding: 6px 2px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        @media (max-width: 640px) {
+            #studentsTableContainer .students-pager {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            #studentsTableContainer .students-pager .page-btns {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+    <div class="pagination students-pager">
         <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
         <div class="page-btns">
-            @for ($i = 1; $i <= $students->lastPage(); $i++)
-                <a href="{{ $students->url($i) }}" class="page-btn {{ $students->currentPage() == $i ? 'active' : '' }}" data-page="{{ $i }}">{{ $i }}</a>
-            @endfor
+            @if ($pagerCurrent > 1)
+                <a href="{{ $students->previousPageUrl() }}" data-page="{{ $pagerCurrent - 1 }}" class="page-btn" aria-label="Previous page">&lsaquo; Previous</a>
+            @else
+                <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
+            @endif
+            @php $pagerPrevious = null; @endphp
+            @foreach ($pagerPages as $pagerPage)
+                @if ($pagerPrevious !== null && $pagerPage - $pagerPrevious > 1)
+                    <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                @endif
+                <a href="{{ $students->url($pagerPage) }}" data-page="{{ $pagerPage }}" class="page-btn {{ $pagerCurrent == $pagerPage ? 'active' : '' }}" @if($pagerCurrent == $pagerPage) aria-current="page" @endif>{{ $pagerPage }}</a>
+                @php $pagerPrevious = $pagerPage; @endphp
+            @endforeach
+            @if ($pagerCurrent < $pagerLast)
+                <a href="{{ $students->nextPageUrl() }}" data-page="{{ $pagerCurrent + 1 }}" class="page-btn" aria-label="Next page">Next &rsaquo;</a>
+            @else
+                <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
+            @endif
         </div>
     </div>
     @endif

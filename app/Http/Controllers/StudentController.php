@@ -155,11 +155,7 @@ class StudentController extends Controller
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('grade_level', 'like', "%{$search}%")
                   ->orWhere('qr_code', 'like', "%{$search}%");
             });
@@ -213,11 +209,7 @@ class StudentController extends Controller
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('grade_level', 'like', "%{$search}%")
                   ->orWhere('qr_code', 'like', "%{$search}%");
             });
@@ -272,11 +264,7 @@ class StudentController extends Controller
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('grade_level', 'like', "%{$search}%")
                   ->orWhere('qr_code', 'like', "%{$search}%");
             });
@@ -632,10 +620,7 @@ class StudentController extends Controller
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('archive_school_year', 'like', "%{$search}%");
             });
         }
@@ -1262,13 +1247,7 @@ class StudentController extends Controller
                 });
             })
             ->when($search, function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('full_name', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('lrn', 'like', "%{$search}%")
-                        ->orWhere('student_id', 'like', "%{$search}%");
-                });
+                $query->nameSearch($search);
             })
             ->with(['enrollments' => function ($q) {
                 $q->where('status', 'active')->latest('id')->limit(1);

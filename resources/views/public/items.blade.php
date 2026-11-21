@@ -119,7 +119,6 @@
                             <strong class="js-total-points">{{ number_format($pointsPerPiece * $initialQuantity) }}</strong>
                             <span>Points</span>
                         </div>
-                        <p class="reward-form-hint js-qty-hint" role="alert"></p>
                         <button type="submit" aria-label="Request Claim for {{ $item->item_name }}" @unless($stockAvailable) disabled @endunless>Request Claim</button>
                     </form>
                 </article>
@@ -158,7 +157,6 @@
         var qtyInput = form.querySelector('input[name="quantity"]');
         var lrnInput = form.querySelector('input[name="lrn"]');
         var totalEl = form.querySelector('.js-total-points');
-        var hintEl = form.querySelector('.js-qty-hint');
         var submitBtn = form.querySelector('button[type="submit"]');
         var pointsPanel = form.querySelector('.js-points-panel');
         var pointsValue = form.querySelector('.js-points-value');
@@ -180,6 +178,9 @@
         var knownPoints = null;
         var lookupTimer = null;
         var lookupToken = 0;
+        // Only an LRN resolved by the lookup may be submitted. Cleared whenever
+        // the LRN changes so a previously selected student cannot be reused.
+        var resolvedLrn = null;
         
         // Store LRN state per card to maintain independence
         var cardId = lrnInput.getAttribute('data-card-id') || 'default';
@@ -189,6 +190,9 @@
         function renderLookup(state, points) {
             lookupState = state;
             knownPoints = (state === 'ok') ? points : null;
+            if (state !== 'ok') {
+                resolvedLrn = null;
+            }
 
             if (state === 'ok') {
                 if (pointsPanel) {
@@ -244,30 +248,23 @@
             }
 
             var blockSubmit = false;
-            var message = '';
 
             if (available <= 0) {
                 qtyInput.disabled = true;
-                message = 'Out of Stock.';
                 blockSubmit = true;
             } else {
                 qtyInput.disabled = false;
-
-                if (isNaN(qty) || qty < 1) {
-                    message = 'Enter a quantity of at least 1.';
-                    blockSubmit = true;
-                } else if (qty > available) {
-                    message = 'Only ' + available + ' piece(s) available.';
+                if (isNaN(qty) || qty < 1 || qty > available) {
                     blockSubmit = true;
                 }
             }
 
-            // Never submit while a points lookup is still running.
-            if (lookupState === 'checking') {
+            // Never submit while a points lookup is still running, and never
+            // submit an LRN that has not been resolved for this form yet.
+            if (lookupState !== 'ok' || resolvedLrn !== lrnInput.value.trim()) {
                 blockSubmit = true;
             }
 
-            hintEl.textContent = message;
             submitBtn.disabled = blockSubmit;
         }
 
@@ -305,6 +302,10 @@
 
                 if (result.state === 'ok') {
                     renderLookup('ok', result.points);
+                    if (lrnInput.value.trim() === lrn) {
+                        resolvedLrn = lrn;
+                        refresh();
+                    }
                 } else if (result.state === 'notfound') {
                     renderLookup('notfound');
                 } else {
@@ -322,6 +323,14 @@
         lrnInput.addEventListener('input', function () {
             lookupToken++; // invalidate any in-flight response
             clearTimeout(lookupTimer);
+
+            // Drop the previous student's resolved selection before resolving
+            // the newly entered LRN. Clear any hidden student id if present.
+            resolvedLrn = null;
+            var hiddenStudentId = form.querySelector('input[name="student_id"]');
+            if (hiddenStudentId) {
+                hiddenStudentId.value = '';
+            }
 
             var lrn = lrnInput.value.trim();
             var currentCardId = lrnInput.getAttribute('data-card-id') || 'default';
