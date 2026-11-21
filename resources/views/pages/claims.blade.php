@@ -338,17 +338,66 @@
     <div class="modal-overlay" id="claimConfirmModal" role="dialog" aria-modal="true" aria-labelledby="claimConfirmTitle" style="display:none;">
         <div class="modal-content" style="max-width:480px;width:min(480px,92vw);">
             <div class="modal-header">
-                <h2 id="claimConfirmTitle">Confirm Action</h2>
-                <p id="claimConfirmMessage" style="margin:4px 0 0;font-size:14px;color:#6b7280;">Message</p>
+                <div class="claim-confirm-heading">
+                    <h2 id="claimConfirmTitle">Confirm Action</h2>
+                    <p id="claimConfirmMessage">Message</p>
+                    <p id="claimConfirmDetails" class="claim-confirm-details"></p>
+                </div>
                 <button type="button" class="modal-close" id="closeClaimConfirmModal" aria-label="Close">&times;</button>
             </div>
-            <div class="modal-body"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="claimConfirmCancel">Cancel</button>
                 <button type="button" class="btn" id="claimConfirmAction">Confirm</button>
             </div>
         </div>
     </div>
+    <style>
+        /* Compact confirmation dialog: stacked title/message, no empty body. */
+        #claimConfirmModal .modal-header {
+            gap: 12px;
+            padding: 18px 20px;
+        }
+        #claimConfirmModal .claim-confirm-heading {
+            min-width: 0;
+        }
+        #claimConfirmModal .modal-header h2 {
+            font-size: 18px;
+            line-height: 1.3;
+            margin: 0;
+        }
+        #claimConfirmModal #claimConfirmMessage {
+            margin: 6px 0 0;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #6b7280;
+        }
+        #claimConfirmModal .claim-confirm-details {
+            margin: 10px 0 0;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        #claimConfirmModal .claim-confirm-details strong {
+            color: #111827;
+        }
+        #claimConfirmModal .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+        }
+        @media (max-width: 480px) {
+            #claimConfirmModal .modal-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
 @endsection
 
 <!-- Edit Item Modal -->
@@ -1112,37 +1161,80 @@ function showClaimToast(message, isError) {
 // --- Approve/Reject confirmation modal ---
 var claimConfirmTargetForm = null;
 var claimConfirmActionType = null;
+var claimConfirmScrollY = 0;
+
+function releaseClaimModalScrollLock() {
+    document.body.style.overflow = '';
+    window.scrollTo(0, claimConfirmScrollY);
+}
 
 function openClaimConfirmModal(form, title, message, type) {
+    var modal = document.getElementById('claimConfirmModal');
+    if (!modal || !form) return;
+
+    claimConfirmScrollY = window.scrollY || window.pageYOffset || 0;
     claimConfirmTargetForm = form;
     claimConfirmActionType = type;
-    document.getElementById('claimConfirmTitle').textContent = title;
-    document.getElementById('claimConfirmMessage').textContent = message;
-    var actionBtn = document.getElementById('claimConfirmAction');
-    actionBtn.textContent = type === 'approve' ? 'Approve Claim' : 'Reject Claim';
-    actionBtn.className = 'btn ' + (type === 'approve' ? 'btn-success' : 'btn-danger');
-    actionBtn.disabled = false;
-    var modal = document.getElementById('claimConfirmModal');
-    modal.classList.add('show');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+
+    try {
+        document.getElementById('claimConfirmTitle').textContent = title;
+        document.getElementById('claimConfirmMessage').textContent = message;
+        var detailsEl = document.getElementById('claimConfirmDetails');
+        if (detailsEl) {
+            var student = form.getAttribute('data-student-name') || 'Unknown student';
+            var item = form.getAttribute('data-item-name') || 'item';
+            var quantity = form.getAttribute('data-quantity') || '1';
+            detailsEl.textContent = 'Student: ' + student + '  ·  Item: ' + item + '  ·  Quantity: ' + quantity;
+        }
+        var actionBtn = document.getElementById('claimConfirmAction');
+        actionBtn.textContent = type === 'approve' ? 'Approve Claim' : 'Reject Claim';
+        actionBtn.className = 'btn ' + (type === 'approve' ? 'btn-success' : 'btn-danger');
+        actionBtn.disabled = false;
+
+        // The overlay has an inline display:none; adding .show alone cannot
+        // override it. Set the inline display too so the dialog and its
+        // backdrop are actually visible (and the scroll lock is justified).
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        actionBtn.focus();
+    } catch (err) {
+        // A failed open must not leave an invisible dialog holding the lock.
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        releaseClaimModalScrollLock();
+        claimConfirmTargetForm = null;
+        claimConfirmActionType = null;
+        console.error('Unable to open claim confirmation:', err);
+    }
 }
 
 function closeClaimConfirmModal() {
     var modal = document.getElementById('claimConfirmModal');
-    modal.classList.remove('show');
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    releaseClaimModalScrollLock();
+    var btn = document.getElementById('claimConfirmAction');
+    if (btn) btn.disabled = false;
     claimConfirmTargetForm = null;
     claimConfirmActionType = null;
 }
 
 function submitClaimConfirm() {
-    if (!claimConfirmTargetForm) return;
+    var form = claimConfirmTargetForm;
+    if (!form) return;
     var btn = document.getElementById('claimConfirmAction');
     btn.disabled = true;
     closeClaimConfirmModal();
-    claimConfirmTargetForm.submit();
+    // closeClaimConfirmModal() clears the stored form, so submit the local
+    // reference captured above. form.submit() bypasses the inline onsubmit
+    // handler, so the confirmation dialog cannot reopen.
+    form.submit();
 }
 
 document.getElementById('claimConfirmModal')?.addEventListener('click', function (e) {
@@ -1157,10 +1249,10 @@ document.addEventListener('keydown', function (e) {
 
 // Show session flash (approve/reject success or error) as a top-center toast.
 @if(session('success'))
-    showClaimToast({{ json_encode(session('success')) }}, false);
+    showClaimToast({!! \Illuminate\Support\Js::from(session('success')) !!}, false);
 @endif
 @if(session('error'))
-    showClaimToast({{ json_encode(session('error')) }}, true);
+    showClaimToast({!! \Illuminate\Support\Js::from(session('error')) !!}, true);
 @endif
 </script>
 <style>

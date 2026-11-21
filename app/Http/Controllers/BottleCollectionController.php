@@ -84,11 +84,7 @@ class BottleCollectionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('lrn', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
-                                   ->orWhere('first_name', 'like', "%{$search}%")
-                                   ->orWhere('middle_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%")
-                                   ->orWhere('lrn', 'like', "%{$search}%");
+                      $studentQuery->nameSearch($search);
                   });
             });
         }

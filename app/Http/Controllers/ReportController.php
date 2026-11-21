@@ -126,11 +126,7 @@ class ReportController extends Controller
 
         if ($search = $request->get('search')) {
             $baseQuery->where(function ($q) use ($search) {
-                $q->where('student_id', 'like', "%{$search}%")
-                  ->orWhere('lrn', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('grade_level', 'like', "%{$search}%")
                   ->orWhere('gender', 'like', "%{$search}%");
             });
@@ -335,13 +331,7 @@ class ReportController extends Controller
             });
 
         if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+            $query->nameSearch($search);
         }
 
         $students = $query
@@ -351,7 +341,7 @@ class ReportController extends Controller
             ->withMax('bottleCollections as latest_collection_date', 'collection_date')
             ->orderByDesc('total_points')
             ->orderByDesc('total_bottles')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return view('pages.student-report', compact('students'));
@@ -400,12 +390,7 @@ class ReportController extends Controller
         }
 
         if ($search) {
-            $studentsQuery->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('lrn', 'like', "%{$search}%");
-            });
+            $studentsQuery->nameSearch($search);
         }
 
         $studentGroups = $studentsQuery
@@ -545,12 +530,7 @@ class ReportController extends Controller
         }
 
         if ($search) {
-            $studentsQuery->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('lrn', 'like', "%{$search}%");
-            });
+            $studentsQuery->nameSearch($search);
         }
 
         $page = $request->get('page', 1);
@@ -656,16 +636,18 @@ class ReportController extends Controller
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
             ->whereHas('enrollments', function ($q) {
                 $q->where('teacher_id', Auth::id())->where('status', 'active');
-            });
+            })
+            // Keep students with any saved request visible, including those
+            // whose only requests are Pending or Rejected (total shows 0).
+            ->whereHas('claims');
+
+        // Summary covers every student in the teacher's scope, independent of
+        // the student-table search and pagination.
+        $summaryItems = $this->teacherApprovedSummaryItems(Auth::id());
+        $summaryTotal = $summaryItems->sum('total_quantity');
 
         if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+            $query->nameSearch($search);
         }
 
         $students = $query
@@ -673,16 +655,41 @@ class ReportController extends Controller
             ->with(['claims' => function ($q) {
                 $q->orderByDesc('claim_date')->orderByDesc('id');
             }])
-            ->withCount('claims as total_claims')
+            ->withCount(['claims as total_claims' => function ($q) {
+                $q->where('status', 'Approved');
+            }])
             ->withSum('claims as total_points_used', 'points_deducted')
             ->withMax('claims as latest_claim_date', 'claim_date')
-            ->having('total_claims', '>', 0)
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->paginate(10)
             ->withQueryString();
 
-        return view('pages.admin-activities', compact('students'));
+        return view('pages.admin-activities', compact('students', 'summaryItems', 'summaryTotal'));
+    }
+
+    /**
+     * Approved-only item quantities for every student in a teacher's scope.
+     * Shared by the on-screen summary and its dedicated print view so both
+     * use exactly the same calculation.
+     */
+    private function teacherApprovedSummaryItems(int $teacherId)
+    {
+        $studentIds = Student::whereNotIn('status', ['Archived', 'archived'])
+            ->whereHas('enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
+            })
+            ->pluck('students.id');
+
+        return StudentClaim::query()
+            ->join('claim_items', 'claim_items.id', '=', 'student_claims.claim_item_id')
+            ->whereIn('student_claims.student_id', $studentIds)
+            ->where('student_claims.status', 'Approved')
+            ->select('claim_items.item_name as item_name')
+            ->selectRaw('SUM(student_claims.quantity) as total_quantity')
+            ->groupBy('claim_items.id', 'claim_items.item_name')
+            ->orderBy('claim_items.item_name')
+            ->get();
     }
 
     private function adminStudentActivities(Request $request)
@@ -719,11 +726,12 @@ class ReportController extends Controller
                     });
                 }], 'bottle_count')
                 ->withCount(['claims as total_claims' => function ($q) use ($dateFrom, $dateTo) {
-                    $q->when($dateFrom, function ($qq) use ($dateFrom) {
-                        $qq->whereDate('claim_date', '>=', $dateFrom);
-                    })->when($dateTo, function ($qq) use ($dateTo) {
-                        $qq->whereDate('claim_date', '<=', $dateTo);
-                    });
+                    $q->where('status', 'Approved')
+                        ->when($dateFrom, function ($qq) use ($dateFrom) {
+                            $qq->whereDate('claim_date', '>=', $dateFrom);
+                        })->when($dateTo, function ($qq) use ($dateTo) {
+                            $qq->whereDate('claim_date', '<=', $dateTo);
+                        });
                 }]);
 
             $allStudents = $query->get();
@@ -815,12 +823,7 @@ class ReportController extends Controller
                 $q->where('grade_level', $gradeLevel);
             })
             ->when($search, function ($q) use ($search) {
-                $q->where(function ($qq) use ($search) {
-                    $qq->where('lrn', 'like', "%{$search}%")
-                       ->orWhere('student_id', 'like', "%{$search}%")
-->orWhere('first_name', 'like', "%{$search}%")
-                       ->orWhere('last_name', 'like', "%{$search}%");
-                });
+                $q->nameSearch($search);
             })
             ->with('enrollments')
             ->withSum(['bottleCollections as total_bottles' => function ($q) use ($dateFrom, $dateTo) {
@@ -831,11 +834,12 @@ class ReportController extends Controller
                 });
             }], 'bottle_count')
             ->withCount(['claims as total_claims' => function ($q) use ($dateFrom, $dateTo) {
-                $q->when($dateFrom, function ($qq) use ($dateFrom) {
-                    $qq->whereDate('claim_date', '>=', $dateFrom);
-                })->when($dateTo, function ($qq) use ($dateTo) {
-                    $qq->whereDate('claim_date', '<=', $dateTo);
-                });
+                $q->where('status', 'Approved')
+                    ->when($dateFrom, function ($qq) use ($dateFrom) {
+                        $qq->whereDate('claim_date', '>=', $dateFrom);
+                    })->when($dateTo, function ($qq) use ($dateTo) {
+                        $qq->whereDate('claim_date', '<=', $dateTo);
+                    });
             }])
             ->withMax(['bottleCollections as latest_collection_date' => function ($q) use ($dateFrom, $dateTo) {
                 $q->when($dateFrom, function ($qq) use ($dateFrom) {
@@ -1012,11 +1016,7 @@ class ReportController extends Controller
         }
         if ($search = $request->get('search')) {
             $baseQuery->where(function ($q) use ($search) {
-                $q->where('student_id', 'like', "%{$search}%")
-                  ->orWhere('lrn', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
+                $q->nameSearch($search)
                   ->orWhere('grade_level', 'like', "%{$search}%")
                   ->orWhere('gender', 'like', "%{$search}%");
             });
@@ -1049,13 +1049,7 @@ class ReportController extends Controller
             });
 
         if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+            $query->nameSearch($search);
         }
 
         $students = $query
@@ -1118,9 +1112,7 @@ class ReportController extends Controller
                   ->orWhereDate('collection_date', $search)
                   ->orWhereTime('collection_time', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('full_name', 'like', "%{$search}%")
-                                   ->orWhere('first_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%");
+                      $studentQuery->nameSearch($search);
                   });
             });
         }
@@ -1134,6 +1126,23 @@ class ReportController extends Controller
         ]);
     }
 
+    public function printSummaryItem()
+    {
+        $user = Auth::user();
+        if (!$user->isTeacher()) {
+            abort(403, 'Only teachers can print this report.');
+        }
+
+        $summaryItems = $this->teacherApprovedSummaryItems($user->id);
+        $summaryTotal = $summaryItems->sum('total_quantity');
+        $teacherName = $user->name;
+        $generatedAt = now()->format('F j, Y') . ' at ' . now()->format('g:i A');
+
+        return view('pages.reports.print.summary-item', compact(
+            'summaryItems', 'summaryTotal', 'teacherName', 'generatedAt'
+        ));
+    }
+
     public function printItemClaims(Request $request)
     {
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
@@ -1142,13 +1151,7 @@ class ReportController extends Controller
             });
 
         if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhere('student_id', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+            $query->nameSearch($search);
         }
 
         $students = $query
@@ -1195,13 +1198,7 @@ class ReportController extends Controller
                     $q->where('grade_level', $gradeLevel);
                 })
                 ->when($search, function ($q) use ($search) {
-                    $q->where(function ($qq) use ($search) {
-                        $qq->where('lrn', 'like', "%{$search}%")
-                           ->orWhere('student_id', 'like', "%{$search}%")
-                           ->orWhere('full_name', 'like', "%{$search}%")
-                           ->orWhere('first_name', 'like', "%{$search}%")
-                           ->orWhere('last_name', 'like', "%{$search}%");
-                    });
+                    $q->nameSearch($search);
                 })
                 ->with('enrollments')
                 ->withSum(['bottleCollections as total_bottles' => function ($q) use ($dateFrom, $dateTo) {
@@ -1247,13 +1244,7 @@ class ReportController extends Controller
                     $q->where('grade_level', $gradeLevel);
                 })
                 ->when($search, function ($q) use ($search) {
-                    $q->where(function ($qq) use ($search) {
-                        $qq->where('lrn', 'like', "%{$search}%")
-                           ->orWhere('student_id', 'like', "%{$search}%")
-                           ->orWhere('full_name', 'like', "%{$search}%")
-                           ->orWhere('first_name', 'like', "%{$search}%")
-                           ->orWhere('last_name', 'like', "%{$search}%");
-                    });
+                    $q->nameSearch($search);
                 })
                 ->whereHas('claims', function ($q) use ($dateFrom, $dateTo) {
                     $q->when($dateFrom, function ($qq) use ($dateFrom) {
