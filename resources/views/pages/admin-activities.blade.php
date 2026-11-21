@@ -88,19 +88,43 @@
             </table>
             </div>
 
-            <div id="teacherClaimsPagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
-                <span class="page-info" style="font-size:13px;color:#6b7280;" aria-live="polite">
+            @php
+                $tcCurrent = $students->currentPage();
+                $tcLast = $students->lastPage();
+                if ($tcLast <= 4) {
+                    $tcWindow = range(1, $tcLast);
+                } elseif ($tcCurrent <= 2) {
+                    $tcWindow = range(1, 3);
+                } elseif ($tcCurrent >= $tcLast - 1) {
+                    $tcWindow = range($tcLast - 2, $tcLast);
+                } else {
+                    $tcWindow = range($tcCurrent - 1, $tcCurrent + 1);
+                }
+                $tcPages = array_values(array_unique(array_merge([1, $tcLast], $tcWindow)));
+                sort($tcPages);
+            @endphp
+            <div id="teacherClaimsPagination" class="teacher-claims-pager">
+                <span class="page-info" aria-live="polite">
                     Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} students
                 </span>
-                <div class="page-btns" style="display:flex;gap:4px;">
-                    @if ($students->currentPage() > 1)
-                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() - 1 }}">Prev</a>
+                <div class="page-btns">
+                    @if ($tcCurrent > 1)
+                        <a href="#" class="page-btn" data-page="{{ $tcCurrent - 1 }}" aria-label="Previous page">&lsaquo; Previous</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
                     @endif
-                    @for ($p = max(1, $students->currentPage() - 2); $p <= min($students->lastPage(), $students->currentPage() + 2); $p++)
-                        <a href="#" class="page-btn {{ $students->currentPage() == $p ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $students->currentPage() == $p ? '#059669' : '#374151' }};background:{{ $students->currentPage() == $p ? '#d1fae5' : '#fff' }};text-decoration:none;" data-page="{{ $p }}">{{ $p }}</a>
-                    @endfor
-                    @if ($students->hasMorePages())
-                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() + 1 }}">Next</a>
+                    @php $tcPrevious = null; @endphp
+                    @foreach ($tcPages as $tcPage)
+                        @if ($tcPrevious !== null && $tcPage - $tcPrevious > 1)
+                            <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                        @endif
+                        <a href="#" class="page-btn {{ $tcCurrent == $tcPage ? 'active' : '' }}" data-page="{{ $tcPage }}" @if($tcCurrent == $tcPage) aria-current="page" @endif>{{ $tcPage }}</a>
+                        @php $tcPrevious = $tcPage; @endphp
+                    @endforeach
+                    @if ($tcCurrent < $tcLast)
+                        <a href="#" class="page-btn" data-page="{{ $tcCurrent + 1 }}" aria-label="Next page">Next &rsaquo;</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
                     @endif
                 </div>
             </div>
@@ -221,7 +245,11 @@
                 table-layout: fixed;
             }
             #teacherClaimsTable th,
-            #teacherClaimsTable td,
+            #teacherClaimsTable td {
+                padding: 12px 16px;
+                vertical-align: middle;
+                line-height: 1.3;
+            }
             .summary-item-card .summary-item-table th,
             .summary-item-card .summary-item-table td {
                 padding: 10px 14px;
@@ -243,12 +271,66 @@
                 color: #7c3aed;
                 font-weight: 600;
             }
+            /* Compact Item Claims pager. */
+            #teacherClaimsPagination {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                margin-top: 8px;
+                border-top: 1px solid #e2e8f0;
+            }
+            #teacherClaimsPagination .page-info {
+                font-size: 13px;
+                color: #6b7280;
+            }
+            #teacherClaimsPagination .page-btns {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            #teacherClaimsPagination .page-btn {
+                padding: 6px 10px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 13px;
+                color: #374151;
+                background: #fff;
+                text-decoration: none;
+            }
+            #teacherClaimsPagination .page-btn.active {
+                color: #059669;
+                background: #d1fae5;
+                border-color: #a7f3d0;
+                font-weight: 600;
+            }
+            #teacherClaimsPagination .page-btn.disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                pointer-events: none;
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            #teacherClaimsPagination .page-ellipsis {
+                padding: 6px 2px;
+                color: #6b7280;
+                font-size: 13px;
+            }
+            @media (max-width: 640px) {
+                #teacherClaimsPagination {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+            }
             .teacher-claims-student-btn {
                 background: none;
                 border: none;
                 padding: 0;
                 margin: 0;
+                min-height: 0;
                 font: inherit;
+                line-height: 1.3;
                 font-weight: 600;
                 color: #111827;
                 cursor: pointer;

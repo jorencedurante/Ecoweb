@@ -119,7 +119,6 @@
                             <strong class="js-total-points">{{ number_format($pointsPerPiece * $initialQuantity) }}</strong>
                             <span>Points</span>
                         </div>
-                        <p class="reward-form-hint js-qty-hint" role="alert"></p>
                         <button type="submit" aria-label="Request Claim for {{ $item->item_name }}" @unless($stockAvailable) disabled @endunless>Request Claim</button>
                     </form>
                 </article>
@@ -158,7 +157,6 @@
         var qtyInput = form.querySelector('input[name="quantity"]');
         var lrnInput = form.querySelector('input[name="lrn"]');
         var totalEl = form.querySelector('.js-total-points');
-        var hintEl = form.querySelector('.js-qty-hint');
         var submitBtn = form.querySelector('button[type="submit"]');
         var pointsPanel = form.querySelector('.js-points-panel');
         var pointsValue = form.querySelector('.js-points-value');
@@ -250,20 +248,13 @@
             }
 
             var blockSubmit = false;
-            var message = '';
 
             if (available <= 0) {
                 qtyInput.disabled = true;
-                message = 'Out of Stock.';
                 blockSubmit = true;
             } else {
                 qtyInput.disabled = false;
-
-                if (isNaN(qty) || qty < 1) {
-                    message = 'Enter a quantity of at least 1.';
-                    blockSubmit = true;
-                } else if (qty > available) {
-                    message = 'Only ' + available + ' piece(s) available.';
+                if (isNaN(qty) || qty < 1 || qty > available) {
                     blockSubmit = true;
                 }
             }
@@ -272,12 +263,8 @@
             // submit an LRN that has not been resolved for this form yet.
             if (lookupState !== 'ok' || resolvedLrn !== lrnInput.value.trim()) {
                 blockSubmit = true;
-                if (!message) {
-                    message = 'Confirm the student LRN before submitting.';
-                }
             }
 
-            hintEl.textContent = message;
             submitBtn.disabled = blockSubmit;
         }
 

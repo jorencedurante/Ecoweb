@@ -341,7 +341,7 @@ class ReportController extends Controller
             ->withMax('bottleCollections as latest_collection_date', 'collection_date')
             ->orderByDesc('total_points')
             ->orderByDesc('total_bottles')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return view('pages.student-report', compact('students'));

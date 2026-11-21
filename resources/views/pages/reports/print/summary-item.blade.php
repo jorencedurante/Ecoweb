@@ -4,116 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summary Item Report - EcoCollect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: #fff;
-            color: #000;
-            padding: 24px;
-            font-size: 12px;
-        }
-        .report-header {
-            border-bottom: 2px solid #111827;
-            padding-bottom: 12px;
-            margin-bottom: 18px;
-        }
-        .report-header h1 {
-            font-size: 18px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .report-meta {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            font-size: 11px;
-        }
-        .report-meta span { white-space: nowrap; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 14px;
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-        thead { display: table-header-group; }
+        body { font-family: 'Inter', sans-serif; padding: 30px; color: #1a1a2e; background: #fff; }
+
+        .report-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #0f766e; }
+        .report-header h1 { font-size: 22px; color: #0f766e; margin-bottom: 4px; }
+        .report-header .subtitle { font-size: 13px; color: #64748b; }
+        .report-header .generated { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
         th {
-            background: #f3f4f6;
-            color: #111827;
+            background: #f8fafc;
+            color: #64748b;
+            padding: 6px 10px;
             text-align: left;
             font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            padding: 9px 12px;
-            border: 1px solid #d1d5db;
+            font-weight: 600;
         }
-        th.qty, td.qty { text-align: right; }
-        td {
-            padding: 9px 12px;
-            border: 1px solid #e5e7eb;
-            color: #000;
+        td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; color: #111827; }
+        tr:nth-child(even) { background: #f8fafc; }
+        tr:hover { background: #e0f7f5; }
+
+        .summary-table th:first-child,
+        .summary-table td:first-child { padding-left: 18%; }
+        .summary-table th:nth-child(2),
+        .summary-table td:nth-child(2) {
+            text-align: left;
+            padding-left: 3%;
+            font-variant-numeric: tabular-nums;
         }
-        tbody tr { break-inside: avoid; page-break-inside: avoid; }
-        .total-row {
+        .summary-total {
+            margin-top: 14px;
+            padding: 10px;
+            border-top: 1px solid #e2e8f0;
             text-align: right;
-            font-weight: bold;
-            padding: 10px 12px;
-            border-top: 2px solid #111827;
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a1a2e;
+            padding-right: 24px;
         }
-        .empty {
-            text-align: center;
-            padding: 28px 12px;
-            color: #000;
-        }
-        .report-footer {
-            margin-top: 24px;
-            padding-top: 8px;
-            border-top: 1px solid #d1d5db;
-            font-size: 10px;
-            text-align: center;
-        }
-        @page { size: A4 portrait; margin: 16mm; }
+        .no-data { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+
         @media print {
+            @page { size: A4 landscape; margin: 15mm; }
             body { padding: 0; }
-            .report-footer { margin-top: 16px; }
+            .report-header { margin-bottom: 20px; padding-bottom: 15px; }
+            tr:hover { background: transparent; }
+            .summary-table, .summary-total { break-inside: avoid; page-break-inside: avoid; }
         }
     </style>
 </head>
 <body>
     <div class="report-header">
-        <h1>SUMMARY ITEM REPORT</h1>
-        <div class="report-meta">
-            <span>Teacher: {{ $teacherName }}</span>
-            <span>Generated: {{ $generatedAt }}</span>
-        </div>
+        <h1>🎁 Summary Item Report</h1>
+        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
+        <div class="generated">Teacher: {{ $teacherName }}</div>
+        <div class="generated">Generated: {{ $generatedAt }}</div>
     </div>
 
-    <table>
+    <table class="summary-table">
+        <colgroup>
+            <col style="width:55%;">
+            <col style="width:45%;">
+        </colgroup>
         <thead>
             <tr>
-                <th>Item Name</th>
-                <th class="qty">Total Quantity</th>
+                <th scope="col">Item Name</th>
+                <th scope="col">Total Quantity</th>
             </tr>
         </thead>
         <tbody>
             @forelse($summaryItems as $summaryItem)
                 <tr>
-                    <td>{{ $summaryItem->item_name }}</td>
-                    <td class="qty">{{ (int) $summaryItem->total_quantity }}</td>
+                    <td style="font-weight:500;color:#111827;">{{ $summaryItem->item_name }}</td>
+                    <td>{{ (int) $summaryItem->total_quantity }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="2" class="empty">No approved items claimed yet.</td>
+                    <td colspan="2" class="no-data">No approved items claimed yet.</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 
-    <div class="total-row">Total Items Claimed: {{ (int) $summaryTotal }}</div>
+    <div class="summary-total">Total Items Claimed: {{ (int) $summaryTotal }}</div>
 
-    <div class="report-footer">EcoCollect — Approved item claims summary</div>
+    <div class="footer">
+        EcoCollect Report &mdash; Summary Item Report &mdash; {{ now()->format('Y') }}
+    </div>
+
+    <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+    </script>
 </body>
 </html>
