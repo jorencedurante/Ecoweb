@@ -152,6 +152,7 @@
         transform: translateY(-8px);
     }
     </style>
+    <script src="{{ asset('js/toast.js') }}?v={{ filemtime(public_path('js/toast.js')) }}"></script>
     <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
     <script>
     var SIDEBAR_COLLAPSED_KEY = 'ecocollect.sidebar.collapsed';

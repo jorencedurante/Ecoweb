@@ -494,25 +494,9 @@
 
         // ---------- Toast Notification ----------
         function showToast(message, isError) {
-            var toast = document.createElement('div');
-            toast.className = 'auto-dismiss-alert';
-            toast.style.background = isError ? 'rgba(239,83,80,0.08)' : 'rgba(0,200,83,0.08)';
-            toast.style.border = '1px solid ' + (isError ? 'var(--red)' : 'var(--green)');
-            toast.style.color = isError ? 'var(--red-dark)' : 'var(--green-dark)';
-            toast.style.padding = '12px 16px';
-            toast.style.borderRadius = '8px';
-            toast.style.fontSize = '14px';
-            toast.style.fontWeight = '500';
-            toast.style.marginBottom = '16px';
-            toast.style.display = 'flex';
-            toast.style.alignItems = 'center';
-            toast.style.gap = '8px';
-            toast.innerHTML = '<span aria-hidden="true">' + (isError ? '❌' : '✅') + '</span><span>' + message + '</span>';
-            document.getElementById('main-content').insertBefore(toast, document.getElementById('main-content').firstChild);
-            setTimeout(function() {
-                toast.style.opacity = '0';
-                setTimeout(function() { toast.remove(); }, 500);
-            }, 4000);
+            if (window.EcoToast) {
+                window.EcoToast.show(isError ? 'error' : 'success', message, { key: 'account-settings-action' });
+            }
         }
     </script>
     @endpush
