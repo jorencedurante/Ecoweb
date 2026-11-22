@@ -149,7 +149,7 @@
                                     </td>
                                     <td style="padding:10px 14px;text-align:center;">
                                         <div class="action-button-group">
-                                            <form method="POST" action="{{ route('admin.claims.approve', $claim->id) }}" style="display:inline;" data-student-name="{{ $studentName }}" data-item-name="{{ $claim->item_name }}" data-quantity="{{ $claim->quantity ?? 1 }}" onsubmit="event.preventDefault(); openClaimConfirmModal(this, 'Approve Claim', 'Are you sure you want to approve this student\'s item claim?', 'approve'); return false;">
+                                            <form method="POST" action="{{ route('admin.claims.approve', $claim->id) }}" style="display:inline;" data-student-name="{{ $studentName }}" data-item-name="{{ $claim->item_name }}" data-quantity="{{ $claim->quantity ?? 1 }}" onsubmit="event.preventDefault(); openClaimConfirmModal(this, 'Approve Item Claim?', 'Are you sure you want to approve this student\'s item request?', 'approve'); return false;">
                                                 @csrf @method('PATCH')
                                                 @php
                                                     $pointsAlreadyReserved = (bool) ($claim->is_reserved ?? false);
@@ -163,7 +163,7 @@
                                                     </svg>
                                                 </button>
                                             </form>
-                                            <form method="POST" action="{{ route('admin.claims.reject', $claim->id) }}" style="display:inline;" data-student-name="{{ $studentName }}" data-item-name="{{ $claim->item_name }}" data-quantity="{{ $claim->quantity ?? 1 }}" onsubmit="event.preventDefault(); openClaimConfirmModal(this, 'Reject Claim', 'Are you sure you want to reject this student\'s item claim?', 'reject'); return false;">
+                                            <form method="POST" action="{{ route('admin.claims.reject', $claim->id) }}" style="display:inline;" data-student-name="{{ $studentName }}" data-item-name="{{ $claim->item_name }}" data-quantity="{{ $claim->quantity ?? 1 }}" onsubmit="event.preventDefault(); openClaimConfirmModal(this, 'Reject Item Claim?', 'Are you sure you want to reject this item request?', 'reject'); return false;">
                                                 @csrf @method('PATCH')
                                                 <button type="submit" class="btn-reject-icon" aria-label="Reject Request" title="Reject Request">
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">

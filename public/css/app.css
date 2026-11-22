@@ -8108,3 +8108,77 @@ body.modal-open {
         font-size: 13px;
     }
 }
+
+/* ===================== GLOBAL TOAST NOTIFICATIONS ===================== */
+.ec-toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10060;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: min(560px, calc(100vw - 32px));
+    pointer-events: none;
+}
+.ec-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    box-sizing: border-box;
+}
+.ec-toast.is-visible { opacity: 1; transform: translateY(0); }
+.ec-toast-icon {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #ffffff;
+}
+.ec-toast-message { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ec-toast-close {
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0.7;
+}
+.ec-toast-close:hover { opacity: 1; }
+.ec-toast--success { background: #ecfdf3; border-color: #86efac; color: #166534; }
+.ec-toast--success .ec-toast-icon { background: #16a34a; }
+.ec-toast--info { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+.ec-toast--info .ec-toast-icon { background: #2563eb; }
+.ec-toast--warning { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.ec-toast--warning .ec-toast-icon { background: #d97706; }
+.ec-toast--error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.ec-toast--error .ec-toast-icon { background: #dc2626; }
+@media (max-width: 640px) {
+    .ec-toast-container { top: 12px; width: calc(100vw - 24px); }
+    .ec-toast { padding: 12px; font-size: 13px; }
+}
