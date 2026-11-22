@@ -482,32 +482,7 @@ function escapeHtml(text){ if(text===null||text===undefined) return ''; var div=
 function escapeJs(text){ if(text===null||text===undefined) return ''; return String(text).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r'); }
 function ucfirst(str){ if(!str) return ''; return str.charAt(0).toUpperCase()+str.slice(1); }
 function showTeacherToast(message,isError){
-  var existing=document.getElementById('teacherToast');
-  if(existing){
-    if(existing._teacherToastHideTimer) clearTimeout(existing._teacherToastHideTimer);
-    if(existing._teacherToastRemoveTimer) clearTimeout(existing._teacherToastRemoveTimer);
-    existing.remove();
-  }
-  var toast=document.createElement('div');
-  toast.id='teacherToast';
-  toast.setAttribute('role', isError ? 'alert' : 'status');
-  toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
-  toast.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10050;display:inline-flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));width:max-content;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);pointer-events:auto;opacity:0;transition:opacity .25s ease;box-sizing:border-box;'+(isError?'background:#fef2f2;border:1px solid #ef5350;color:#991b1b;':'background:#ecfdf3;border:1px solid #22c55e;color:#166534;');
-  var icon=document.createElement('span');
-  icon.setAttribute('aria-hidden','true');
-  icon.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px;font-size:14px;font-weight:700;line-height:1;';
-  icon.textContent=isError?'!':'✓';
-  var text=document.createElement('span');
-  text.textContent=message||'';
-  text.style.cssText='min-width:0;word-break:break-word;';
-  toast.appendChild(icon);
-  toast.appendChild(text);
-  document.body.appendChild(toast);
-  requestAnimationFrame(function(){ toast.style.opacity='1'; });
-  toast._teacherToastHideTimer=setTimeout(function(){
-    toast.style.opacity='0';
-    toast._teacherToastRemoveTimer=setTimeout(function(){ if(toast.parentNode) toast.remove(); },260);
-  },5000);
+  if(window.EcoToast) window.EcoToast.show(isError?'error':'success',message,{key:'teacher-account-action'});
 }
 
 var teacherRequestId=0, teacherDebounceTimer=null, archivedDebounceTimer=null;

@@ -30,6 +30,7 @@ Route::get('/certificates/{award}/view', [CertificateController::class, 'publicV
 Route::get('/certificates/{award}/file', [CertificateController::class, 'publicFile'])->middleware('signed')->name('public.certificate.file');
 Route::get('/certificates/{award}/download', [CertificateController::class, 'publicDownload'])->middleware('signed')->name('public.certificate.download');
 Route::post('/items/request-claim', [PublicController::class, 'requestItemClaim'])->name('public.items.request');
+Route::post('/items/request-claim-qr', [PublicController::class, 'requestItemClaimByQr'])->name('public.items.request-qr');
 Route::get('/items/points', [PublicController::class, 'points'])->name('public.items.points');
 
 // Guest routes (redirect authenticated users to dashboard)
