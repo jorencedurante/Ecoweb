@@ -58,7 +58,7 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return $this->respond(true, 'Profile updated successfully.', route('settings.edit'));
+        return $this->respond(true, 'Profile updated successfully.', route(portal_prefix() . '.settings.edit'));
     }
 
     public function initiateEmailChange(Request $request)
@@ -115,7 +115,7 @@ class AccountSettingsController extends Controller
         $user = Auth::user();
 
         if (!$user->pending_email) {
-            return redirect()->route('settings.edit')
+            return redirect()->route(portal_prefix() . '.settings.edit')
                 ->with('error', 'No pending email change request found.');
         }
 
@@ -131,7 +131,7 @@ class AccountSettingsController extends Controller
         $user = Auth::user();
 
         if (!$user->pending_email) {
-            return redirect()->route('settings.edit')
+            return redirect()->route(portal_prefix() . '.settings.edit')
                 ->with('error', 'No pending email change request found.');
         }
 
@@ -164,7 +164,7 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return redirect()->route('settings.edit')
+        return redirect()->route(portal_prefix() . '.settings.edit')
             ->with('success', 'Your email address has been changed successfully.');
     }
 
@@ -173,7 +173,7 @@ class AccountSettingsController extends Controller
         $user = Auth::user();
 
         if (!$user->pending_email) {
-            return redirect()->route('settings.edit')
+            return redirect()->route(portal_prefix() . '.settings.edit')
                 ->with('error', 'No pending email change request found.');
         }
 
@@ -223,7 +223,7 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return redirect()->route('settings.edit')
+        return redirect()->route(portal_prefix() . '.settings.edit')
             ->with('success', 'Email change request cancelled.');
     }
 
@@ -251,6 +251,6 @@ class AccountSettingsController extends Controller
             'module' => 'Account Settings',
         ]);
 
-        return $this->respond(true, 'Password updated successfully.', route('settings.edit'));
+        return $this->respond(true, 'Password updated successfully.', route(portal_prefix() . '.settings.edit'));
     }
 }

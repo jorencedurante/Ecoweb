@@ -42,9 +42,9 @@ class StudentFormTabsTest extends TestCase
     {
         $teacher = $this->createTeacher();
 
-        $response = $this->actingAs($teacher)->post(route('admin.students.store'), $this->validStudentPayload());
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.students.store'), $this->validStudentPayload());
 
-        $response->assertRedirect(route('admin.students'));
+        $response->assertRedirect(route(portal_prefix() . '.students'));
 
         $student = Student::where('lrn', '998877665544')->first();
         $this->assertNotNull($student);
@@ -78,7 +78,7 @@ class StudentFormTabsTest extends TestCase
         $teacher = $this->createTeacher();
         $other = $this->createTeacher();
 
-        $this->actingAs($teacher)->post(route('admin.students.store'), $this->validStudentPayload([
+        $this->actingAs($teacher)->post(route(portal_prefix() . '.students.store'), $this->validStudentPayload([
             'lrn' => '998877665545',
             'teacher_id' => $other->id,
         ]));
@@ -100,7 +100,7 @@ class StudentFormTabsTest extends TestCase
         $teacher = $this->createTeacher();
         $existing = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->post(route('admin.students.store'), $this->validStudentPayload([
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.students.store'), $this->validStudentPayload([
             'lrn' => $existing->lrn,
         ]));
 
@@ -114,7 +114,7 @@ class StudentFormTabsTest extends TestCase
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->put(
-            route('admin.students.update', $student->id),
+            route(portal_prefix() . '.students.update', $student->id),
             $this->validStudentPayload([
                 'lrn' => $student->lrn,
                 'first_name' => 'Updated',
@@ -124,7 +124,7 @@ class StudentFormTabsTest extends TestCase
             ])
         );
 
-        $response->assertRedirect(route('admin.students'));
+        $response->assertRedirect(route(portal_prefix() . '.students'));
 
         $student->refresh();
         $this->assertSame('Updated', $student->first_name);
@@ -147,7 +147,7 @@ class StudentFormTabsTest extends TestCase
         $student = $this->createStudent($teacher, ['status' => 'Archived']);
 
         $this->actingAs($teacher)->put(
-            route('admin.students.update', $student->id),
+            route(portal_prefix() . '.students.update', $student->id),
             $this->validStudentPayload([
                 'lrn' => $student->lrn,
                 'first_name' => 'StillArchived',
@@ -164,7 +164,7 @@ class StudentFormTabsTest extends TestCase
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->put(
-            route('admin.students.update', $student->id),
+            route(portal_prefix() . '.students.update', $student->id),
             $this->validStudentPayload(['lrn' => ''])
         );
 
@@ -182,7 +182,7 @@ class StudentFormTabsTest extends TestCase
             'house_street' => '45 Rizal St',
         ]);
 
-        $response = $this->actingAs($teacher)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($teacher)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk();
         $this->assertSame('Region IV-A', $response->json('student.region'));
@@ -195,7 +195,7 @@ class StudentFormTabsTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.students'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk();
         $response->assertSee('data-form-tab="basic"', false);

@@ -9,7 +9,7 @@
     @php
         // The file route serves the completed certificate from whichever disk
         // holds it (final file, or template image for canvas reconstruction).
-        $fileUrl = route('admin.certificate.file', $award);
+        $fileUrl = route(portal_prefix() . '.certificate.file', $award);
         $rawCanvas = $award->canvas_data;
         $canvasData = is_string($rawCanvas) ? json_decode($rawCanvas, true) : $rawCanvas;
         $hasCanvas = is_array($canvasData) && count($canvasData) > 0;
@@ -149,7 +149,7 @@
          awarded image instead of reconstructing a different layout. --}}
     <div class="certificate-print-page">
         <div class="certificate-canvas">
-            <img src="{{ route('admin.certificate.file', $award) }}" alt="Certificate" class="certificate-bg">
+            <img src="{{ route(portal_prefix() . '.certificate.file', $award) }}" alt="Certificate" class="certificate-bg">
         </div>
     </div>
     @elseif($hasCanvas)

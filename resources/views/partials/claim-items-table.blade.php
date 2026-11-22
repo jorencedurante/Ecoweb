@@ -56,7 +56,7 @@
     </span>
     <div class="page-btns" style="display:flex;gap:4px;">
         @for ($i = 1; $i <= $claimItems->lastPage(); $i++)
-            <a href="{{ route('claims.index', array_merge(request()->query(), ['page' => $i])) }}#claim-items-section" class="page-btn {{ $claimItems->currentPage() == $i ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $claimItems->currentPage() == $i ? '#10b981' : '#374151' }};background:{{ $claimItems->currentPage() == $i ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+            <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['page' => $i])) }}#claim-items-section" class="page-btn {{ $claimItems->currentPage() == $i ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $claimItems->currentPage() == $i ? '#10b981' : '#374151' }};background:{{ $claimItems->currentPage() == $i ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
         @endfor
     </div>
 </div>

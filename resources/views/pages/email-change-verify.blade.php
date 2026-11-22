@@ -75,7 +75,7 @@
                 </div>
 
                 <div style="margin-top:16px;text-align:center;">
-                    <a href="{{ route('settings.edit') }}" style="font-size:13px;color:#6b7280;text-decoration:none;">← Back to Account Settings</a>
+                    <a href="{{ route(portal_prefix() . '.settings.edit') }}" style="font-size:13px;color:#6b7280;text-decoration:none;">← Back to Account Settings</a>
                 </div>
             </div>
         </div>

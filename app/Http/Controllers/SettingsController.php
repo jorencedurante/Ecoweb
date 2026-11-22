@@ -35,7 +35,7 @@ class SettingsController extends Controller
             'module' => 'Settings',
         ]);
 
-        return redirect()->route('admin.settings')->with('success', 'General settings saved successfully!');
+        return redirect()->route(portal_prefix() . '.system-settings')->with('success', 'General settings saved successfully!');
     }
 
     public function updateSecurity(Request $request)
@@ -66,6 +66,6 @@ class SettingsController extends Controller
             'module' => 'Settings',
         ]);
 
-        return redirect()->route('admin.settings')->with('success', 'Security settings updated successfully!');
+        return redirect()->route(portal_prefix() . '.system-settings')->with('success', 'Security settings updated successfully!');
     }
 }

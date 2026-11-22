@@ -26,7 +26,7 @@ class CertificateTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->post(route('admin.certificate.store'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.store'), [
             'student_id' => $student->id,
             'certificate_title' => 'Best Collector',
             'award_description' => 'Top bottle collector',
@@ -34,7 +34,7 @@ class CertificateTest extends TestCase
             'certificate_file' => $this->fakeCertificate(),
         ]);
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
 
         $award = CertificateAward::where('student_id', $student->id)->first();
         $this->assertNotNull($award);
@@ -50,7 +50,7 @@ class CertificateTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->post(route('admin.certificate.store'), [
+        $response = $this->actingAs($teacherB)->post(route(portal_prefix() . '.certificate.store'), [
             'student_id' => $studentOfA->id,
             'certificate_title' => 'Not Allowed',
             'awarded_date' => now()->toDateString(),
@@ -78,7 +78,7 @@ class CertificateTest extends TestCase
             'issued_by' => $teacherA->id,
         ]);
 
-        $response = $this->actingAs($teacherB)->get(route('admin.certificate'));
+        $response = $this->actingAs($teacherB)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertDontSee('Alpha Certificate');

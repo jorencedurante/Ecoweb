@@ -45,9 +45,9 @@ class CertificateStudentDesignTest extends TestCase
     {
         $teacher = $this->createTeacher();
 
-        $response = $this->actingAs($teacher)->get(route('admin.certificate.create'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.certificate.create'));
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
     }
 
     public function test_teacher_student_search_returns_only_own_class_students(): void
@@ -69,7 +69,7 @@ class CertificateStudentDesignTest extends TestCase
         ]);
 
         $own = $this->actingAs($teacherA)
-            ->getJson(route('admin.students.search', ['q' => 'Cast']))
+            ->getJson(route(portal_prefix() . '.students.search', ['q' => 'Cast']))
             ->json();
 
         $this->assertCount(1, $own);
@@ -78,7 +78,7 @@ class CertificateStudentDesignTest extends TestCase
         $this->assertNotEmpty($own[0]['lrn']);
 
         $other = $this->actingAs($teacherB)
-            ->getJson(route('admin.students.search', ['q' => 'Maria']))
+            ->getJson(route(portal_prefix() . '.students.search', ['q' => 'Maria']))
             ->json();
 
         $this->assertCount(0, $other);
@@ -94,7 +94,7 @@ class CertificateStudentDesignTest extends TestCase
         ]);
 
         $partial = $this->actingAs($teacher)
-            ->getJson(route('admin.students.search', ['q' => substr($student->lrn, 0, 4)]))
+            ->getJson(route(portal_prefix() . '.students.search', ['q' => substr($student->lrn, 0, 4)]))
             ->json();
 
         $this->assertCount(1, $partial);
@@ -111,7 +111,7 @@ class CertificateStudentDesignTest extends TestCase
         $admin = $this->createAdmin();
 
         $results = $this->actingAs($admin)
-            ->getJson(route('admin.students.search', ['q' => 'a']))
+            ->getJson(route(portal_prefix() . '.students.search', ['q' => 'a']))
             ->json();
 
         $names = array_column($results, 'name');
@@ -128,14 +128,14 @@ class CertificateStudentDesignTest extends TestCase
             'full_name' => 'Maria Alexandra Villanueva Castillo',
         ]);
 
-        $response = $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $student->id,
             'award_title' => 'Certificate of Recognition',
             'template_file' => $this->fakeTemplate(),
             'canvas_data' => $this->nameBoxCanvasData('Maria Alexandra Villanueva Castillo'),
         ]);
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
 
         $award = CertificateAward::where('student_id', $student->id)->first();
         $this->assertNotNull($award);
@@ -156,7 +156,7 @@ class CertificateStudentDesignTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->post(route('admin.certificate.save-canvas'), [
+        $response = $this->actingAs($teacherB)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $studentOfA->id,
             'award_title' => 'Not Allowed',
             'template_file' => $this->fakeTemplate(),
@@ -181,18 +181,18 @@ class CertificateStudentDesignTest extends TestCase
             'full_name' => 'Maria L. Castillo',
         ]);
 
-        $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
+        $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $studentOne->id,
             'award_title' => 'Best Collector',
             'template_file' => $this->fakeTemplate(),
             'canvas_data' => $this->nameBoxCanvasData('Ana Cruz'),
-        ])->assertRedirect(route('admin.certificate'));
+        ])->assertRedirect(route(portal_prefix() . '.certificate'));
 
         $award = CertificateAward::first();
         $this->assertNotNull($award);
 
         $response = $this->actingAs($teacher)->put(
-            route('admin.certificate.update-canvas', $award->id),
+            route(portal_prefix() . '.certificate.update-canvas', $award->id),
             [
                 'student_id' => $studentTwo->id,
                 'award_title' => 'Best Collector',
@@ -200,7 +200,7 @@ class CertificateStudentDesignTest extends TestCase
             ]
         );
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
         $this->assertSame(1, CertificateAward::count());
 
         $award->refresh();
@@ -219,16 +219,16 @@ class CertificateStudentDesignTest extends TestCase
             'full_name' => 'Juan Miguel Alexander Santiago Dela Cruz Villanueva',
         ]);
 
-        $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
+        $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $student->id,
             'award_title' => 'Long Name Certificate',
             'template_file' => $this->fakeTemplate(),
             'canvas_data' => $this->nameBoxCanvasData('Juan Miguel Alexander Santiago Dela Cruz Villanueva'),
-        ])->assertRedirect(route('admin.certificate'));
+        ])->assertRedirect(route(portal_prefix() . '.certificate'));
 
         $award = CertificateAward::first();
 
-        $response = $this->actingAs($teacher)->get(route('admin.certificate.print', $award->id));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.certificate.print', $award->id));
 
         $response->assertOk();
         $response->assertSee('certificate-student-name-print', false);

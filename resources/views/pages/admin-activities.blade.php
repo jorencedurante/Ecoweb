@@ -11,7 +11,7 @@
 @endif
 
 @section('content')
-    <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
     @if(auth()->user()->isTeacher())
         {{-- ==================== TEACHER: ITEM CLAIMS ==================== --}}
@@ -20,18 +20,14 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form method="GET" action="{{ route('admin.admin-activities') }}" class="filter-form">
+                <form method="GET" action="{{ route(portal_prefix() . '.admin-activities') }}" class="filter-form tc-filter-form" role="search">
                     <div class="filter-search">
-                        <label>Search</label>
-                        <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN">
+                        <label for="teacherClaimsSearch">Search</label>
+                        <input type="text" id="teacherClaimsSearch" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN" autocomplete="off">
                     </div>
                     <div class="filter-search">
                         <label>&nbsp;</label>
                         <small class="text-muted" style="color:var(--text-light);font-size:12px;padding-top:10px;">Item claims shown are from your assigned class only.</small>
-                    </div>
-                    <div class="filter-controls">
-                        <button class="btn btn-filter" type="submit">Filter</button>
-                        <a href="{{ route('admin.admin-activities') }}" class="btn btn-reset">Clear</a>
                     </div>
                 </form>
             </div>
@@ -40,13 +36,18 @@
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Item Claims</h4>
-                <a href="{{ route('reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+                <a href="{{ route(portal_prefix() . '.reports.item-claims.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
             <div class="table-responsive">
             <table id="teacherClaimsTable">
+                <colgroup>
+                    <col style="width:40%;">
+                    <col style="width:20%;">
+                    <col style="width:20%;">
+                    <col style="width:20%;">
+                </colgroup>
                 <thead>
                     <tr>
-                        <th scope="col" style="width:30px;"></th>
                         <th scope="col">Student Name</th>
                         <th scope="col">LRN</th>
                         <th scope="col">Grade Level</th>
@@ -54,72 +55,351 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($students as $i => $s)
+                    @forelse($students as $s)
                     @php
                         $claims = $s->claims->sortByDesc('claim_date')->sortByDesc('id')->values();
+                        $claimsPayload = $claims->map(function ($c) {
+                            return [
+                                'item_name' => $c->item_name,
+                                'quantity' => (int) $c->quantity,
+                                'points_deducted' => (int) ($c->points_deducted ?? 0),
+                                'claim_date' => $c->claim_date ? \Carbon\Carbon::parse($c->claim_date)->format('M d, Y') : 'N/A',
+                                'status' => $c->status ?? 'Pending',
+                            ];
+                        })->all();
                     @endphp
-                    <tr class="claims-student-row" data-student-id="{{ $s->id }}" data-expanded="false">
-                        <td style="padding:10px 14px;text-align:center;">
-                            <span class="claims-toggle" data-student-id="{{ $s->id }}" style="display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;font-weight:700;color:#6b7280;cursor:pointer;user-select:none;background:#fff;">▶</span>
+                    <tr>
+                        <td class="teacher-claims-name-cell">
+                            <button type="button" class="teacher-claims-student-btn"
+                                    aria-haspopup="dialog" aria-controls="teacherClaimsModal"
+                                    data-student-name="{{ $s->full_name }}"
+                                    data-student-lrn="{{ $s->lrn }}"
+                                    data-student-grade="{{ $s->grade_level }}"
+                                    data-claims="{{ json_encode($claimsPayload) }}">{{ $s->full_name }}</button>
                         </td>
-                        <td style="padding:10px 14px;font-weight:600;color:#111827;cursor:pointer;" class="claims-row-trigger" data-student-id="{{ $s->id }}">
-                            {{ $s->full_name }}
-                        </td>
-                        <td style="padding:10px 14px;">{{ $s->lrn }}</td>
-                        <td style="padding:10px 14px;">{{ $s->grade_level }}</td>
-                        <td style="padding:10px 14px;color:#7c3aed;font-weight:600;">{{ $s->total_claims ?? 0 }}</td>
-                    </tr>
-                    <tr class="claims-detail-row" data-student-id="{{ $s->id }}" style="display:none;background:#f8fafc;">
-                        <td colspan="5" style="padding:0;">
-                            <div style="padding:12px 14px;border-top:1px solid #e2e8f0;">
-                                @if($claims->isEmpty())
-                                    <span style="color:#9ca3af;font-size:12px;">No claim history.</span>
-                                @else
-                                    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
-                                        <thead>
-                                            <tr style="background:#f1f5f9;">
-                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Item Claimed</th>
-                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Quantity</th>
-                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Points Used</th>
-                                                <th scope="col" style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;">Date Claimed</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($claims as $c)
-                                            <tr>
-                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:500;color:#111827;">{{ $c->item_name }}</td>
-                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">{{ $c->quantity }}</td>
-                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#d97706;font-weight:600;">{{ number_format($c->points_deducted ?? 0) }}</td>
-                                                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#6b7280;font-size:11px;">{{ $c->claim_date ? \Carbon\Carbon::parse($c->claim_date)->format('M d, Y') : 'N/A' }}</td>
-                                            </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                @endif
-                            </div>
-                        </td>
+                        <td>{{ $s->lrn }}</td>
+                        <td>{{ $s->grade_level }}</td>
+                        <td class="teacher-claims-count">{{ $s->total_claims ?? 0 }}</td>
                     </tr>
                     @empty
-                    <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-light);">No item claims found for your assigned students.</td></tr>
+                    <tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-light);">{{ request()->filled('search') ? 'No students found.' : 'No item claims found for your assigned students.' }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
             </div>
 
-            <div id="teacherClaimsPagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
-                <span class="page-info" style="font-size:13px;color:#6b7280;">
+            @php
+                $tcCurrent = $students->currentPage();
+                $tcLast = $students->lastPage();
+                if ($tcLast <= 4) {
+                    $tcWindow = range(1, $tcLast);
+                } elseif ($tcCurrent <= 2) {
+                    $tcWindow = range(1, 3);
+                } elseif ($tcCurrent >= $tcLast - 1) {
+                    $tcWindow = range($tcLast - 2, $tcLast);
+                } else {
+                    $tcWindow = range($tcCurrent - 1, $tcCurrent + 1);
+                }
+                $tcPages = array_values(array_unique(array_merge([1, $tcLast], $tcWindow)));
+                sort($tcPages);
+            @endphp
+            <div id="teacherClaimsPagination" class="teacher-claims-pager">
+                <span class="page-info" aria-live="polite">
                     Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} students
                 </span>
-                <div class="page-btns" style="display:flex;gap:4px;">
-                    @if ($students->currentPage() > 1)
-                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() - 1 }}">Prev</a>
+                <div class="page-btns">
+                    @if ($tcCurrent > 1)
+                        <a href="#" class="page-btn" data-page="{{ $tcCurrent - 1 }}" aria-label="Previous page">&lsaquo; Previous</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
                     @endif
-                    @for ($p = max(1, $students->currentPage() - 2); $p <= min($students->lastPage(), $students->currentPage() + 2); $p++)
-                        <a href="#" class="page-btn {{ $students->currentPage() == $p ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $students->currentPage() == $p ? '#059669' : '#374151' }};background:{{ $students->currentPage() == $p ? '#d1fae5' : '#fff' }};text-decoration:none;" data-page="{{ $p }}">{{ $p }}</a>
-                    @endfor
-                    @if ($students->hasMorePages())
-                        <a href="#" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#059669;background:#d1fae5;text-decoration:none;" data-page="{{ $students->currentPage() + 1 }}">Next</a>
+                    @php $tcPrevious = null; @endphp
+                    @foreach ($tcPages as $tcPage)
+                        @if ($tcPrevious !== null && $tcPage - $tcPrevious > 1)
+                            <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                        @endif
+                        <a href="#" class="page-btn {{ $tcCurrent == $tcPage ? 'active' : '' }}" data-page="{{ $tcPage }}" @if($tcCurrent == $tcPage) aria-current="page" @endif>{{ $tcPage }}</a>
+                        @php $tcPrevious = $tcPage; @endphp
+                    @endforeach
+                    @if ($tcCurrent < $tcLast)
+                        <a href="#" class="page-btn" data-page="{{ $tcCurrent + 1 }}" aria-label="Next page">Next &rsaquo;</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
                     @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- ==================== TEACHER: SUMMARY ITEM REPORT ==================== --}}
+        <div class="table-container summary-item-card" style="margin-top:24px;">
+            <div class="table-header summary-item-header">
+                <div>
+                    <h4 style="font-size:14px;font-weight:600;">Summary Item Report</h4>
+                    <p style="font-size:12px;color:#6b7280;margin-top:4px;">Approved items claimed by students in your assigned class.</p>
+                </div>
+                <a href="{{ route(portal_prefix() . '.reports.summary-item.print') }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                    <x-icon name="printer" :size="14" /> Print Report
+                </a>
+            </div>
+            <div class="summary-item-body">
+                <table class="summary-item-table">
+                    <colgroup>
+                        <col style="width:55%;">
+                        <col style="width:45%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th scope="col">Item Name</th>
+                            <th scope="col" class="summary-qty">Total Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($summaryItems ?? [] as $summaryItem)
+                            <tr>
+                                <td>{{ $summaryItem->item_name }}</td>
+                                <td class="summary-qty">{{ (int) $summaryItem->total_quantity }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="summary-empty">No approved items claimed yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" class="summary-item-total">Total Items Claimed: {{ (int) ($summaryTotal ?? 0) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <style>
+            /* Summary Item Report uses the same table design as Item Claims. */
+            .summary-item-card .summary-item-header {
+                gap: 16px;
+            }
+            .summary-item-card .summary-item-body {
+                padding: 24px;
+                overflow-x: auto;
+            }
+            /* Full-width table; content is positioned inward via cell padding. */
+            .summary-item-card .summary-item-table {
+                width: 100%;
+            }
+            .summary-item-card .summary-item-table th:first-child,
+            .summary-item-card .summary-item-table td:first-child {
+                padding-left: 18%;
+            }
+            .summary-item-card .summary-item-table th:nth-child(2),
+            .summary-item-card .summary-item-table td:nth-child(2) {
+                padding-left: 3%;
+                text-align: left;
+                font-variant-numeric: tabular-nums;
+            }
+            .summary-item-card .summary-item-table .summary-empty {
+                text-align: center;
+                color: var(--text-light);
+            }
+            .summary-item-card .summary-item-table .summary-item-total {
+                border-top: 1px solid var(--border);
+                border-bottom: none;
+                padding-right: 14%;
+                text-align: right;
+                white-space: nowrap;
+                font-weight: 600;
+            }
+            @media (max-width: 640px) {
+                .summary-item-card .summary-item-header {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+                .summary-item-card .summary-item-body {
+                    padding: 16px;
+                }
+                .summary-item-card .summary-item-table th:first-child,
+                .summary-item-card .summary-item-table td:first-child {
+                    padding-left: 8%;
+                }
+                .summary-item-card .summary-item-table th:nth-child(2),
+                .summary-item-card .summary-item-table td:nth-child(2) {
+                    padding-left: 4%;
+                }
+                .summary-item-card .summary-item-table .summary-item-total {
+                    padding-right: 8%;
+                }
+            }
+
+            /* Search field sizes to content; no leftover space from removed buttons. */
+            .tc-filter-form {
+                grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
+            }
+            @media (max-width: 768px) {
+                .tc-filter-form {
+                    grid-template-columns: 1fr;
+                }
+            }
+            /* Shared table design for Item Claims and Summary Item Report. */
+            #teacherClaimsTable,
+            .summary-item-card .summary-item-table {
+                table-layout: fixed;
+            }
+            #teacherClaimsTable th,
+            #teacherClaimsTable td {
+                padding: 12px 16px;
+                vertical-align: middle;
+                line-height: 1.3;
+            }
+            .summary-item-card .summary-item-table th,
+            .summary-item-card .summary-item-table td {
+                padding: 10px 14px;
+                vertical-align: middle;
+            }
+            #teacherClaimsTable td:not(:first-child),
+            .summary-item-card .summary-item-table td:not(:first-child) {
+                white-space: nowrap;
+            }
+            #teacherClaimsTable th,
+            .summary-item-card .summary-item-table th {
+                white-space: normal;
+                overflow-wrap: break-word;
+            }
+            #teacherClaimsTable .teacher-claims-name-cell {
+                overflow-wrap: anywhere;
+            }
+            #teacherClaimsTable .teacher-claims-count {
+                color: #7c3aed;
+                font-weight: 600;
+            }
+            /* Compact Item Claims pager. */
+            #teacherClaimsPagination {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                margin-top: 8px;
+                border-top: 1px solid #e2e8f0;
+            }
+            #teacherClaimsPagination .page-info {
+                font-size: 13px;
+                color: #6b7280;
+            }
+            #teacherClaimsPagination .page-btns {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            #teacherClaimsPagination .page-btn {
+                padding: 6px 10px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 13px;
+                color: #374151;
+                background: #fff;
+                text-decoration: none;
+            }
+            #teacherClaimsPagination .page-btn.active {
+                color: #059669;
+                background: #d1fae5;
+                border-color: #a7f3d0;
+                font-weight: 600;
+            }
+            #teacherClaimsPagination .page-btn.disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                pointer-events: none;
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            #teacherClaimsPagination .page-ellipsis {
+                padding: 6px 2px;
+                color: #6b7280;
+                font-size: 13px;
+            }
+            @media (max-width: 640px) {
+                #teacherClaimsPagination {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+            }
+            .teacher-claims-student-btn {
+                background: none;
+                border: none;
+                padding: 0;
+                margin: 0;
+                min-height: 0;
+                font: inherit;
+                line-height: 1.3;
+                font-weight: 600;
+                color: #111827;
+                cursor: pointer;
+                text-align: left;
+                text-decoration: none;
+            }
+            .teacher-claims-student-btn:hover {
+                color: #111827;
+            }
+            .teacher-claims-student-btn:focus-visible {
+                color: #111827;
+                outline: 2px solid #059669;
+                outline-offset: 2px;
+                border-radius: 2px;
+            }
+            .teacher-claims-modal .modal-content {
+                max-width: 720px;
+                width: 100%;
+            }
+            /* Only the claim list scrolls; header and footer stay visible. */
+            .teacher-claims-modal .modal-body {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                overflow: hidden;
+            }
+            .teacher-claims-list {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+            }
+            .teacher-claims-list thead th {
+                position: sticky;
+                top: 0;
+                background: #f3f4f6;
+                z-index: 1;
+            }
+        </style>
+
+        <div id="teacherClaimsModal" class="modal-overlay teacher-claims-modal" role="dialog" aria-modal="true" aria-labelledby="tcModalTitle" style="display:none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 id="tcModalTitle">Item Claims</h2>
+                        <p id="tcModalSubtitle" style="margin:4px 0 0;font-size:13px;color:#6b7280;"></p>
+                    </div>
+                    <button type="button" id="tcModalClose" class="modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="teacher-claims-list">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                            <thead>
+                                <tr style="background:#f3f4f6;">
+                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item Claimed</th>
+                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Quantity</th>
+                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Used</th>
+                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Date</th>
+                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tcModalClaimsBody"></tbody>
+                        </table>
+                        <div id="tcModalNoClaims" style="text-align:center;padding:30px;color:#6b7280;display:none;">
+                            No claim history for this student.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="tcModalCloseBtn" class="btn btn-secondary" style="padding:8px 16px;">Close</button>
                 </div>
             </div>
         </div>
@@ -197,7 +477,7 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form id="saFilterForm" class="sa-filter-form" method="GET" action="{{ route('admin.admin-activities') }}" onsubmit="return false;">
+                <form id="saFilterForm" class="sa-filter-form" method="GET" action="{{ route(portal_prefix() . '.admin-activities') }}" onsubmit="return false;">
                     <div class="filter-field sa-filter-field">
                         <label for="saTeacher">Teacher</label>
                         <select id="saTeacher" name="teacher_id" aria-label="Filter by teacher">
@@ -650,7 +930,7 @@ function loadTeacherStudents(teacherId, page = null) {
     container.style.opacity = '0.6';
     container.style.pointerEvents = 'none';
 
-    fetch('{{ route('admin.admin-activities.teacher-students') }}' + '?' + params.toString(), {
+    fetch('{{ route(portal_prefix() . '.admin-activities.teacher-students') }}' + '?' + params.toString(), {
         headers: {
             'Accept': 'text/html',
             'X-Requested-With': 'XMLHttpRequest'
@@ -747,7 +1027,7 @@ document.addEventListener('click', (e) => {
     studentClaimsModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    fetch('{{ route('admin.admin-activities.student-claims') }}?student_id=' + currentStudentId, {
+    fetch('{{ route(portal_prefix() . '.admin-activities.student-claims') }}?student_id=' + currentStudentId, {
         headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
@@ -818,88 +1098,212 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// --- Teacher Item Claims: Expandable Rows ---
-document.addEventListener('click', (e) => {
-    const toggle = e.target.closest('.claims-toggle, .claims-row-trigger');
-    if (!toggle) return;
-    const studentId = toggle.getAttribute('data-student-id');
-    if (!studentId) return;
-    e.preventDefault();
+// --- Teacher Item Claims: Popup ---
+const teacherClaimsModal = document.getElementById('teacherClaimsModal');
+const tcModalTitle = document.getElementById('tcModalTitle');
+const tcModalSubtitle = document.getElementById('tcModalSubtitle');
+const tcModalClaimsBody = document.getElementById('tcModalClaimsBody');
+const tcModalNoClaims = document.getElementById('tcModalNoClaims');
+const tcModalClose = document.getElementById('tcModalClose');
+const tcModalCloseBtn = document.getElementById('tcModalCloseBtn');
 
-    const detailRow = document.querySelector('.claims-detail-row[data-student-id="' + studentId + '"]');
-    const icon = document.querySelector('.claims-toggle[data-student-id="' + studentId + '"]');
-    const row = document.querySelector('.claims-student-row[data-student-id="' + studentId + '"]');
-    const expanded = row.getAttribute('data-expanded') === 'true';
+let tcLastFocused = null;
+let tcScrollY = 0;
 
-    if (expanded) {
-        detailRow.style.display = 'none';
-        row.setAttribute('data-expanded', 'false');
-        icon.textContent = '▶';
-        icon.style.background = '#fff';
-        icon.style.color = '#6b7280';
-    } else {
-        detailRow.style.display = 'table-row';
-        row.setAttribute('data-expanded', 'true');
-        icon.textContent = '▼';
-        icon.style.background = '#d1fae5';
-        icon.style.color = '#059669';
+function openTeacherClaimsModal(trigger) {
+    if (!teacherClaimsModal || !trigger) return;
+
+    tcLastFocused = trigger;
+    tcScrollY = window.scrollY || window.pageYOffset || 0;
+
+    const studentName = trigger.getAttribute('data-student-name') || 'Student';
+    const studentLrn = trigger.getAttribute('data-student-lrn') || '—';
+    const studentGrade = trigger.getAttribute('data-student-grade') || '—';
+
+    tcModalTitle.textContent = 'Item Claims — ' + studentName;
+    tcModalSubtitle.textContent = 'LRN: ' + studentLrn + ' · Grade Level: ' + studentGrade;
+
+    let claims = [];
+    try {
+        claims = JSON.parse(trigger.getAttribute('data-claims') || '[]');
+    } catch (err) {
+        claims = [];
     }
+    if (!Array.isArray(claims)) claims = [];
+
+    tcModalClaimsBody.innerHTML = '';
+
+    claims.forEach(function (claim) {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid #e2e8f0';
+
+        const itemCell = document.createElement('td');
+        itemCell.style.cssText = 'padding:10px 14px;font-weight:600;color:#111827;';
+        itemCell.textContent = claim.item_name || '—';
+
+        const qtyCell = document.createElement('td');
+        qtyCell.style.cssText = 'padding:10px 14px;color:#374151;';
+        qtyCell.textContent = (claim.quantity !== null && claim.quantity !== undefined) ? claim.quantity : '—';
+
+        const pointsCell = document.createElement('td');
+        pointsCell.style.cssText = 'padding:10px 14px;color:#d97706;font-weight:600;';
+        pointsCell.textContent = Number(claim.points_deducted || 0).toLocaleString('en-US');
+
+        const dateCell = document.createElement('td');
+        dateCell.style.cssText = 'padding:10px 14px;color:#6b7280;font-size:12px;';
+        dateCell.textContent = claim.claim_date || 'N/A';
+
+        // Use each claim's saved status, not points/dates/item name.
+        const statusCell = document.createElement('td');
+        statusCell.style.cssText = 'padding:10px 14px;';
+        const savedStatus = claim.status || 'Pending';
+        const statusKey = String(savedStatus).toLowerCase();
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'status-badge'
+            + (['pending', 'approved', 'rejected', 'claimed'].includes(statusKey) ? ' ' + statusKey : '');
+        statusBadge.textContent = savedStatus;
+        statusCell.appendChild(statusBadge);
+
+        row.appendChild(itemCell);
+        row.appendChild(qtyCell);
+        row.appendChild(pointsCell);
+        row.appendChild(dateCell);
+        row.appendChild(statusCell);
+        tcModalClaimsBody.appendChild(row);
+    });
+
+    tcModalNoClaims.style.display = claims.length > 0 ? 'none' : 'block';
+
+    teacherClaimsModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    tcModalClose.focus();
+}
+
+function closeTeacherClaimsModal() {
+    if (!teacherClaimsModal || teacherClaimsModal.style.display === 'none') return;
+
+    teacherClaimsModal.style.display = 'none';
+    document.body.style.overflow = '';
+    window.scrollTo(0, tcScrollY);
+
+    if (tcLastFocused && document.contains(tcLastFocused)) {
+        tcLastFocused.focus();
+    }
+    tcLastFocused = null;
+}
+
+// Event delegation so the popup also works on rows replaced by AJAX search/pagination.
+document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('.teacher-claims-student-btn');
+    if (!trigger) return;
+    e.preventDefault();
+    openTeacherClaimsModal(trigger);
 });
 
-// --- Teacher Item Claims: AJAX Search ---
-const teacherClaimsFilterForm = document.querySelector('.filter-card .filter-form');
-const teacherClaimsTable = document.getElementById('teacherClaimsTable');
-const teacherClaimsPagination = document.getElementById('teacherClaimsPagination');
+if (tcModalClose) tcModalClose.addEventListener('click', closeTeacherClaimsModal);
+if (tcModalCloseBtn) tcModalCloseBtn.addEventListener('click', closeTeacherClaimsModal);
 
-if (teacherClaimsFilterForm && teacherClaimsTable) {
-    let teacherClaimsDebounce = null;
-    const searchInput = teacherClaimsFilterForm.querySelector('input[name="search"]');
+if (teacherClaimsModal) {
+    teacherClaimsModal.addEventListener('click', function (e) {
+        if (e.target === teacherClaimsModal) closeTeacherClaimsModal();
+    });
 
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            clearTimeout(teacherClaimsDebounce);
-            teacherClaimsDebounce = setTimeout(() => {
-                fetchTeacherClaimsPage(1);
-            }, 300);
-        });
-        searchInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') e.preventDefault();
-        });
-    }
-
-    teacherClaimsFilterForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        fetchTeacherClaimsPage(1);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && teacherClaimsModal.style.display === 'flex') {
+            e.preventDefault();
+            closeTeacherClaimsModal();
+        }
     });
 }
 
-function fetchTeacherClaimsPage(page) {
+// --- Teacher Item Claims: live search + pagination ---
+const teacherClaimsFilterForm = document.querySelector('.tc-filter-form');
+const teacherClaimsSearch = document.getElementById('teacherClaimsSearch');
+const teacherClaimsTable = document.getElementById('teacherClaimsTable');
+const teacherClaimsPagination = document.getElementById('teacherClaimsPagination');
+
+let teacherClaimsDebounce = null;
+let teacherClaimsSeq = 0;
+let teacherClaimsAbort = null;
+
+function buildTeacherClaimsUrl(page) {
     const params = new URLSearchParams(window.location.search);
+    const term = teacherClaimsSearch ? teacherClaimsSearch.value.trim() : '';
+
+    if (term) {
+        params.set('search', term);
+    } else {
+        params.delete('search');
+    }
     params.set('page', page);
-    const url = window.location.pathname + '?' + params.toString();
+
+    return window.location.pathname + '?' + params.toString();
+}
+
+function fetchTeacherClaimsPage(page) {
+    if (!teacherClaimsTable || !teacherClaimsPagination) return;
+
+    const seq = ++teacherClaimsSeq;
+    if (teacherClaimsAbort) teacherClaimsAbort.abort();
+    const controller = new AbortController();
+    teacherClaimsAbort = controller;
+
+    const url = buildTeacherClaimsUrl(page);
 
     fetch(url, {
         headers: {
             'Accept': 'text/html',
             'X-Requested-With': 'XMLHttpRequest'
         },
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        signal: controller.signal
     })
     .then((response) => {
         if (!response.ok) throw new Error('Fetch failed');
         return response.text();
     })
     .then((html) => {
+        if (seq !== teacherClaimsSeq) return;
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const newTable = doc.getElementById('teacherClaimsTable');
         const newPagination = doc.getElementById('teacherClaimsPagination');
+
         if (newTable) teacherClaimsTable.innerHTML = newTable.innerHTML;
         if (newPagination) teacherClaimsPagination.innerHTML = newPagination.innerHTML;
-        window.history.pushState(null, '', url);
+
+        window.history.replaceState(null, '', url);
+
+        if (teacherClaimsSearch && document.activeElement !== teacherClaimsSearch) {
+            teacherClaimsSearch.focus({ preventScroll: true });
+        }
     })
     .catch((err) => {
+        if (err.name === 'AbortError') return;
         console.error('Teacher claims fetch error:', err);
+    })
+    .finally(() => {
+        if (seq === teacherClaimsSeq) teacherClaimsAbort = null;
+    });
+}
+
+if (teacherClaimsSearch && teacherClaimsFilterForm) {
+    teacherClaimsFilterForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearTimeout(teacherClaimsDebounce);
+        fetchTeacherClaimsPage(1);
+    });
+
+    teacherClaimsSearch.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') e.preventDefault();
+    });
+
+    teacherClaimsSearch.addEventListener('input', function () {
+        clearTimeout(teacherClaimsDebounce);
+        teacherClaimsDebounce = setTimeout(() => {
+            fetchTeacherClaimsPage(1);
+        }, 250);
     });
 }
 

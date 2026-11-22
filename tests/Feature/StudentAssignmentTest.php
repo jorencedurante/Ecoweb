@@ -19,6 +19,7 @@ class StudentAssignmentTest extends TestCase
             'last_name' => 'Student',
             'grade_level' => 'Grade 2',
             'gender' => 'Female',
+            'school_year' => '2025-2026',
             'teacher_id' => $teacher->id,
         ]);
 
@@ -47,6 +48,7 @@ class StudentAssignmentTest extends TestCase
             'last_name' => 'Assignment',
             'grade_level' => 'Grade 2',
             'gender' => 'Male',
+            'school_year' => '2025-2026',
             'teacher_id' => $admin->id,
         ]);
 
@@ -66,6 +68,7 @@ class StudentAssignmentTest extends TestCase
             'last_name' => $student->last_name,
             'grade_level' => 'Grade 2',
             'gender' => 'Male',
+            'school_year' => '2025-2026',
             'teacher_id' => $admin->id,
         ]);
 
@@ -80,7 +83,7 @@ class StudentAssignmentTest extends TestCase
         $this->createStudent($teacherA, ['first_name' => 'AliceA', 'last_name' => 'OneA']);
         $this->createStudent($teacherB, ['first_name' => 'BobB', 'last_name' => 'TwoB']);
 
-        $response = $this->actingAs($teacherB)->get(route('admin.students'));
+        $response = $this->actingAs($teacherB)->get(route('teacher.students'));
 
         $response->assertOk();
         $response->assertSee('BobB');
@@ -93,7 +96,7 @@ class StudentAssignmentTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->get(route('students.info', $studentOfA->id));
+        $response = $this->actingAs($teacherB)->get(route('teacher.students.info', $studentOfA->id));
 
         $response->assertForbidden();
     }
@@ -103,7 +106,7 @@ class StudentAssignmentTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('students.info', $student->id));
+        $response = $this->actingAs($teacher)->get(route('teacher.students.info', $student->id));
 
         $response->assertOk();
     }
@@ -118,6 +121,7 @@ class StudentAssignmentTest extends TestCase
             'last_name' => 'Creation',
             'grade_level' => 'Grade 1',
             'gender' => 'Male',
+            'school_year' => '2025-2026',
         ]);
 
         $response->assertForbidden();
@@ -135,6 +139,7 @@ class StudentAssignmentTest extends TestCase
             'last_name' => 'Learner',
             'grade_level' => 'Grade 3',
             'gender' => 'Female',
+            'school_year' => '2025-2026',
             'teacher_id' => $teacher->id,
         ]);
 

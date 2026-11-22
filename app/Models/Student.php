@@ -31,6 +31,39 @@ class Student extends Model
         return implode(' ', $parts);
     }
 
+    /**
+     * Match the name exactly as it is displayed (first + middle + last),
+     * ignoring case and extra whitespace. Each word must match a name part of
+     * the same student, so a full name with a middle name is found even when
+     * the stored full_name column is empty or stale.
+     */
+    public function scopeNameSearch(Builder $query, ?string $term): Builder
+    {
+        $term = preg_replace('/\s+/', ' ', trim((string) $term)) ?: '';
+        if ($term === '') {
+            return $query;
+        }
+
+        $wholeLike = '%' . $term . '%';
+        $tokens = preg_split('/\s+/', $term) ?: [];
+
+        return $query->where(function (Builder $search) use ($wholeLike, $tokens) {
+            $search->where('lrn', 'like', $wholeLike)
+                ->orWhere('student_id', 'like', $wholeLike)
+                ->orWhere(function (Builder $nameMatch) use ($tokens) {
+                    foreach ($tokens as $token) {
+                        $tokenLike = '%' . $token . '%';
+                        $nameMatch->where(function (Builder $partMatch) use ($tokenLike) {
+                            $partMatch->where('full_name', 'like', $tokenLike)
+                                ->orWhere('first_name', 'like', $tokenLike)
+                                ->orWhere('middle_name', 'like', $tokenLike)
+                                ->orWhere('last_name', 'like', $tokenLike);
+                        });
+                    }
+                });
+        });
+    }
+
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');
@@ -138,6 +171,7 @@ class Student extends Model
         $totalPoints = $this->total_points ?? $totalBottles;
 
         $quests = $this->assignedActiveQuests()->get();
+        $enrollmentId = $this->enrollments()->where('status', 'active')->latest('id')->value('id');
 
         $earnedCount = 0;
 
@@ -148,7 +182,11 @@ class Student extends Model
             if ($completedByBottles || $completedByPoints) {
                 StudentAchievement::firstOrCreate(
                     ['student_id' => $this->id, 'achievement_quest_id' => $quest->id],
-                    ['awarded_date' => now()->toDateString(), 'awarded_by' => $awardedBy]
+                    [
+                        'awarded_date' => now()->toDateString(),
+                        'awarded_by' => $awardedBy,
+                        'enrollment_id' => $enrollmentId,
+                    ]
                 );
                 $earnedCount++;
             }

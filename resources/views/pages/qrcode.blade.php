@@ -9,7 +9,7 @@
         <div class="qr-card">
             <h3>Generate QR Code</h3>
             <p class="qr-card-subtitle">Select a student to generate their QR code.</p>
-            <form method="POST" action="{{ route('admin.qrcode.generate') }}" style="overflow: visible;">
+            <form method="POST" action="{{ route(portal_prefix() . '.qrcode.generate') }}" style="overflow: visible;">
                 @csrf
                 <input type="hidden" name="qr_type" value="lrn" aria-label="QR code type">
                 <div class="qr-form-group">
@@ -54,7 +54,7 @@
                 <p class="qr-student-name">Student: {{ $qrCode->student->full_name ?? $qrCode->student_name ?? 'Student not found' }}</p>
                 <p class="qr-value-text">QR Value: {!! nl2br(e($qrCode->qr_value)) !!}</p>
                 <div class="qr-actions">
-                    <a href="{{ route('admin.qrcode.print', $qrCode->id) }}" class="btn-print-qr" target="_blank" aria-label="Print QR code">🖨 Print QR Code</a>
+                    <a href="{{ route(portal_prefix() . '.qrcode.print', $qrCode->id) }}" class="btn-print-qr" target="_blank" aria-label="Print QR code">🖨 Print QR Code</a>
                 </div>
             @else
                 <div class="empty-qr-preview">
@@ -72,7 +72,7 @@
             <i class="fas fa-filter"></i> Filters
         </div>
         <div class="filter-card-body">
-            <form method="GET" action="{{ route('admin.qrcode') }}" class="qr-filter-form">
+            <form method="GET" action="{{ route(portal_prefix() . '.qrcode') }}" class="qr-filter-form">
                 <div class="qr-filter-field">
                     <label>Search</label>
                     <input type="text" name="search" placeholder="Search student, QR value..." value="{{ request('search') }}" aria-label="Description">
@@ -83,7 +83,7 @@
                 </div>
                 <div class="qr-filter-actions">
                     <button class="btn btn-filter" type="submit">Filter</button>
-                    <a href="{{ route('admin.qrcode') }}" class="btn btn-reset">Clear</a>
+                    <a href="{{ route(portal_prefix() . '.qrcode') }}" class="btn btn-reset">Clear</a>
                 </div>
             </form>
         </div>
@@ -118,7 +118,7 @@
                         <td>{{ $qr->created_at->format('Y-m-d') }}</td>
                         <td>
                             <div class="table-action-btns">
-                                <a href="{{ route('admin.qrcode.print', $qr->id) }}" class="action-icon-btn achievements" title="Print" target="_blank" aria-label="Print QR code">🖨</a>
+                                <a href="{{ route(portal_prefix() . '.qrcode.print', $qr->id) }}" class="action-icon-btn achievements" title="Print" target="_blank" aria-label="Print QR code">🖨</a>
                             </div>
                         </td>
                     </tr>

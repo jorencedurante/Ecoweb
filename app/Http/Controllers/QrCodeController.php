@@ -33,10 +33,7 @@ class QrCodeController extends Controller
                 $q->where('qr_type', 'like', "%{$search}%")
                   ->orWhere('qr_value', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where('first_name', 'like', "%{$search}%")
-                                   ->orWhere('last_name', 'like', "%{$search}%")
-                                   ->orWhere('lrn', 'like', "%{$search}%")
-                                   ->orWhere('student_id', 'like', "%{$search}%");
+                      $studentQuery->nameSearch($search);
                   })
                   ->orWhereHas('creator', function ($creatorQuery) use ($search) {
                       $creatorQuery->where('name', 'like', "%{$search}%");
@@ -92,7 +89,7 @@ class QrCodeController extends Controller
             ->first();
 
         if ($existingQr) {
-            return redirect()->route('admin.qrcode')
+            return redirect()->route(portal_prefix() . '.qrcode')
                 ->with('info', 'QR code already generated for this student.');
         }
 
@@ -127,7 +124,7 @@ class QrCodeController extends Controller
             'module' => 'QR Code',
         ]);
 
-        return redirect()->route('admin.qrcode')->with('success', 'QR Code generated successfully for ' . $student->full_name . '!')->with('generated_qr_id', $qrRecord->id);
+        return redirect()->route(portal_prefix() . '.qrcode')->with('success', 'QR Code generated successfully for ' . $student->full_name . '!')->with('generated_qr_id', $qrRecord->id);
     }
 
     public function download(QrCode $qrCode)
@@ -196,16 +193,7 @@ class QrCodeController extends Controller
         }
 
         $students = Student::query()
-            ->where(function ($query) use ($search) {
-                $query->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('lrn', 'like', "%{$search}%")
-                    ->orWhere('student_id', 'like', "%{$search}%");
-
-                if (\Schema::hasColumn('students', 'middle_name')) {
-                    $query->orWhere('middle_name', 'like', "%{$search}%");
-                }
-            })
+            ->nameSearch($search)
             ->limit(10)
             ->get();
 

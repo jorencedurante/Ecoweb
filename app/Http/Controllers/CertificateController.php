@@ -105,13 +105,13 @@ class CertificateController extends Controller
             'module' => 'Certificate',
         ]);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate uploaded successfully!');
     }
 
     public function create()
     {
-        return redirect()->route('admin.certificate');
+        return redirect()->route(portal_prefix() . '.certificate');
     }
 
     public function saveCanvas(Request $request)
@@ -186,7 +186,7 @@ class CertificateController extends Controller
             'module' => 'Certificate',
         ]);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate saved successfully!');
     }
 
@@ -418,7 +418,7 @@ class CertificateController extends Controller
 
         $award->update($data);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate updated successfully!');
     }
 
@@ -544,7 +544,7 @@ class CertificateController extends Controller
             ]);
         }
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate template uploaded successfully.');
     }
 
@@ -676,7 +676,7 @@ class CertificateController extends Controller
             'module' => 'Certificate',
         ]);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate archived successfully.');
     }
 
@@ -695,7 +695,7 @@ class CertificateController extends Controller
 
         $award->delete();
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Certificate deleted successfully.');
     }
 

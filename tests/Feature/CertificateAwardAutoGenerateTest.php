@@ -21,7 +21,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertSee('Auto Generated Certificate', false);
@@ -44,7 +44,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertSee('Monitoring', false);
@@ -57,7 +57,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $admin = $this->createAdmin();
         $this->createTeacher();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
 
@@ -80,7 +80,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertSee('Print Preview', false);
@@ -98,7 +98,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         $response->assertDontSee('Description (optional)', false);
@@ -124,7 +124,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
         // reset button sits below Font Settings in the left column
@@ -149,9 +149,9 @@ class CertificateAwardAutoGenerateTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $response = $this->actingAs($admin)->get(route('admin.certificate.create'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate.create'));
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
     }
 
     public function test_backend_blocks_sixth_quest_per_teacher(): void
@@ -168,14 +168,14 @@ class CertificateAwardAutoGenerateTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($teacher)->post(route('achievement-quests.store'), [
+        $response = $this->actingAs($teacher)->post(route('teacher.achievement-quests.store'), [
             'title' => 'Sixth Quest',
             'requirement_type' => 'points',
             'required_value' => 10,
             'status' => 'Active',
         ]);
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
         $response->assertSessionHasErrors('title');
         $this->assertSame(5, Achievement::whereNull('student_id')->where('created_by', $teacher->id)->count());
         $this->assertDatabaseMissing('achievements', ['title' => 'Sixth Quest']);
@@ -186,7 +186,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->post(route('admin.certificate.save-canvas'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [
             'student_id' => $student->id,
             'adviser_id' => $teacher->id,
             'award_title' => 'With Adviser',
@@ -204,13 +204,13 @@ class CertificateAwardAutoGenerateTest extends TestCase
             ]),
         ]);
 
-        $response->assertRedirect(route('admin.certificate'));
+        $response->assertRedirect(route(portal_prefix() . '.certificate'));
 
         $award = CertificateAward::where('award_title', 'With Adviser')->first();
         $this->assertNotNull($award);
         $this->assertSame($teacher->name, $award->signed_by);
 
-        $print = $this->actingAs($teacher)->get(route('admin.certificate.print', $award->id));
+        $print = $this->actingAs($teacher)->get(route(portal_prefix() . '.certificate.print', $award->id));
         $print->assertOk();
         $print->assertSee('certificate-adviser-print', false);
         $print->assertSee($teacher->name);

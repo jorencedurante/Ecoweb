@@ -70,7 +70,7 @@ class AchievementController extends Controller
         $this->authorizeQuestManagement();
 
         if ($this->questLimitReached()) {
-            return redirect()->route('admin.certificate')
+            return redirect()->route(portal_prefix() . '.certificate')
                 ->withInput()
                 ->withErrors(['title' => 'Maximum of ' . self::MAX_QUESTS . ' achievement quests reached. Delete an existing quest before adding a new one.']);
         }
@@ -86,7 +86,7 @@ class AchievementController extends Controller
             'module' => 'Achievements',
         ]);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Achievement quest added successfully.');
     }
 
@@ -104,7 +104,7 @@ class AchievementController extends Controller
             'module' => 'Achievements',
         ]);
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Achievement quest updated successfully.');
     }
 
@@ -122,7 +122,7 @@ class AchievementController extends Controller
 
         $achievement->delete();
 
-        return redirect()->route('admin.certificate')
+        return redirect()->route(portal_prefix() . '.certificate')
             ->with('success', 'Achievement quest deleted successfully.');
     }
 }

@@ -17,7 +17,7 @@
     </div>
 </div>
 
-<form id="certificateForm" method="POST" action="{{ route('admin.certificate.save-canvas') }}" enctype="multipart/form-data">
+<form id="certificateForm" method="POST" action="{{ route(portal_prefix() . '.certificate.save-canvas') }}" enctype="multipart/form-data">
     @csrf
     <div class="card" style="margin-bottom:20px;">
         <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
@@ -215,7 +215,7 @@
                 <td>
                     <div class="action-btns">
                         <button type="button" class="action-icon-btn edit" title="Edit" aria-label="Edit achievement quest" onclick="openQuestEditModal({{ $q->id }}, '{{ addslashes($q->title) }}', '{{ addslashes($q->description ?? '') }}', '{{ $reqType === 'Bottles' ? 'bottles' : 'points' }}', {{ $reqValue }}, '{{ addslashes($q->badge_name ?? '') }}', '{{ $q->status }}')"><x-icon name="pencil" :size="15" /></button>
-                        <form method="POST" action="{{ route('achievement-quests.destroy', $q->id) }}" class="inline-action-form" onsubmit="return confirm('Delete this achievement quest?')">
+                        <form method="POST" action="{{ route(portal_prefix() . '.achievement-quests.destroy', $q->id) }}" class="inline-action-form" onsubmit="return confirm('Delete this achievement quest?')">
                             @csrf @method('DELETE')
                             <button type="submit" class="action-icon-btn delete" title="Delete" aria-label="Delete achievement quest"><x-icon name="trash-2" :size="15" /></button>
                         </form>
@@ -241,7 +241,7 @@
             <h4 style="font-size:16px;font-weight:700;">Add Achievement Quest</h4>
             <button type="button" onclick="closeAddQuestModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;" aria-label="Close">✕</button>
         </div>
-        <form method="POST" action="{{ route('achievement-quests.store') }}">
+        <form method="POST" action="{{ route(portal_prefix() . '.achievement-quests.store') }}">
             @csrf
             <div class="grid-2col" style="gap:16px;">
                 <div class="form-group" style="grid-column:span 2;">
@@ -985,7 +985,7 @@
             return;
         }
         searchTimer = setTimeout(function () {
-            fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(q), {
+            fetch('{{ route(portal_prefix() . ".students.search") }}?q=' + encodeURIComponent(q), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             })
                 .then(function (res) { return res.json(); })
@@ -1559,7 +1559,7 @@
             form.append('canvas_data', JSON.stringify(collectCanvasData()));
 
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            return fetch('{{ route('admin.certificate.award') }}', {
+            return fetch('{{ route(portal_prefix() . '.certificate.award') }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfMeta ? csrfMeta.content : '',
@@ -1649,7 +1649,7 @@ function openQuestEditModal(id, title, description, type, value, badge, status) 
     document.getElementById('edit_quest_badge').value = badge;
     document.getElementById('edit_quest_status').value = status;
     var form = document.getElementById('questEditForm');
-    form.action = '{{ route("achievement-quests.update", ["achievement" => "__ID__"]) }}'.replace('__ID__', id);
+    form.action = '{{ route(portal_prefix() . ".achievement-quests.update", ["achievement" => "__ID__"]) }}'.replace('__ID__', id);
     document.getElementById('questEditModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }

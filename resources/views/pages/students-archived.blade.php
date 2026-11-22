@@ -368,7 +368,7 @@
     <div class="table-container archived-table-container">
         <div class="table-header archived-table-header">
             <div class="table-header-left"></div>
-            <a href="{{ route('admin.students') }}" class="btn btn-outline btn-sm btn-back centered-btn" aria-label="Back to active students">← Back to Active Students</a>
+            <a href="{{ route(portal_prefix() . '.students') }}" class="btn btn-outline btn-sm btn-back centered-btn" aria-label="Back to active students">← Back to Active Students</a>
         </div>
 
         <!-- Archive Tabs -->
@@ -410,14 +410,14 @@
                         <td><span style="color:var(--gray);font-weight:600;">{{ ucfirst($student->status) }}</span></td>
                         <td>
                             <div class="action-btns">
-                                <a href="{{ route('students.info', $student->id) }}" class="btn btn-view btn-xs view-info-btn" aria-label="View Information for {{ $student->full_name }}" title="View Information">
+                                <a href="{{ route(portal_prefix() . '.students.info', $student->id) }}" class="btn btn-view btn-xs view-info-btn" aria-label="View Information for {{ $student->full_name }}" title="View Information">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                                         <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
                                         <circle cx="12" cy="12" r="3"/>
                                     </svg>
                                 </a>
                                 @if(Auth::user()->role !== 'admin')
-                                <form method="POST" action="{{ route('students.restore', $student->id) }}" style="display:inline;" onsubmit="return confirm('Restore this student to active students?');">
+                                <form method="POST" action="{{ route(portal_prefix() . '.students.restore', $student->id) }}" style="display:inline;" onsubmit="return confirm('Restore this student to active students?');">
                                     @csrf @method('PATCH')
                                     <button type="submit" class="btn btn-restore btn-xs unarchive-btn" aria-label="Restore Student" title="Restore Student">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -670,7 +670,7 @@
             const viewInfoBtn = e.target.closest('.view-info-btn');
             if (viewInfoBtn) {
                 const studentId = viewInfoBtn.getAttribute('data-student-id');
-                window.location.href = "{{ route('students.info', 0) }}".replace('/0', '/' + studentId);
+                window.location.href = "{{ route(portal_prefix() . '.students.info', 0) }}".replace('/0', '/' + studentId);
                 return;
             }
 
@@ -750,7 +750,7 @@
     }
 
     function loadSyGroupStudents(schoolYear, page, search = '') {
-        const url = new URL("{{ route('admin.students.school-year-archives') }}");
+        const url = new URL("{{ route(portal_prefix() . '.students.school-year-archives') }}");
         url.searchParams.set('school_year', schoolYear);
         url.searchParams.set('page', page);
         if (search) url.searchParams.set('search', search);
@@ -899,7 +899,7 @@
             btn.textContent = 'Unarchiving...';
             btn.disabled = true;
 
-            fetch("{{ route('students.unarchive', 0) }}".replace('/0', '/' + studentId), {
+            fetch("{{ route(portal_prefix() . '.students.unarchive', 0) }}".replace('/0', '/' + studentId), {
                 method: 'PATCH',
                 headers: {
                     'Accept': 'application/json',
@@ -998,7 +998,7 @@
             btn.textContent = 'Unarchiving All...';
             btn.disabled = true;
 
-            fetch("{{ route('students.unarchive-all') }}", {
+            fetch("{{ route(portal_prefix() . '.students.unarchive-all') }}", {
                 method: 'PATCH',
                 headers: {
                     'Accept': 'application/json',
@@ -1142,7 +1142,7 @@
 
             const body = schoolYear ? { school_year: schoolYear } : {};
 
-            fetch("{{ route('students.move-to-school-year', 0) }}".replace('/0', '/' + studentId), {
+            fetch("{{ route(portal_prefix() . '.students.move-to-school-year', 0) }}".replace('/0', '/' + studentId), {
                 method: 'PATCH',
                 headers: {
                     'Accept': 'application/json',
@@ -1227,7 +1227,7 @@
     }
 
     function loadSchoolYearArchives(search = '') {
-        const url = new URL("{{ route('admin.students.school-year-archives') }}");
+        const url = new URL("{{ route(portal_prefix() . '.students.school-year-archives') }}");
         if (search) url.searchParams.set('search', search);
 
         fetch(url, {

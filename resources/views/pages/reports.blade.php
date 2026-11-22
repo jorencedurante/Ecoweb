@@ -39,13 +39,13 @@
             <h4>Student's Report</h4>
             <p>View detailed student performance and collection activity reports.</p>
             @endif
-            <a href="{{ route('admin.student-report') }}" class="btn btn-primary btn-sm" aria-label="View student report">View</a>
+            <a href="{{ route(portal_prefix() . '.student-report') }}" class="btn btn-primary btn-sm" aria-label="View student report">View</a>
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(0,174,239,0.12);color:var(--blue);">🧴</div>
             <h4>Bottle Collection Report</h4>
             <p>Track bottle collection data with daily, weekly, and monthly summaries.</p>
-            <a href="{{ route('admin.bottle-report') }}" class="btn btn-primary btn-sm" aria-label="View bottle collection report">View</a>
+            <a href="{{ route(portal_prefix() . '.bottle-report') }}" class="btn btn-primary btn-sm" aria-label="View bottle collection report">View</a>
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(255,193,7,0.12);color:var(--yellow);">🔐</div>
@@ -56,7 +56,7 @@
             <h4>Student Activities</h4>
             <p>Summary of student activity and ranking grouped by teacher.</p>
             @endif
-            <a href="{{ route('admin.admin-activities') }}" class="btn btn-primary btn-sm" aria-label="View student activities report">View</a>
+            <a href="{{ route(portal_prefix() . '.admin-activities') }}" class="btn btn-primary btn-sm" aria-label="View student activities report">View</a>
         </div>
     </div>
 
@@ -172,14 +172,14 @@
             function updatePrintUrl() {
                 const quarter = quarterSelect.value;
                 const year = yearSelect.value;
-                const url = "{{ route('reports.top-students.print') }}?quarter=" + quarter + "&year=" + year;
+                const url = "{{ route(portal_prefix() . '.reports.top-students.print') }}?quarter=" + quarter + "&year=" + year;
                 printBtn.href = url;
             }
 
             function loadTopStudents() {
                 const quarter = quarterSelect.value;
                 const year = yearSelect.value;
-                const url = "{{ route('reports.top-students.data') }}?quarter=" + quarter + "&year=" + year;
+                const url = "{{ route(portal_prefix() . '.reports.top-students.data') }}?quarter=" + quarter + "&year=" + year;
 
                 fetch(url, {
                     headers: {

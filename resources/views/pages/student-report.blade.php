@@ -11,7 +11,7 @@
 @endif
 
 @section('content')
-    <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
     @if(auth()->user()->isTeacher())
         {{-- ==================== TEACHER: STUDENT RANKING ==================== --}}
@@ -20,18 +20,14 @@
                 <i class="fas fa-filter"></i> Filters
             </button>
             <div class="filter-body">
-                <form method="GET" action="{{ route('admin.student-report') }}" class="filter-form">
+                <form method="GET" action="{{ route(portal_prefix() . '.student-report') }}" class="filter-form teacher-ranking-filter" id="teacherRankingFilterForm">
                     <div class="filter-search">
-                        <label>Search</label>
-                        <input type="text" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN">
+                        <label for="teacherRankingSearch">Search</label>
+                        <input type="text" id="teacherRankingSearch" name="search" placeholder="Search by name or LRN..." value="{{ request('search') }}" aria-label="Search by name or LRN" autocomplete="off">
                     </div>
                     <div class="filter-search">
                         <label>&nbsp;</label>
                         <small class="text-muted" style="color:var(--text-light);font-size:12px;padding-top:10px;">Ranking covers only students from your assigned class.</small>
-                    </div>
-                    <div class="filter-controls">
-                        <button class="btn btn-filter" type="submit">Filter</button>
-                        <a href="{{ route('admin.student-report') }}" class="btn btn-reset">Clear</a>
                     </div>
                 </form>
             </div>
@@ -40,9 +36,9 @@
         <div class="table-container">
             <div class="table-header">
                 <h4 style="font-size:14px;font-weight:600;">Student Ranking</h4>
-                <a href="{{ route('reports.student-ranking.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+                <a href="{{ route(portal_prefix() . '.reports.student-ranking.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
             </div>
-            <div class="table-responsive">
+            <div class="table-responsive teacher-ranking-results" id="teacherRankingResults">
             <table>
                 <thead>
                     <tr>
@@ -57,7 +53,7 @@
                         <th scope="col">Latest Collection</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="teacherRankingTableBody">
                     @forelse($students as $i => $s)
                     @php
                         $enr = $s->enrollments->first(function ($e) {
@@ -76,20 +72,95 @@
                         <td>{{ $s->latest_collection_date ? \Carbon\Carbon::parse($s->latest_collection_date)->format('M d, Y') : '—' }}</td>
                     </tr>
                     @empty
-                    <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-light);">No students found in your assigned class for the selected filters.</td></tr>
+                    <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-light);">No students found.</td></tr>
                     @endforelse
                 </tbody>
             </table>
             </div>
-            <div class="pagination">
-                <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
+            @php
+                $rankCurrent = $students->currentPage();
+                $rankLast = $students->lastPage();
+                if ($rankLast <= 4) {
+                    $rankWindow = range(1, $rankLast);
+                } elseif ($rankCurrent <= 2) {
+                    $rankWindow = range(1, 3);
+                } elseif ($rankCurrent >= $rankLast - 1) {
+                    $rankWindow = range($rankLast - 2, $rankLast);
+                } else {
+                    $rankWindow = range($rankCurrent - 1, $rankCurrent + 1);
+                }
+                $rankPages = array_values(array_unique(array_merge([1, $rankLast], $rankWindow)));
+                sort($rankPages);
+            @endphp
+            <div class="pagination teacher-ranking-pagination" id="teacherRankingPagination">
+                <span class="page-info" aria-live="polite">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
                 <div class="page-btns">
-                    @for ($p = 1; $p <= $students->lastPage(); $p++)
-                        <a href="{{ $students->url($p) }}" class="page-btn {{ $students->currentPage() == $p ? 'active' : '' }}">{{ $p }}</a>
-                    @endfor
+                    @if ($rankCurrent > 1)
+                        <a href="{{ $students->url($rankCurrent - 1) }}" class="page-btn" data-page="{{ $rankCurrent - 1 }}" aria-label="Previous page">&lsaquo; Previous</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
+                    @endif
+                    @php $rankPrevious = null; @endphp
+                    @foreach ($rankPages as $rankPage)
+                        @if ($rankPrevious !== null && $rankPage - $rankPrevious > 1)
+                            <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                        @endif
+                        <a href="{{ $students->url($rankPage) }}" class="page-btn {{ $rankCurrent == $rankPage ? 'active' : '' }}" data-page="{{ $rankPage }}" @if($rankCurrent == $rankPage) aria-current="page" @endif>{{ $rankPage }}</a>
+                        @php $rankPrevious = $rankPage; @endphp
+                    @endforeach
+                    @if ($rankCurrent < $rankLast)
+                        <a href="{{ $students->url($rankCurrent + 1) }}" class="page-btn" data-page="{{ $rankCurrent + 1 }}" aria-label="Next page">Next &rsaquo;</a>
+                    @else
+                        <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
+                    @endif
                 </div>
             </div>
         </div>
+
+        <style>
+            .teacher-ranking-results { transition: opacity 0.18s ease; }
+            .teacher-ranking-results.is-updating { opacity: 0.55; }
+            .teacher-ranking-filter { max-width: 640px; }
+            .teacher-ranking-pagination .page-btns {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .teacher-ranking-pagination .page-btn {
+                padding: 6px 10px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 13px;
+                color: #374151;
+                background: #fff;
+                text-decoration: none;
+            }
+            .teacher-ranking-pagination .page-btn.active {
+                color: #059669;
+                background: #d1fae5;
+                border-color: #a7f3d0;
+                font-weight: 600;
+            }
+            .teacher-ranking-pagination .page-btn.disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                pointer-events: none;
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            .teacher-ranking-pagination .page-ellipsis {
+                padding: 6px 2px;
+                color: #6b7280;
+                font-size: 13px;
+            }
+            @media (max-width: 640px) {
+                .teacher-ranking-pagination {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+            }
+        </style>
     @else
         {{-- ==================== ADMIN / SUPER ADMIN: STUDENT REPORT ==================== --}}
 
@@ -674,7 +745,7 @@
         const controller = new AbortController();
         abortController = controller;
 
-        const url = "{{ route('admin.student-report.details', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
+        const url = "{{ route(portal_prefix() . '.student-report.details', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
 
         try {
             const response = await fetch(url, {
@@ -783,7 +854,7 @@
 
             // Print button
             if (printBtn) {
-                printBtn.href = "{{ route('reports.student.print', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
+                printBtn.href = "{{ route(portal_prefix() . '.reports.student.print', '__PLACEHOLDER__') }}".replace('__PLACEHOLDER__', studentId);
             }
 
             openModal();
@@ -969,7 +1040,7 @@
                     <div class="sr-cert-title">${escapeHtml(c.award_title || 'N/A')}</div>
                     <div class="sr-cert-desc">${escapeHtml(c.award_description || 'N/A')}</div>
                     <div class="sr-cert-date">${escapeHtml(c.awarded_date || 'N/A')}</div>
-                    ${c.can_render ? `<a href="#" class="sr-cert-action" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); window.open('{{ route('admin.certificate.print', '__PLACEHOLDER__') }}'.replace('__PLACEHOLDER__', ${c.id}), '_blank');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
+                    ${c.can_render ? `<a href="#" class="sr-cert-action" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); window.open('{{ route(portal_prefix() . '.certificate.print', '__PLACEHOLDER__') }}'.replace('__PLACEHOLDER__', ${c.id}), '_blank');">View / Print</a>` : `<span class="sr-cert-action" style="color:var(--text-light);cursor:not-allowed;">N/A</span>`}
                 </div>
             `).join('');
         }
@@ -988,6 +1059,95 @@
         const params = new URLSearchParams(window.location.search);
         const page = parseInt(params.get('page')) || 1;
         fetchStudents(page);
+    });
+})();
+</script>
+
+<script>
+// --- Teacher Student Ranking: live search + compact pagination ---
+(function () {
+    const form = document.getElementById('teacherRankingFilterForm');
+    const input = document.getElementById('teacherRankingSearch');
+    const results = document.getElementById('teacherRankingResults');
+    const tbody = document.getElementById('teacherRankingTableBody');
+    const pagination = document.getElementById('teacherRankingPagination');
+    if (!form || !input || !results || !tbody || !pagination) return;
+
+    let debounceTimer = null;
+    let activeController = null;
+    let activeUrl = null;
+    let requestSeq = 0;
+
+    function buildUrl(page) {
+        const params = new URLSearchParams(window.location.search);
+        const term = input.value.trim();
+        if (term) {
+            params.set('search', term);
+        } else {
+            params.delete('search');
+        }
+        params.set('page', page);
+        return window.location.pathname + '?' + params.toString();
+    }
+
+    function fetchPage(page) {
+        const url = buildUrl(page);
+        // Ignore duplicate requests for the same query/page.
+        if (activeController && activeUrl === url) return;
+        if (activeController) activeController.abort();
+
+        const seq = ++requestSeq;
+        activeUrl = url;
+        activeController = new AbortController();
+        const hadFocus = document.activeElement === input;
+        results.classList.add('is-updating');
+
+        fetch(url, {
+            headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+            signal: activeController.signal
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Ranking request failed');
+            return response.text();
+        })
+        .then(function (html) {
+            if (seq !== requestSeq) return; // outdated response
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const newBody = doc.getElementById('teacherRankingTableBody');
+            const newPagination = doc.getElementById('teacherRankingPagination');
+            if (newBody) tbody.innerHTML = newBody.innerHTML;
+            if (newPagination) pagination.innerHTML = newPagination.innerHTML;
+            window.history.replaceState(null, '', url);
+            if (hadFocus) input.focus({ preventScroll: true });
+        })
+        .catch(function (err) {
+            if (err.name !== 'AbortError') console.error(err);
+        })
+        .finally(function () {
+            if (seq !== requestSeq) return;
+            activeController = null;
+            activeUrl = null;
+            results.classList.remove('is-updating');
+        });
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+    });
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            fetchPage(1);
+        }, 350);
+    });
+
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('#teacherRankingPagination a.page-btn[data-page]');
+        if (!link) return;
+        e.preventDefault();
+        fetchPage(link.getAttribute('data-page'));
     });
 })();
 </script>

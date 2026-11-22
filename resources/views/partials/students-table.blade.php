@@ -6,7 +6,7 @@
             </span>
         </div>
         <div class="table-toolbar-actions">
-            <a href="{{ route('admin.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
+            <a href="{{ route(portal_prefix() . '.students.archived') }}" class="btn btn-outline btn-sm archived-btn">📦 Archived</a>
             @if(Auth::user()->role !== 'admin')
             <button type="button" class="btn btn-outline btn-sm archive-all-btn" style="border-color:var(--red);color:var(--red);" data-modal-target="archiveAllStudentModal" aria-label="Archive all students for a school year">📦 Archive All</button>
             @if($nullSchoolYearCount > 0)
@@ -46,7 +46,7 @@
                 <td class="cell-name">
                     <button type="button" class="stu-name-btn" title="Open full details"
                         data-overview-open
-                        data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                        data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                         data-student-key="{{ $student->id }}"
                         data-tab="full-details"
                         aria-label="Open full details for {{ $student->full_name }}">
@@ -69,17 +69,17 @@
                     <div class="student-actions">
                         <button type="button" class="action-icon-btn view" title="View Student" aria-label="View student overview"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="overview"><x-icon name="eye" :size="16" /></button>
                         <button type="button" class="action-icon-btn achievements" title="View Achievements" aria-label="View achievements"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="achievements"><x-icon name="trophy" :size="16" /></button>
                         <button type="button" class="action-icon-btn awards" title="View Certificates" aria-label="View certificates"
                             data-overview-open
-                            data-overview-url="{{ route('admin.students.overview', $student->id) }}"
+                            data-overview-url="{{ route(portal_prefix() . '.students.overview', $student->id) }}"
                             data-student-key="{{ $student->id }}"
                             data-tab="certificates"><x-icon name="award" :size="16" /></button>
                         @if(Auth::user()->role !== 'admin')
@@ -116,7 +116,7 @@
                             data-modality="{{ $student->learning_modality }}"
                             data-remarks="{{ $student->remarks }}"><x-icon name="pencil" :size="15" /></button>
                         @if($student->status !== 'Archived')
-                        <form method="POST" action="{{ route('admin.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
+                        <form method="POST" action="{{ route(portal_prefix() . '.students.archive', $student->id) }}" class="inline-action-form" onsubmit="return confirm('Archive this student?')">
                             @csrf @method('PATCH')
                             <button type="submit" class="action-icon-btn archive" title="Archive Student" aria-label="Archive student"><x-icon name="archive" :size="15" /></button>
                         </form>
@@ -134,12 +134,80 @@
     </table>
     </div>
     @if($students->hasPages())
-    <div class="pagination">
+    @php
+        $pagerCurrent = $students->currentPage();
+        $pagerLast = $students->lastPage();
+        if ($pagerLast <= 5) {
+            $pagerWindow = range(1, $pagerLast);
+        } elseif ($pagerCurrent <= 2) {
+            $pagerWindow = range(1, 3);
+        } elseif ($pagerCurrent >= $pagerLast - 1) {
+            $pagerWindow = range($pagerLast - 2, $pagerLast);
+        } else {
+            $pagerWindow = range($pagerCurrent - 1, $pagerCurrent + 1);
+        }
+        $pagerPages = array_values(array_unique(array_merge([1, $pagerLast], $pagerWindow)));
+        sort($pagerPages);
+    @endphp
+    <style>
+        /* Compact pager for the main Student table (admin + teacher). */
+        #studentsTableContainer .students-pager .page-btns {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+        #studentsTableContainer .students-pager .page-btn {
+            min-width: 30px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        #studentsTableContainer .students-pager .page-btn.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e2e8f0;
+        }
+        #studentsTableContainer .students-pager .page-ellipsis {
+            padding: 6px 2px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        @media (max-width: 640px) {
+            #studentsTableContainer .students-pager {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            #studentsTableContainer .students-pager .page-btns {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+    <div class="pagination students-pager">
         <span class="page-info">Showing {{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }} of {{ $students->total() }} entries</span>
         <div class="page-btns">
-            @for ($i = 1; $i <= $students->lastPage(); $i++)
-                <a href="{{ $students->url($i) }}" class="page-btn {{ $students->currentPage() == $i ? 'active' : '' }}" data-page="{{ $i }}">{{ $i }}</a>
-            @endfor
+            @if ($pagerCurrent > 1)
+                <a href="{{ $students->previousPageUrl() }}" data-page="{{ $pagerCurrent - 1 }}" class="page-btn" aria-label="Previous page">&lsaquo; Previous</a>
+            @else
+                <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
+            @endif
+            @php $pagerPrevious = null; @endphp
+            @foreach ($pagerPages as $pagerPage)
+                @if ($pagerPrevious !== null && $pagerPage - $pagerPrevious > 1)
+                    <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                @endif
+                <a href="{{ $students->url($pagerPage) }}" data-page="{{ $pagerPage }}" class="page-btn {{ $pagerCurrent == $pagerPage ? 'active' : '' }}" @if($pagerCurrent == $pagerPage) aria-current="page" @endif>{{ $pagerPage }}</a>
+                @php $pagerPrevious = $pagerPage; @endphp
+            @endforeach
+            @if ($pagerCurrent < $pagerLast)
+                <a href="{{ $students->nextPageUrl() }}" data-page="{{ $pagerCurrent + 1 }}" class="page-btn" aria-label="Next page">Next &rsaquo;</a>
+            @else
+                <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
+            @endif
         </div>
     </div>
     @endif

@@ -21,7 +21,7 @@
         <div class="card">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">+ Add Claim Item</h4>
-                <form method="POST" action="{{ route('claim-items.store') }}">
+                <form method="POST" action="{{ route('admin.claim-items.store') }}">
                     @csrf
                     @if($errors->has('item_name') || $errors->has('points_required') || $errors->has('quantity') || $errors->has('status'))
                         <div class="form-error-message" role="alert">Please check the claim item fields.</div>
@@ -60,7 +60,7 @@
         <div class="card" style="overflow: visible;">
             <div class="card-body">
                 <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">Claim Item for Student</h4>
-                <form method="POST" action="{{ route('claims.store') }}">
+                <form method="POST" action="{{ route(portal_prefix() . '.claims.store') }}">
                     @csrf
                     @if($errors->has('claim_error'))
                         <div class="claim-error-message" role="alert">{{ $errors->first('claim_error') }}</div>
@@ -125,7 +125,7 @@
             <div class="card-title-area">
                 <h3>Claim Items</h3>
             </div>
-            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route('claims.index') }}#claim-items-section">
+            <form id="claimItemsFilterForm" class="table-filter-form claim-items-filter" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#claim-items-section">
                 <div class="item-search-wrapper">
                     <input
                         type="text"
@@ -156,7 +156,7 @@
             <div class="card-title-area">
                 <h3>Claim History</h3>
             </div>
-            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter" method="GET" action="{{ route('claims.index') }}#claim-history-section">
+            <form id="claimHistoryFilterForm" class="table-filter-form claim-history-filter" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#claim-history-section">
                 <div class="history-search-wrapper">
                     <input
                         type="text"
@@ -200,13 +200,13 @@
         </span>
         <div class="page-btns" style="display:flex;gap:4px;">
             @if ($historyPage > 1)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
             @endif
             @for ($i = max(1, $historyPage - 2); $i <= min($historyPage + 2, ceil(($claimHistoryByStudent->count() ?? 0) / 10)); $i++)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
             @endfor
             @if ($historyHasMorePages)
-                <a href="{{ route('claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
+                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
             @endif
         </div>
     </div>
@@ -220,7 +220,7 @@
                 <h3>All Item Requests by Student</h3>
                 <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Compiled record of approved item requests for quarterly releasing.</p>
             </div>
-            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;" method="GET" action="{{ route('claims.index') }}#approved-by-student-section" onsubmit="return false;">
+            <form id="approvedByStudentFilterForm" class="table-filter-form approved-by-student-filter" style="margin-top:12px;" method="GET" action="{{ route(portal_prefix() . '.claims.index') }}#approved-by-student-section" onsubmit="return false;">
                 <input type="text" name="approved_search" value="{{ request('approved_search') }}" placeholder="Search student name or LRN..." aria-label="Search approved claims">
 
                 <select name="approved_quarter" aria-label="Filter by quarter">
@@ -333,6 +333,71 @@
         </div>
     </div>
     @endif
+
+    <!-- Claim Approve/Reject Confirmation Modal -->
+    <div class="modal-overlay" id="claimConfirmModal" role="dialog" aria-modal="true" aria-labelledby="claimConfirmTitle" style="display:none;">
+        <div class="modal-content" style="max-width:480px;width:min(480px,92vw);">
+            <div class="modal-header">
+                <div class="claim-confirm-heading">
+                    <h2 id="claimConfirmTitle">Confirm Action</h2>
+                    <p id="claimConfirmMessage">Message</p>
+                    <p id="claimConfirmDetails" class="claim-confirm-details"></p>
+                </div>
+                <button type="button" class="modal-close" id="closeClaimConfirmModal" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="claimConfirmCancel">Cancel</button>
+                <button type="button" class="btn" id="claimConfirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        /* Compact confirmation dialog: stacked title/message, no empty body. */
+        #claimConfirmModal .modal-header {
+            gap: 12px;
+            padding: 18px 20px;
+        }
+        #claimConfirmModal .claim-confirm-heading {
+            min-width: 0;
+        }
+        #claimConfirmModal .modal-header h2 {
+            font-size: 18px;
+            line-height: 1.3;
+            margin: 0;
+        }
+        #claimConfirmModal #claimConfirmMessage {
+            margin: 6px 0 0;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #6b7280;
+        }
+        #claimConfirmModal .claim-confirm-details {
+            margin: 10px 0 0;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        #claimConfirmModal .claim-confirm-details strong {
+            color: #111827;
+        }
+        #claimConfirmModal .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+        }
+        @media (max-width: 480px) {
+            #claimConfirmModal .modal-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
 @endsection
 
 <!-- Edit Item Modal -->
@@ -804,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!claimItemsFilterForm || !claimItemsContainer) return;
         var formData = new FormData(claimItemsFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.items.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.items.filter') }}' + '?' + queryString;
         fetchPartial(url, claimItemsContainer);
     }
 
@@ -833,7 +898,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!pendingClaimsFilterForm || !pendingResultsContainer) return;
         var formData = new FormData(pendingClaimsFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.pending.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.pending.filter') }}' + '?' + queryString;
         fetchPartial(url, pendingResultsContainer);
     }
 
@@ -855,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!claimHistoryFilterForm || !claimHistoryContainer) return;
         var formData = new FormData(claimHistoryFilterForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.history.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.history.filter') }}' + '?' + queryString;
         fetchPartial(url, claimHistoryContainer);
     }
 
@@ -900,7 +965,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var btn = e.target.closest('.btn-edit-item');
         if (!btn) return;
         var id = btn.dataset.id;
-        editForm.action = '{{ url("admin/claim-items") }}/' + id;
+        editForm.action = '{{ url("/admin/claim-items") }}/' + id;
         document.getElementById('editItemName').value = btn.dataset.name;
         document.getElementById('editItemDescription').value = btn.dataset.description || '';
         document.getElementById('editItemPoints').value = btn.dataset.points;
@@ -959,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!approvedByStudentForm || !approvedByStudentContainer) return;
         var formData = new FormData(approvedByStudentForm);
         var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route('claims.approved.filter') }}' + '?' + queryString;
+        var url = '{{ route(portal_prefix() . '.claims.approved.filter') }}' + '?' + queryString;
         fetchPartial(url, approvedByStudentContainer);
     }
 
@@ -1054,13 +1119,141 @@ function toggleClaimHistoryStudent(id) {
     if (!el) return;
     if (el.style.display === 'none' || el.style.display === '') {
         el.style.display = 'block';
-        if (btn) btn.textContent = 'Hide History ▲';
+        if (btn) btn.textContent = 'Hide History â–²';
     } else {
         el.style.display = 'none';
-        if (btn) btn.textContent = 'View History ▼';
+        if (btn) btn.textContent = 'View History â–¼';
     }
 }
 
+</script>
+<script>
+// --- Top-center floating toast (claims approve/reject) ---
+function showClaimToast(message, isError) {
+    var existing = document.getElementById('claimToast');
+    if (existing) {
+        if (existing._claimToastHideTimer) clearTimeout(existing._claimToastHideTimer);
+        if (existing._claimToastRemoveTimer) clearTimeout(existing._claimToastRemoveTimer);
+        existing.remove();
+    }
+    var toast = document.createElement('div');
+    toast.id = 'claimToast';
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10050;display:inline-flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));width:max-content;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);pointer-events:auto;opacity:0;transition:opacity .25s ease;box-sizing:border-box;' + (isError ? 'background:#fef2f2;border:1px solid #ef5350;color:#991b1b;' : 'background:#ecfdf3;border:1px solid #22c55e;color:#166534;');
+    var icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px;font-size:14px;font-weight:700;line-height:1;';
+    icon.textContent = isError ? '!' : '✓';
+    var text = document.createElement('span');
+    text.textContent = message || '';
+    text.style.cssText = 'min-width:0;word-break:break-word;';
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () { toast.style.opacity = '1'; });
+    toast._claimToastHideTimer = setTimeout(function () {
+        toast.style.opacity = '0';
+        toast._claimToastRemoveTimer = setTimeout(function () { if (toast.parentNode) toast.remove(); }, 260);
+    }, 5000);
+}
+
+// --- Approve/Reject confirmation modal ---
+var claimConfirmTargetForm = null;
+var claimConfirmActionType = null;
+var claimConfirmScrollY = 0;
+
+function releaseClaimModalScrollLock() {
+    document.body.style.overflow = '';
+    window.scrollTo(0, claimConfirmScrollY);
+}
+
+function openClaimConfirmModal(form, title, message, type) {
+    var modal = document.getElementById('claimConfirmModal');
+    if (!modal || !form) return;
+
+    claimConfirmScrollY = window.scrollY || window.pageYOffset || 0;
+    claimConfirmTargetForm = form;
+    claimConfirmActionType = type;
+
+    try {
+        document.getElementById('claimConfirmTitle').textContent = title;
+        document.getElementById('claimConfirmMessage').textContent = message;
+        var detailsEl = document.getElementById('claimConfirmDetails');
+        if (detailsEl) {
+            var student = form.getAttribute('data-student-name') || 'Unknown student';
+            var item = form.getAttribute('data-item-name') || 'item';
+            var quantity = form.getAttribute('data-quantity') || '1';
+            detailsEl.textContent = 'Student: ' + student + '  ·  Item: ' + item + '  ·  Quantity: ' + quantity;
+        }
+        var actionBtn = document.getElementById('claimConfirmAction');
+        actionBtn.textContent = type === 'approve' ? 'Approve Claim' : 'Reject Claim';
+        actionBtn.className = 'btn ' + (type === 'approve' ? 'btn-success' : 'btn-danger');
+        actionBtn.disabled = false;
+
+        // The overlay has an inline display:none; adding .show alone cannot
+        // override it. Set the inline display too so the dialog and its
+        // backdrop are actually visible (and the scroll lock is justified).
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        actionBtn.focus();
+    } catch (err) {
+        // A failed open must not leave an invisible dialog holding the lock.
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        releaseClaimModalScrollLock();
+        claimConfirmTargetForm = null;
+        claimConfirmActionType = null;
+        console.error('Unable to open claim confirmation:', err);
+    }
+}
+
+function closeClaimConfirmModal() {
+    var modal = document.getElementById('claimConfirmModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    releaseClaimModalScrollLock();
+    var btn = document.getElementById('claimConfirmAction');
+    if (btn) btn.disabled = false;
+    claimConfirmTargetForm = null;
+    claimConfirmActionType = null;
+}
+
+function submitClaimConfirm() {
+    var form = claimConfirmTargetForm;
+    if (!form) return;
+    var btn = document.getElementById('claimConfirmAction');
+    btn.disabled = true;
+    closeClaimConfirmModal();
+    // closeClaimConfirmModal() clears the stored form, so submit the local
+    // reference captured above. form.submit() bypasses the inline onsubmit
+    // handler, so the confirmation dialog cannot reopen.
+    form.submit();
+}
+
+document.getElementById('claimConfirmModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeClaimConfirmModal();
+});
+document.getElementById('closeClaimConfirmModal')?.addEventListener('click', closeClaimConfirmModal);
+document.getElementById('claimConfirmCancel')?.addEventListener('click', closeClaimConfirmModal);
+document.getElementById('claimConfirmAction')?.addEventListener('click', submitClaimConfirm);
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeClaimConfirmModal();
+});
+
+// Show session flash (approve/reject success or error) as a top-center toast.
+@if(session('success'))
+    showClaimToast({!! \Illuminate\Support\Js::from(session('success')) !!}, false);
+@endif
+@if(session('error'))
+    showClaimToast({!! \Illuminate\Support\Js::from(session('error')) !!}, true);
+@endif
 </script>
 <style>
 /* Compact action buttons for pending item claims */

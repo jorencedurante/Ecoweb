@@ -90,7 +90,7 @@ class ItemClaimFlowTest extends TestCase
         $this->assertSame('Available', $item->fresh()->status);
         $this->assertSame(300, (int) $student->fresh()->total_points);
 
-        $approve = $this->actingAs($admin)->patch(route('claims.approve', $claim->id));
+        $approve = $this->actingAs($admin)->patch(route('admin.claims.approve', $claim->id));
         $approve->assertSessionHas('success');
 
         // Approval keeps the reservation: no second deduction of any kind.
@@ -296,13 +296,13 @@ class ItemClaimFlowTest extends TestCase
         $claim = StudentClaim::where('student_id', $student->id)->where('claim_item_id', $item->id)->where('status', 'Pending')->firstOrFail();
 
         $this->actingAs($admin)
-            ->patch(route('claims.approve', $claim->id))
+            ->patch(route('admin.claims.approve', $claim->id))
             ->assertSessionHas('success');
 
         $this->assertSame(12, (int) $item->fresh()->quantity);
         $this->assertSame(300, (int) $student->fresh()->total_points);
 
-        $second = $this->actingAs($admin)->patch(route('claims.approve', $claim->id));
+        $second = $this->actingAs($admin)->patch(route('admin.claims.approve', $claim->id));
         $second->assertSessionHasErrors([
             'claim' => 'This claim request is no longer pending.',
         ]);
@@ -333,7 +333,7 @@ class ItemClaimFlowTest extends TestCase
         $claim = StudentClaim::where('student_id', $student->id)->where('claim_item_id', $item->id)->where('status', 'Pending')->firstOrFail();
 
         $this->actingAs($admin)
-            ->patch(route('claims.reject', $claim->id), ['rejected_reason' => 'Not enough points budget.'])
+            ->patch(route('admin.claims.reject', $claim->id), ['rejected_reason' => 'Not enough points budget.'])
             ->assertSessionHas('success');
 
         $claim->refresh();
@@ -367,13 +367,13 @@ class ItemClaimFlowTest extends TestCase
         $claim = StudentClaim::where('student_id', $student->id)->where('status', 'Pending')->firstOrFail();
 
         $this->actingAs($admin)
-            ->patch(route('claims.reject', $claim->id))
+            ->patch(route('admin.claims.reject', $claim->id))
             ->assertSessionHas('success');
 
         $this->assertSame(14, (int) $item->fresh()->quantity);
         $this->assertSame(500, (int) $student->fresh()->total_points);
 
-        $second = $this->actingAs($admin)->patch(route('claims.reject', $claim->id));
+        $second = $this->actingAs($admin)->patch(route('admin.claims.reject', $claim->id));
         $second->assertSessionHasErrors([
             'claim' => 'This claim request is no longer pending.',
         ]);
@@ -398,14 +398,14 @@ class ItemClaimFlowTest extends TestCase
         $this->assertSame(500, (int) $student->fresh()->total_points);
 
         $this->actingAs($admin)
-            ->patch(route('claims.approve', $claim->id))
+            ->patch(route('admin.claims.approve', $claim->id))
             ->assertSessionHas('success');
 
         $this->assertSame(12, (int) $item->fresh()->quantity);
         $this->assertSame(300, (int) $student->fresh()->total_points);
         $this->assertSame('Approved', $claim->fresh()->status);
 
-        $second = $this->actingAs($admin)->patch(route('claims.approve', $claim->id));
+        $second = $this->actingAs($admin)->patch(route('admin.claims.approve', $claim->id));
         $second->assertSessionHasErrors([
             'claim' => 'This claim request is no longer pending.',
         ]);
@@ -425,7 +425,7 @@ class ItemClaimFlowTest extends TestCase
         $claim = $this->makeLegacyPendingClaim($student, $item, 2);
 
         $this->actingAs($admin)
-            ->patch(route('claims.reject', $claim->id))
+            ->patch(route('admin.claims.reject', $claim->id))
             ->assertSessionHas('success');
 
         $this->assertSame('Rejected', $claim->fresh()->status);
@@ -446,7 +446,7 @@ class ItemClaimFlowTest extends TestCase
         $item->update(['quantity' => 2]);
 
         $this->actingAs($admin)
-            ->patch(route('claims.approve', $claim->id))
+            ->patch(route('admin.claims.approve', $claim->id))
             ->assertSessionHasErrors([
                 'claim' => 'Not enough item stock available. Only 2 left.',
             ]);
@@ -483,7 +483,7 @@ class ItemClaimFlowTest extends TestCase
             'quantity' => 3,
         ])->assertSessionHas('success');
 
-        $response = $this->actingAs($admin)->get(route('claims.index'));
+        $response = $this->actingAs($admin)->get(route('admin.claims.index'));
 
         $response->assertOk();
         $response->assertSee('Pending Item Claims');

@@ -140,6 +140,48 @@
             pointer-events: none;
         }
 
+        /* Compact pager for the Bottle Collection table only. */
+        .bottle-pager .page-btns {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .bottle-pager .page-btn {
+            min-width: 30px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .bottle-pager .page-btn.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e2e8f0;
+        }
+
+        .bottle-pager .page-ellipsis {
+            padding: 6px 2px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        @media (max-width: 640px) {
+            .bottle-pager {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .bottle-pager .page-btns {
+                justify-content: flex-start;
+            }
+        }
+
         @media (max-width: 1100px) {
             .bottle-filter-form {
                 grid-template-columns: 1fr;
@@ -159,7 +201,7 @@
             <x-icon name="chevron-down" :size="15" class="bottle-filter-chevron" />
         </button>
         <div class="filter-body">
-            <form method="GET" action="{{ route('admin.bottle-collection') }}" class="bottle-filter-form" id="bottleFilterForm">
+            <form method="GET" action="{{ route(portal_prefix() . '.bottle-collection') }}" class="bottle-filter-form" id="bottleFilterForm">
                 <div class="bottle-filter-field">
                     <label for="bottleFilterSearch">Search Collections</label>
                     <div class="bottle-input">
@@ -249,12 +291,42 @@
             </tbody>
         </table>
         </div>
-        <div class="pagination">
+        @php
+            $pagerCurrent = $collections->currentPage();
+            $pagerLast = $collections->lastPage();
+            if ($pagerLast <= 1) {
+                $pagerWindow = [1];
+            } elseif ($pagerCurrent <= 2) {
+                $pagerWindow = range(1, min(3, $pagerLast));
+            } elseif ($pagerCurrent >= $pagerLast - 1) {
+                $pagerWindow = range(max(1, $pagerLast - 2), $pagerLast);
+            } else {
+                $pagerWindow = range($pagerCurrent - 1, $pagerCurrent + 1);
+            }
+            $pagerPages = array_values(array_unique(array_merge([1, $pagerLast], $pagerWindow)));
+            sort($pagerPages);
+        @endphp
+        <div class="pagination bottle-pager">
             <span class="page-info" id="bottle-collection-page-info">Showing {{ $collections->firstItem() ?? 0 }} to {{ $collections->lastItem() ?? 0 }} of {{ $collections->total() }} entries</span>
             <div class="page-btns" id="bottle-collection-page-btns">
-                @for ($i = 1; $i <= $collections->lastPage(); $i++)
-                    <a href="{{ $collections->url($i) }}" data-page="{{ $i }}" class="page-btn {{ $collections->currentPage() == $i ? 'active' : '' }}">{{ $i }}</a>
-                @endfor
+                @if ($pagerCurrent > 1)
+                    <a href="{{ $collections->previousPageUrl() }}" data-page="{{ $pagerCurrent - 1 }}" class="page-btn" aria-label="Previous page">&lsaquo; Previous</a>
+                @else
+                    <span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>
+                @endif
+                @php $pagerPrevious = null; @endphp
+                @foreach ($pagerPages as $pagerPage)
+                    @if ($pagerPrevious !== null && $pagerPage - $pagerPrevious > 1)
+                        <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+                    @endif
+                    <a href="{{ $collections->url($pagerPage) }}" data-page="{{ $pagerPage }}" class="page-btn {{ $pagerCurrent == $pagerPage ? 'active' : '' }}" @if($pagerCurrent == $pagerPage) aria-current="page" @endif>{{ $pagerPage }}</a>
+                    @php $pagerPrevious = $pagerPage; @endphp
+                @endforeach
+                @if ($pagerCurrent < $pagerLast)
+                    <a href="{{ $collections->nextPageUrl() }}" data-page="{{ $pagerCurrent + 1 }}" class="page-btn" aria-label="Next page">Next &rsaquo;</a>
+                @else
+                    <span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>
+                @endif
             </div>
         </div>
     </div>
@@ -266,7 +338,7 @@
                 <h3>Add bottle collection</h3>
                 <p class="subtitle">Record a new bottle collection</p>
             </div>
-            <form method="POST" action="{{ route('admin.bottle-collection.store') }}">
+            <form method="POST" action="{{ route(portal_prefix() . '.bottle-collection.store') }}">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group student-search-wrapper">
@@ -333,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             searchTimeout = setTimeout(function () {
-                fetch('{{ route("admin.students.search") }}?q=' + encodeURIComponent(query))
+                fetch('{{ route(portal_prefix() . '.students.search') }}?q=' + encodeURIComponent(query))
                     .then(response => response.json())
                     .then(students => {
                         results.innerHTML = '';
@@ -374,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===== Automatic filtering: search / collection date / quarter =====
-    const fetchUrl = '{{ route("admin.bottle-collection.fetch") }}';
+    const fetchUrl = '{{ route(portal_prefix() . '.bottle-collection.fetch') }}';
     const filterForm = document.getElementById('bottleFilterForm');
     const filterSearch = document.getElementById('bottleFilterSearch');
     const filterSearchClear = document.getElementById('bottleSearchClear');
@@ -601,13 +673,62 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (pageBtns) {
+            const last = Math.max(1, parseInt(pagination.last_page, 10) || 1);
+            const current = Math.max(1, Math.min(parseInt(pagination.current_page, 10) || 1, last));
+            const baseParams = buildFilterParams(false).toString();
+
+            function pageHref(page) {
+                const params = new URLSearchParams(baseParams);
+                params.set('page', page);
+                return '?' + params.toString();
+            }
+
+            // First, last, and a small window around the current page.
+            const pages = new Set();
+            if (last > 1) {
+                pages.add(1);
+                pages.add(last);
+                let from;
+                let to;
+                if (current <= 2) {
+                    from = 1;
+                    to = Math.min(3, last);
+                } else if (current >= last - 1) {
+                    from = Math.max(1, last - 2);
+                    to = last;
+                } else {
+                    from = current - 1;
+                    to = current + 1;
+                }
+                for (let p = from; p <= to; p++) {
+                    pages.add(p);
+                }
+            } else {
+                pages.add(1);
+            }
+            const pageNumbers = [...pages].sort(function (a, b) { return a - b; });
+
             let html = '';
-            for (let i = 1; i <= pagination.last_page; i++) {
-                const params = buildFilterParams(false);
-                params.set('page', i);
-                const classes = i === pagination.current_page ? 'page-btn active' : 'page-btn';
-                const current = i === pagination.current_page ? ' aria-current="page"' : '';
-                html += '<a href="?' + params.toString() + '" data-page="' + i + '" class="' + classes + '"' + current + '>' + i + '</a>';
+            if (current > 1) {
+                html += '<a href="' + pageHref(current - 1) + '" data-page="' + (current - 1) + '" class="page-btn" aria-label="Previous page">&lsaquo; Previous</a>';
+            } else {
+                html += '<span class="page-btn disabled" aria-disabled="true">&lsaquo; Previous</span>';
+            }
+
+            let previousPage = null;
+            pageNumbers.forEach(function (page) {
+                if (previousPage !== null && page - previousPage > 1) {
+                    html += '<span class="page-ellipsis" aria-hidden="true">&hellip;</span>';
+                }
+                const active = page === current;
+                html += '<a href="' + pageHref(page) + '" data-page="' + page + '" class="page-btn' + (active ? ' active' : '') + '"' + (active ? ' aria-current="page"' : '') + '>' + page + '</a>';
+                previousPage = page;
+            });
+
+            if (current < last) {
+                html += '<a href="' + pageHref(current + 1) + '" data-page="' + (current + 1) + '" class="page-btn" aria-label="Next page">Next &rsaquo;</a>';
+            } else {
+                html += '<span class="page-btn disabled" aria-disabled="true">Next &rsaquo;</span>';
             }
             pageBtns.innerHTML = html;
         }

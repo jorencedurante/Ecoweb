@@ -5,10 +5,10 @@
 
 
 @section('content')
-<a href="{{ route('admin.certificate') }}" class="back-link" style="margin-bottom:16px;display:inline-block;">← Back to Certificate Award</a>
+<a href="{{ route(portal_prefix() . '.certificate') }}" class="back-link" style="margin-bottom:16px;display:inline-block;">← Back to Certificate Award</a>
 
 <form id="certificateForm" method="POST"
-      action="{{ isset($award) ? route('admin.certificate.update-canvas', $award->id) : route('admin.certificate.save-canvas') }}"
+      action="{{ isset($award) ? route(portal_prefix() . '.certificate.update-canvas', $award->id) : route(portal_prefix() . '.certificate.save-canvas') }}"
       enctype="multipart/form-data">
     @csrf
     @if(isset($award)) @method('PUT') @endif

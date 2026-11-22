@@ -20,11 +20,11 @@ class QrCodeTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->post(route('admin.qrcode.generate'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.qrcode.generate'), [
             'student_id' => $student->id,
         ]);
 
-        $response->assertRedirect(route('admin.qrcode'));
+        $response->assertRedirect(route(portal_prefix() . '.qrcode'));
 
         $qr = QrCode::where('student_id', $student->id)->first();
         $this->assertNotNull($qr);
@@ -38,7 +38,7 @@ class QrCodeTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->post(route('admin.qrcode.generate'), [
+        $response = $this->actingAs($teacherB)->post(route(portal_prefix() . '.qrcode.generate'), [
             'student_id' => $studentOfA->id,
         ]);
 
@@ -54,13 +54,13 @@ class QrCodeTest extends TestCase
         $studentA = $this->createStudent($teacherA, ['first_name' => 'QrAlpha', 'last_name' => 'One']);
         $this->createStudent($teacherB, ['first_name' => 'QrBeta', 'last_name' => 'Two']);
 
-        $this->actingAs($teacherA)->post(route('admin.qrcode.generate'), ['student_id' => $studentA->id]);
+        $this->actingAs($teacherA)->post(route(portal_prefix() . '.qrcode.generate'), ['student_id' => $studentA->id]);
 
         // Drop the flash message from the generation request so only the
         // page contents are asserted.
         $this->flushSession();
 
-        $response = $this->actingAs($teacherB)->get(route('admin.qrcode'));
+        $response = $this->actingAs($teacherB)->get(route(portal_prefix() . '.qrcode'));
 
         $response->assertOk();
         $response->assertSee('QrBeta');

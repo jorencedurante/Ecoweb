@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Generate and manage reports')
 
 @section('content')
-    <a href="{{ route('admin.reports') }}" class="back-link">← Back to Reports</a>
+    <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
     <!-- Summary Cards -->
     <div class="summary-cards br-summary-section">
@@ -69,7 +69,7 @@
             <i class="fas fa-filter"></i> Filters
         </button>
         <div class="filter-body">
-            <form id="brFilterForm" class="br-filter-form" method="GET" action="{{ route('admin.bottle-report') }}" onsubmit="return false;">
+            <form id="brFilterForm" class="br-filter-form" method="GET" action="{{ route(portal_prefix() . '.bottle-report') }}" onsubmit="return false;">
                 <div class="br-filter-field br-search-field">
                     <label for="brSearch">Search Student</label>
                     <input type="text" id="brSearch" name="search" value="{{ request('search') }}" placeholder="Search student name or LRN..." aria-label="Search students">
@@ -119,7 +119,7 @@
     <div class="table-container" style="margin-top:24px;">
         <div class="table-header">
             <h4 style="font-size:14px;font-weight:600;">Collection Records</h4>
-            <a href="{{ route('reports.bottle-collection.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
+            <a href="{{ route(portal_prefix() . '.reports.bottle-collection.print') }}?{{ http_build_query(request()->query()) }}" target="_blank" class="btn btn-filter" style="font-size:12px;padding:6px 14px;text-decoration:none;">🖨️ Print Report</a>
         </div>
         <div class="table-responsive">
         <table class="br-collections-table">
@@ -224,7 +224,7 @@ function fetchBottleData() {
     const dateFrom = document.getElementById('brDateFrom') ? document.getElementById('brDateFrom').value : '';
     const dateTo = document.getElementById('brDateTo') ? document.getElementById('brDateTo').value : '';
 
-    const url = new URL("{{ route('admin.bottle-report.search') }}");
+    const url = new URL("{{ route(portal_prefix() . '.bottle-report.search') }}");
     url.searchParams.set('search', searchVal);
     url.searchParams.set('date_from', dateFrom);
     url.searchParams.set('date_to', dateTo);

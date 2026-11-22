@@ -28,7 +28,7 @@ class StudentOverviewTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($superAdmin)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($superAdmin)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk()->assertJsonStructure([
             'student' => ['id', 'full_name', 'lrn', 'initials', 'details_url', 'section', 'school_year', 'house_street', 'guardian_relationship'],
@@ -89,7 +89,7 @@ class StudentOverviewTest extends TestCase
             'issued_by' => $teacher->id,
         ]);
 
-        $response = $this->actingAs($teacher)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($teacher)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk();
         $this->assertSame(1, $response->json('summary.achievements'));
@@ -105,7 +105,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($teacher)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk();
         $this->assertSame($student->id, $response->json('student.id'));
@@ -117,7 +117,7 @@ class StudentOverviewTest extends TestCase
         $teacherB = $this->createTeacher();
         $studentOfA = $this->createStudent($teacherA);
 
-        $response = $this->actingAs($teacherB)->getJson(route('admin.students.overview', $studentOfA->id));
+        $response = $this->actingAs($teacherB)->getJson(route(portal_prefix() . '.students.overview', $studentOfA->id));
 
         $response->assertForbidden();
     }
@@ -128,7 +128,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($admin)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($admin)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk();
     }
@@ -138,7 +138,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->get(route('admin.students.overview', $student->id));
+        $response = $this->get(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertRedirect();
     }
@@ -148,7 +148,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.students'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk()
             ->assertSee('studentOverviewModal', false)
@@ -156,7 +156,7 @@ class StudentOverviewTest extends TestCase
             ->assertSee('Search by name, LRN, or student ID...', false)
             ->assertSee('id="stuSearchInput"', false)
             ->assertSee('role="tablist"', false)
-            ->assertSee(route('admin.students.overview', $student->id), false);
+            ->assertSee(route(portal_prefix() . '.students.overview', $student->id), false);
     }
 
     public function test_students_page_shows_active_filter_chips_and_result_count(): void
@@ -164,7 +164,7 @@ class StudentOverviewTest extends TestCase
         $superAdmin = $this->createSuperAdmin();
         $this->createStudent($superAdmin, ['first_name' => 'Chipper', 'last_name' => 'Student', 'gender' => 'Male']);
 
-        $response = $this->actingAs($superAdmin)->get(route('admin.students', [
+        $response = $this->actingAs($superAdmin)->get(route(portal_prefix() . '.students', [
             'search' => 'Chipper',
             'gender' => 'Male',
         ]));
@@ -182,7 +182,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.students'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk()
             ->assertDontSee('Active filters', false)
@@ -234,7 +234,7 @@ class StudentOverviewTest extends TestCase
             'created_by' => $teacher->id,
         ]);
 
-        $response = $this->actingAs($teacher)->getJson(route('admin.students.overview', $student->id));
+        $response = $this->actingAs($teacher)->getJson(route(portal_prefix() . '.students.overview', $student->id));
 
         $response->assertOk();
 
@@ -269,7 +269,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.students'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk()
             ->assertSee('data-so-tab="overview"', false)
@@ -297,7 +297,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($teacher)->get(route('admin.students'));
+        $response = $this->actingAs($teacher)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk()
             ->assertSee('<colgroup>', false)
@@ -318,7 +318,7 @@ class StudentOverviewTest extends TestCase
         $teacher = $this->createTeacher();
         $this->createStudent($teacher);
 
-        $response = $this->actingAs($admin)->get(route('admin.students'));
+        $response = $this->actingAs($admin)->get(route(portal_prefix() . '.students'));
 
         $response->assertOk()
             // Admin is view-only (3 action buttons: view, achievements, certificates).

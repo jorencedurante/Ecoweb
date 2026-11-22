@@ -1,0 +1,394 @@
+﻿@extends('layouts.admin')
+
+@section('page-title', 'Admin & Teacher Management')
+
+@section('content')
+    <div class="filter-card">
+        <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
+            <i class="fas fa-filter"></i> Filters
+        </button>
+        <div class="filter-body">
+            <form method="GET" action="{{ route(portal_prefix() . '.teachers') }}" class="filter-form" id="teacherFilterForm">
+                <div class="filter-search">
+                    <label>Search</label>
+                    <input type="text" name="search" id="teacherSearch" aria-label="Search by name, username, email, role or position" placeholder="Search name, username, email, role..." value="{{ request('search') }}" autocomplete="off">
+                </div>
+                <div class="filter-item">
+                    <label>Role</label>
+                    <select name="role" id="teacherRole" aria-label="Filter by role" data-filter="role">
+                        <option value="">All Roles</option>
+                        <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
+                        <option value="teacher" {{ request('role') === 'teacher' ? 'selected' : '' }}>Teacher</option>
+                        <option value="super_admin" {{ request('role') === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Status</label>
+                    <select name="status" id="teacherStatus" aria-label="Filter by status" data-filter="status">
+                        <option value="">All Status</option>
+                        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                        <option value="restricted" {{ request('status') === 'restricted' ? 'selected' : '' }}>Restricted</option>
+                        <option value="archived" {{ request('status') === 'archived' ? 'selected' : '' }}>Archived</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="table-card">
+        <div class="table-header">
+            <h2><i class="fas fa-chalkboard-user"></i> Admin & Teacher Accounts</h2>
+            @if(auth()->user()->isSuperAdmin())
+            <div class="table-header-actions">
+                <button type="button" class="btn btn-primary archived-accounts-btn" onclick="openArchivedAccountsModal()" aria-label="View archived accounts">
+                    <i class="fas fa-box-archive"></i> Archived Accounts
+                </button>
+            </div>
+            @endif
+        </div>
+        <div class="table-responsive">
+        <table id="teacherAccountsTable">
+            <thead>
+                <tr>
+                    <th scope="col">Account ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Position</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" style="width:80px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="teacherTableBody">
+                @forelse($accounts as $account)
+                <tr>
+                    <td>{{ 'ADM' . str_pad($account->id, 3, '0', STR_PAD_LEFT) }}</td>
+                    <td><strong>{{ $account->name }}</strong></td>
+                    <td>{{ $account->email }}</td>
+                    <td>
+                        @if(auth()->user()->isSuperAdmin())
+                            <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--accent-light,#e8f1ff);color:var(--accent,#1a73e8);">{{ ucfirst($account->role) }}</span>
+                        @else
+                            <span class="role-badge" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">{{ ucfirst($account->role) }}</span>
+                        @endif
+                    </td>
+                    <td>{{ $account->position ?? 'N/A' }}</td>
+                    <td><span style="color:{{ $account->status === 'active' ? 'var(--green)' : 'var(--gray)' }};font-weight:600;">{{ ucfirst($account->status) }}</span></td>
+                    <td>
+                        <div class="account-actions">
+                            <button type="button" class="action-icon-btn view" title="View Account Details" aria-label="View account details"
+                                onclick="openViewAccountModal({
+                                    id: '{{ 'ADM' . str_pad($account->id, 3, '0', STR_PAD_LEFT) }}',
+                                    name: '{{ $account->name }}',
+                                    username: '{{ $account->username }}',
+                                    email: '{{ $account->email }}',
+                                    role: '{{ ucfirst($account->role) }}',
+                                    position: '{{ $account->position ?? 'N/A' }}',
+                                    status: '{{ ucfirst($account->status) }}',
+                                    created_at: '{{ $account->created_at ? $account->created_at->format('M d, Y') : '—' }}',
+                                    updated_at: '{{ $account->updated_at ? $account->updated_at->format('M d, Y') : '—' }}'
+                                })">👁</button>
+                            @if(auth()->user()->isSuperAdmin())
+                            <button type="button" class="action-icon-btn edit" title="Edit Account" aria-label="Edit account"
+                                data-modal-target="editTeacherModal"
+                                data-id="{{ $account->id }}"
+                                data-name="{{ $account->name }}"
+                                data-username="{{ $account->username }}"
+                                data-email="{{ $account->email }}"
+                                data-role="{{ $account->role }}"
+                                data-position="{{ $account->position ?? '' }}"
+                                data-status="{{ $account->status ?? 'active' }}">✏️</button>
+
+                            @if($account->status === 'active')
+                            <button type="button" class="action-icon-btn restrict" title="Restrict Account" aria-label="Restrict account"
+                                data-id="{{ $account->id }}"
+                                data-name="{{ $account->name }}">🔒</button>
+                            <form method="POST" action="{{ route(portal_prefix() . '.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
+                                @csrf @method('PATCH')
+                                <button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button>
+                            </form>
+                            @elseif($account->status === 'restricted')
+                            <button type="button" class="action-icon-btn unrestrict" title="Unrestrict Account" aria-label="Unrestrict account"
+                                data-id="{{ $account->id }}"
+                                data-name="{{ $account->name }}">🔓</button>
+                            <form method="POST" action="{{ route(portal_prefix() . '.teachers.archive', $account->id) }}" class="inline-action-form archive-form" data-id="{{ $account->id }}" data-name="{{ $account->name }}">
+                                @csrf @method('PATCH')
+                                <button type="submit" class="action-icon-btn archive" title="Archive Account" aria-label="Archive account">📦</button>
+                            </form>
+                            @elseif($account->status === 'archived')
+                            <button type="button" class="action-icon-btn reactivate" title="Reactivate Account" aria-label="Reactivate account"
+                                data-id="{{ $account->id }}"
+                                data-name="{{ $account->name }}">🔄</button>
+                            @endif
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr id="teacherNoResults">
+                    <td colspan="7" style="text-align:center;padding:30px;color:var(--text-light);">No accounts found.</td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+        </div>
+        <div class="pagination-bar">
+            <span id="teacherPageInfo">Showing {{ $accounts->firstItem() ?? 0 }} to {{ $accounts->lastItem() ?? 0 }} of {{ $accounts->total() }} entries</span>
+            <span id="teacherLoading" style="display:none;margin-left:8px;font-size:12px;color:var(--text-light);">Loading…</span>
+            <div class="pagination" id="teacherPagination">
+                @for($i = 1; $i <= $accounts->lastPage(); $i++)
+                    <a href="{{ $accounts->url($i) }}" class="page-btn {{ $accounts->currentPage() == $i ? 'active' : '' }}" data-page="{{ $i }}">{{ $i }}</a>
+                @endfor
+            </div>
+        </div>
+    </div>
+    <!-- Edit Account Modal -->
+    <div class="modal-overlay" id="editTeacherModal">
+        <div class="modal-content edit-account-modal-content">
+            <div class="modal-header edit-account-modal-header">
+                <div>
+                    <h2>Edit Account</h2>
+                    <p>Update account information</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeEditTeacherModal()" aria-label="Close">&times;</button>
+            </div>
+            <form method="POST" action="" id="editTeacherForm" class="modal-form edit-account-modal-form">
+                @csrf @method('PUT')
+                <input type="hidden" id="editTeacherId" value="">
+                <div class="modal-body edit-account-modal-body">
+                    <section class="edit-account-section">
+                        <h3 class="edit-account-section-title">Personal Information</h3>
+                        <div class="edit-account-grid">
+                            <div class="form-group">
+                                <label for="editTeacherName">Full Name</label>
+                                <input type="text" name="name" id="editTeacherName" required aria-label="Full name">
+                            </div>
+                            <div class="form-group">
+                                <label for="editTeacherUsername">Username</label>
+                                <input type="text" name="username" id="editTeacherUsername" required aria-label="Username">
+                            </div>
+                            <div class="form-group edit-account-grid-full">
+                                <label for="editTeacherEmailDisplay">Email Address</label>
+                                <div class="edit-account-inline-row">
+                                    <input type="email" id="editTeacherEmailDisplay" readonly aria-label="Current verified email">
+                                    <button type="button" class="btn btn-secondary edit-account-inline-btn" id="openChangeEmailDialogBtn">Change Email</button>
+                                </div>
+                                <input type="hidden" name="email" id="editTeacherEmail">
+                                <p class="edit-account-help">Email is read-only here. Use Change Email to verify and update it.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="edit-account-section">
+                        <h3 class="edit-account-section-title">Account Security</h3>
+                        <div class="edit-account-grid">
+                            <div class="form-group edit-account-grid-full">
+                                <label for="editTeacherPasswordPlaceholder">Password</label>
+                                <div class="edit-account-inline-row">
+                                    <input type="password" id="editTeacherPasswordPlaceholder" value="••••••••••••" readonly aria-label="Password placeholder" autocomplete="off">
+                                    <button type="button" class="btn btn-secondary edit-account-inline-btn" id="openChangePasswordDialogBtn">Change Password</button>
+                                </div>
+                                <p class="edit-account-help">Masked placeholder only. Passwords are never displayed or exposed.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="edit-account-section">
+                        <h3 class="edit-account-section-title">Account Details</h3>
+                        <div class="edit-account-grid">
+                            <div class="form-group">
+                                <label for="editTeacherRole">Role</label>
+                                @if(auth()->user()->isSuperAdmin())
+                                <select name="role" id="editTeacherRole" required aria-label="Role">
+                                    <option value="admin">Admin</option>
+                                    <option value="teacher">Teacher</option>
+                                    <option value="super_admin">Super Admin</option>
+                                </select>
+                                @else
+                                <input type="text" id="editTeacherRoleText" disabled style="background:#f1f5f9;cursor:not-allowed;" aria-label="Role">
+                                <input type="hidden" name="role" id="editTeacherRoleHidden" value="" aria-label="Role">
+                                @endif
+                            </div>
+                            <div class="form-group">
+                                <label for="editTeacherPosition">Position</label>
+                                <input type="text" name="position" id="editTeacherPosition" placeholder="e.g. Teacher 1" aria-label="Position">
+                            </div>
+                            <div class="form-group edit-account-grid-full">
+                                <label for="editTeacherStatus">Status</label>
+                                <select name="status" id="editTeacherStatus" required aria-label="Status">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="modal-footer edit-account-modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditTeacherModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Email Dialog -->
+    <div class="modal-overlay" id="teacherChangeEmailModal" aria-hidden="true">
+        <div class="modal-content edit-account-submodal-content">
+            <div class="modal-header edit-account-modal-header">
+                <div>
+                    <h2>Change Email</h2>
+                    <p>Send and verify OTP to update this account's email address.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeTeacherChangeEmailModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body edit-account-modal-body">
+                <form id="teacherChangeEmailForm" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="teacherCurrentEmailField">Current Verified Email</label>
+                        <input type="email" id="teacherCurrentEmailField" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherNewEmailInput">New Email Address</label>
+                        <input type="email" id="teacherNewEmailInput" name="new_email" required placeholder="Enter new email address">
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherEmailOtpInput">OTP Verification Code</label>
+                        <input type="text" id="teacherEmailOtpInput" name="otp" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit code">
+                    </div>
+                    <div class="edit-account-info-box">Enter the new email and send OTP. The account email changes only after the OTP sent to the proposed new email is verified successfully.</div>
+                    <div id="teacherEmailError" class="edit-account-error-box" style="display:none;"></div>
+                    <div id="teacherEmailSuccess" class="edit-account-success-box" style="display:none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer edit-account-modal-footer edit-account-modal-footer-wrap">
+                <button type="button" class="btn btn-secondary" onclick="closeTeacherChangeEmailModal()">Cancel</button>
+                <button type="button" class="btn btn-outline" id="teacherSendEmailOtpBtn">Send OTP</button>
+                <button type="button" class="btn btn-primary" id="teacherVerifyEmailBtn">Verify &amp; Update Email</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Dialog -->
+    <div class="modal-overlay" id="teacherChangePasswordModal" aria-hidden="true">
+        <div class="modal-content edit-account-submodal-content">
+            <div class="modal-header edit-account-modal-header">
+                <div>
+                    <h2>Change Password</h2>
+                    <p>Update this account password securely.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeTeacherChangePasswordModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body edit-account-modal-body">
+                <form id="teacherChangePasswordForm" onsubmit="return false;">
+                    <div class="form-group" id="teacherCurrentPasswordGroup">
+                        <label for="teacherCurrentPasswordInput">Current Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="teacherCurrentPasswordInput" name="current_password" placeholder="Enter current password" aria-label="Current password">
+                            <button type="button" class="password-toggle" data-target="teacherCurrentPasswordInput" aria-label="Show or hide current password">👁</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherNewPasswordInput">New Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="teacherNewPasswordInput" name="password" placeholder="Enter new password" aria-label="New password">
+                            <button type="button" class="password-toggle" data-target="teacherNewPasswordInput" aria-label="Show or hide new password">👁</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherConfirmPasswordInput">Confirm New Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="teacherConfirmPasswordInput" name="password_confirmation" placeholder="Confirm new password" aria-label="Confirm new password">
+                            <button type="button" class="password-toggle" data-target="teacherConfirmPasswordInput" aria-label="Show or hide confirm password">👁</button>
+                        </div>
+                        <div id="teacherPasswordMatchFeedback" class="edit-account-help" style="margin-top:6px;"></div>
+                    </div>
+                    <div id="teacherPasswordRequirementsBox" class="edit-account-info-box" style="display:none;">
+                        <div style="font-size:12px;font-weight:600;color:#0369a1;margin-bottom:4px;">Password Requirements</div>
+                        <ul style="font-size:12px;color:#0369a1;margin:0;padding-left:16px;line-height:1.6;">
+                            <li id="teacherReqLength">At least 8 characters</li>
+                            <li id="teacherReqCase">Uppercase and lowercase letters</li>
+                            <li id="teacherReqNumber">At least one number</li>
+                            <li id="teacherReqMatch">Confirmation must match</li>
+                        </ul>
+                        <p style="font-size:11px;color:#0369a1;margin:6px 0 0;">Checklist reflects the current UI policy (min 8, mixed case, number, match). Final validation follows the existing backend password policy.</p>
+                    </div>
+                    <div id="teacherPasswordError" class="edit-account-error-box" style="display:none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer edit-account-modal-footer edit-account-modal-footer-wrap">
+                <button type="button" class="btn btn-secondary" onclick="closeTeacherChangePasswordModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="teacherSavePasswordBtn">Save Password</button>
+            </div>
+        </div>
+    </div>
+    <!-- View Account Details Modal -->
+    <div id="viewAccountModal" class="modal-overlay">
+        <div class="modal-content account-view-modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Account Details</h2>
+                    <p>View admin or teacher account information</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeViewAccountModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="account-detail-card">
+                    <div class="account-avatar" id="viewAccountInitials">A</div>
+                    <div>
+                        <h3 id="viewAccountName">Account Name</h3>
+                        <p id="viewAccountRole">Role</p>
+                    </div>
+                </div>
+                <div class="account-detail-grid">
+                    <div class="detail-item"><span>Account ID</span><strong id="viewAccountId">—</strong></div>
+                    <div class="detail-item"><span>Username</span><strong id="viewAccountUsername">—</strong></div>
+                    <div class="detail-item"><span>Email</span><strong id="viewAccountEmail">—</strong></div>
+                    <div class="detail-item"><span>Role</span><strong id="viewAccountRoleText">—</strong></div>
+                    <div class="detail-item"><span>Position</span><strong id="viewAccountPosition">—</strong></div>
+                    <div class="detail-item"><span>Status</span><strong id="viewAccountStatus">—</strong></div>
+                    <div class="detail-item"><span>Created At</span><strong id="viewAccountCreatedAt">—</strong></div>
+                    <div class="detail-item"><span>Updated At</span><strong id="viewAccountUpdatedAt">—</strong></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeViewAccountModal()">Close</button></div>
+        </div>
+    </div>
+
+    <!-- Reactivate/Archive/Restrict/Unrestrict/Archived/Unarchive modals preserved -->
+    <div id="reactivateConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon warn"><span class="icon">⚠</span></div><div><h2>Reactivate Account?</h2><p id="reactivateConfirmMessage">Are you sure you want to reactivate "<span id="reactivateAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeReactivateConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will regain access to EcoCollect.</p><input type="hidden" id="reactivateAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeReactivateConfirmModal()">Cancel</button><button type="button" class="btn btn-success" onclick="confirmReactivateAccount()" id="btnConfirmReactivate">Reactivate Account</button></div></div></div>
+    <div id="archiveConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon danger"><span class="icon">🗑</span></div><div><h2>Archive Account?</h2><p id="archiveConfirmMessage">Are you sure you want to archive "<span id="archiveAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeArchiveConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will lose access to EcoCollect. Existing student records and activity history will remain unchanged.</p><input type="hidden" id="archiveAccountId"><input type="hidden" id="archiveAccountUrl"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeArchiveConfirmModal()">Cancel</button><button type="button" class="btn btn-danger" onclick="confirmArchiveAccount()" id="btnConfirmArchive">Archive Account</button></div></div></div>
+    <div id="restrictConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon warn"><span class="icon">🔒</span></div><div><h2>Restrict Account?</h2><p id="restrictConfirmMessage">Are you sure you want to restrict "<span id="restrictAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeRestrictConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will be temporarily suspended and will lose access to EcoCollect. Existing student records and activity history will remain unchanged.</p><input type="hidden" id="restrictAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeRestrictConfirmModal()">Cancel</button><button type="button" class="btn btn-warning" onclick="confirmRestrictAccount()" id="btnConfirmRestrict">Restrict Account</button></div></div></div>
+    <div id="unrestrictConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon info"><span class="icon">🔓</span></div><div><h2>Unrestrict Account?</h2><p id="unrestrictConfirmMessage">Are you sure you want to unrestrict "<span id="unrestrictAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeUnrestrictConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will be restored to Active status and will regain access to EcoCollect.</p><input type="hidden" id="unrestrictAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeUnrestrictConfirmModal()">Cancel</button><button type="button" class="btn btn-success" onclick="confirmUnrestrictAccount()" id="btnConfirmUnrestrict">Unrestrict Account</button></div></div></div>
+    <div id="archivedAccountsModal" class="modal-overlay"><div class="modal-content archived-accounts-content"><div class="modal-header"><div class="modal-icon archived"><span class="icon">📦</span></div><div><h2>Archived Accounts</h2><p>View and manage archived teacher and admin accounts.</p></div><button type="button" class="modal-close" onclick="closeArchivedAccountsModal()" aria-label="Close">×</button></div><div class="modal-body"><div class="search-box"><input type="text" id="archivedSearch" placeholder="Search archived accounts..." aria-label="Search archived accounts"></div><div class="archived-table-container" style="max-height:400px;overflow-y:auto;margin-top:12px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;"><table class="archived-table" width="100%"><thead><tr><th>Account ID</th><th>Name</th><th>Email</th><th>Role</th><th>Position</th><th>Date Archived</th><th style="width:110px;">Actions</th></tr></thead><tbody id="archivedAccountsTableBody"></tbody></table><div id="archivedNoResults" style="display:none;padding:30px;text-align:center;color:var(--text-light);">No archived accounts found.</div></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeArchivedAccountsModal()">Close</button></div></div></div>
+    <div id="unarchiveConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon info"><span class="icon">🔄</span></div><div><h2>Unarchive Account?</h2><p id="unarchiveConfirmMessage">Restore access for "<span id="unarchiveAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeUnarchiveConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>The account will be restored to Active status and will regain access to EcoCollect. Previous student records and activity history will remain unchanged.</p><input type="hidden" id="unarchiveAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeUnarchiveConfirmModal()">Cancel</button><button type="button" class="btn btn-success" onclick="confirmUnarchiveAccount()" id="btnConfirmUnarchive">Unarchive Account</button></div></div></div>
+    <style>
+    .edit-account-modal-content{max-width:760px;width:min(760px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+    .edit-account-submodal-content{max-width:560px;width:min(560px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+    .edit-account-modal-header{flex:0 0 auto;}
+    .edit-account-modal-form{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;}
+    .edit-account-modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:18px;}
+    .edit-account-modal-footer{flex:0 0 auto;position:sticky;bottom:0;background:#fff;border-top:1px solid rgba(0,0,0,.08);padding:16px 24px;display:flex;gap:10px;justify-content:flex-end;align-items:center;}
+    .edit-account-modal-footer-wrap{flex-wrap:wrap;}
+    .edit-account-section{border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:16px;background:#fff;}
+    .edit-account-section-title{font-size:14px;font-weight:700;color:#111827;margin:0 0 12px;letter-spacing:-.01em;}
+    .edit-account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;}
+    .edit-account-grid-full{grid-column:1 / -1;}
+    .edit-account-inline-row{display:flex;gap:10px;align-items:stretch;}
+    .edit-account-inline-row input{flex:1 1 auto;min-width:0;}
+    .edit-account-inline-btn{white-space:nowrap;height:44px;padding:0 16px;}
+    .edit-account-help{margin:6px 0 0;font-size:12px;color:#6b7280;line-height:1.45;}
+    .edit-account-info-box{background:#e8f4fd;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;font-size:13px;color:#0369a1;line-height:1.5;}
+    .edit-account-error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;color:#991b1b;font-size:13px;}
+    .edit-account-success-box{background:rgba(0,200,83,.08);border:1px solid #22c55e;border-radius:8px;padding:10px 14px;color:#166534;font-size:13px;}
+    #editTeacherModal .form-group label,#teacherChangeEmailModal .form-group label,#teacherChangePasswordModal .form-group label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;}
+    #editTeacherModal .form-group input,#editTeacherModal .form-group select,#teacherChangeEmailModal .form-group input,#teacherChangePasswordModal .form-group input{width:100%;height:44px;padding:0 14px;border:1px solid var(--border,#d1d5db);border-radius:8px;font-size:14px;outline:none;background:#fff;color:#111827;}
+    #editTeacherModal .form-group input:focus,#editTeacherModal .form-group select:focus,#teacherChangeEmailModal .form-group input:focus,#teacherChangePasswordModal .form-group input:focus{border-color:#00C853;box-shadow:0 0 0 3px rgba(0,200,83,.12);}
+    #editTeacherModal .form-group input[readonly],#teacherChangeEmailModal .form-group input[readonly]{background:#f8fafc;color:#475569;}
+    #teacherChangePasswordModal .password-field-wrapper{position:relative;}
+    #teacherChangePasswordModal .password-field-wrapper input{padding-right:42px;}
+    #teacherChangePasswordModal .password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;font-size:16px;line-height:1;}
+    @media (max-width: 720px){.edit-account-grid{grid-template-columns:1fr;}.edit-account-grid-full{grid-column:auto;}.edit-account-inline-row{flex-direction:column;}.edit-account-inline-btn{width:100%;}.edit-account-modal-footer{flex-direction:column;align-items:stretch;}.edit-account-modal-footer .btn{width:100%;}.edit-account-modal-content,.edit-account-submodal-content{max-height:94vh;}}
+    </style>
+@endsection
+

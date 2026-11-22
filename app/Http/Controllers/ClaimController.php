@@ -101,14 +101,7 @@ class ClaimController extends Controller
         if ($pendingStudentSearch !== '') {
             $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
                 $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
-                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
-                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
-                    });
+                    $studentQuery->nameSearch($pendingStudentSearch);
                 });
             });
         }
@@ -175,14 +168,7 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$historySearch}%")
                   ->orWhere('remarks', 'like', "%{$historySearch}%")
                   ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
-                      $studentQuery->where(function ($sq) use ($historySearch) {
-                          $sq->where('first_name', 'like', "%{$historySearch}%")
-                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
-                            ->orWhere('last_name', 'like', "%{$historySearch}%")
-                            ->orWhere('lrn', 'like', "%{$historySearch}%")
-                            ->orWhere('student_id', 'like', "%{$historySearch}%")
-                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
-                      });
+                      $studentQuery->nameSearch($historySearch);
                   })
                   ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
                       if (\Schema::hasColumn('claim_items', 'item_name')) {
@@ -259,11 +245,7 @@ class ClaimController extends Controller
                     $q->where('item_name', 'like', "%{$search}%")
                       ->orWhere('remarks', 'like', "%{$search}%")
                       ->orWhereHas('student', function ($studentQuery) use ($search) {
-                          $studentQuery->where(function ($sq) use ($search) {
-                              $sq->where('lrn', 'like', "%{$search}%")
-                                ->orWhere('student_id', 'like', "%{$search}%")
-                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
-                          });
+                          $studentQuery->nameSearch($search);
                       });
                 });
             }
@@ -327,11 +309,7 @@ class ClaimController extends Controller
                     $q->where('item_name', 'like', "%{$search}%")
                       ->orWhere('remarks', 'like', "%{$search}%")
                       ->orWhereHas('student', function ($studentQuery) use ($search) {
-                          $studentQuery->where(function ($sq) use ($search) {
-                              $sq->where('lrn', 'like', "%{$search}%")
-                                ->orWhere('student_id', 'like', "%{$search}%")
-                                ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
-                          });
+                          $studentQuery->nameSearch($search);
                       });
                 });
             }
@@ -410,7 +388,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Claim item added successfully.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Claim item added successfully.');
     }
 
     public function updateItem(Request $request, ClaimItem $claimItem)
@@ -432,7 +410,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Claim item updated successfully.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Claim item updated successfully.');
     }
 
     public function claimItem(Request $request)
@@ -440,12 +418,17 @@ class ClaimController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'claim_item_id' => 'required|exists:claim_items,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
             'remarks' => 'nullable|string',
         ], [
             'student_id.required' => 'Please select a valid student from the search results.',
             'student_id.exists' => 'The selected student does not exist.',
         ]);
+
+        // Manual "Claim Item for Student" redeems exactly one item per submission.
+        // The UI supplies no quantity field; default to 1 server-side while still
+        // validating any quantity that may be sent.
+        $quantity = max(1, (int) ($validated['quantity'] ?? 1));
 
         $student = Student::findOrFail($validated['student_id']);
         if (Auth::user()->isTeacher() && $student->teacher_id !== Auth::id()) {
@@ -457,7 +440,6 @@ class ClaimController extends Controller
             return back()->withErrors(['claim_error' => 'This item is not available.'])->withInput();
         }
 
-        $quantity = (int) $validated['quantity'];
         $totalPointsRequired = $item->points_required * $quantity;
 
         if ($item->quantity < $quantity) {
@@ -516,7 +498,7 @@ class ClaimController extends Controller
             'module' => 'Claims',
         ]);
 
-        return redirect()->route('claims.index')->with('success', 'Item claimed successfully. Student points have been updated.');
+        return redirect()->route(portal_prefix() . '.claims.index')->with('success', 'Item claimed successfully. Student points have been updated.');
     }
 
     public function approve(StudentClaim $claim)
@@ -832,14 +814,7 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$historySearch}%")
                   ->orWhere('remarks', 'like', "%{$historySearch}%")
                   ->orWhereHas('student', function ($studentQuery) use ($historySearch) {
-                      $studentQuery->where(function ($sq) use ($historySearch) {
-                          $sq->where('first_name', 'like', "%{$historySearch}%")
-                            ->orWhere('middle_name', 'like', "%{$historySearch}%")
-                            ->orWhere('last_name', 'like', "%{$historySearch}%")
-                            ->orWhere('lrn', 'like', "%{$historySearch}%")
-                            ->orWhere('student_id', 'like', "%{$historySearch}%")
-                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$historySearch}%"]);
-                      });
+                      $studentQuery->nameSearch($historySearch);
                   })
                   ->orWhereHas('item', function ($itemQuery) use ($historySearch) {
                       if (\Schema::hasColumn('claim_items', 'item_name')) {
@@ -887,11 +862,7 @@ class ClaimController extends Controller
                 $q->where('item_name', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->where(function ($sq) use ($search) {
-                          $sq->where('lrn', 'like', "%{$search}%")
-                            ->orWhere('student_id', 'like', "%{$search}%")
-                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
-                      });
+                      $studentQuery->nameSearch($search);
                   });
             });
         }
@@ -952,13 +923,7 @@ class ClaimController extends Controller
         }
 
         $students = Student::query()
-            ->where(function ($query) use ($search) {
-                $query->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('lrn', 'like', "%{$search}%")
-                    ->orWhere('student_id', 'like', "%{$search}%")
-                    ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$search}%"]);
-            })
+            ->nameSearch($search)
             ->limit(10)
             ->get();
 
@@ -987,14 +952,7 @@ class ClaimController extends Controller
         if ($pendingStudentSearch !== '') {
             $pendingQuery->where(function ($q) use ($pendingStudentSearch) {
                 $q->whereHas('student', function ($studentQuery) use ($pendingStudentSearch) {
-                    $studentQuery->where(function ($sq) use ($pendingStudentSearch) {
-                        $sq->where('first_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('middle_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('last_name', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('lrn', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhere('student_id', 'like', "%{$pendingStudentSearch}%")
-                            ->orWhereRaw("CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?", ["%{$pendingStudentSearch}%"]);
-                    });
+                    $studentQuery->nameSearch($pendingStudentSearch);
                 });
             });
         }

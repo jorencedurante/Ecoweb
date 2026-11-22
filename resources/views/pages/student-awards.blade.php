@@ -5,7 +5,7 @@
 @section('page-subtitle', 'Awards and certificates earned')
 
 @section('content')
-    <a href="{{ route('admin.students') }}" class="back-link">← Back to Students</a>
+    <a href="{{ route(portal_prefix() . '.students') }}" class="back-link">← Back to Students</a>
 
     <div class="card" style="margin-bottom:24px;">
         <div class="card-body">
@@ -51,11 +51,11 @@
             @endif
             <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
                 @php $hasFinal = $award->hasFinalCertificateFile(); @endphp
-                <a href="{{ route('admin.certificate.print', $award->id) }}" class="btn btn-view btn-xs" target="_blank" rel="noopener">View</a>
+                <a href="{{ route(portal_prefix() . '.certificate.print', $award->id) }}" class="btn btn-view btn-xs" target="_blank" rel="noopener">View</a>
                 @if($hasFinal)
-                <a href="{{ route('admin.certificate.download', $award->id) }}" class="btn btn-achievement btn-xs" target="_blank" rel="noopener">Download</a>
+                <a href="{{ route(portal_prefix() . '.certificate.download', $award->id) }}" class="btn btn-achievement btn-xs" target="_blank" rel="noopener">Download</a>
                 @endif
-                <a href="{{ route('admin.certificate.print', $award->id) }}" class="btn btn-xs" style="background:#6B7280;color:#fff;" target="_blank" rel="noopener">Print</a>
+                <a href="{{ route(portal_prefix() . '.certificate.print', $award->id) }}" class="btn btn-xs" style="background:#6B7280;color:#fff;" target="_blank" rel="noopener">Print</a>
             </div>
         </div>
         @empty

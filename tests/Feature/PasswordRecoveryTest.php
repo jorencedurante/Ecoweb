@@ -43,7 +43,7 @@ class PasswordRecoveryTest extends TestCase
             'password' => 'brand-new-password',
         ]);
 
-        $login->assertRedirect(route('admin.dashboard'));
+        $login->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertAuthenticatedAs($teacher->fresh());
     }
 
@@ -71,7 +71,7 @@ class PasswordRecoveryTest extends TestCase
             'password' => 'original-password',
         ]);
 
-        $login->assertRedirect(route('admin.dashboard'));
+        $login->assertRedirect(route(portal_prefix() . '.dashboard'));
         $this->assertAuthenticatedAs($teacher);
     }
 }

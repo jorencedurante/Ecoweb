@@ -31,11 +31,11 @@ class StudentImportTest extends TestCase
     {
         $teacher = $this->createTeacher();
 
-        $response = $this->actingAs($teacher)->post(route('admin.students.import'), [
+        $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.students.import'), [
             'file' => $this->makeImportFile('512345678901'),
         ]);
 
-        $response->assertRedirect(route('admin.students'));
+        $response->assertRedirect(route(portal_prefix() . '.students'));
 
         $student = Student::where('lrn', '512345678901')->first();
         $this->assertNotNull($student);
@@ -52,11 +52,11 @@ class StudentImportTest extends TestCase
     {
         $superAdmin = $this->createSuperAdmin();
 
-        $response = $this->actingAs($superAdmin)->post(route('admin.students.import'), [
+        $response = $this->actingAs($superAdmin)->post(route(portal_prefix() . '.students.import'), [
             'file' => $this->makeImportFile('512345678902'),
         ]);
 
-        $response->assertRedirect(route('admin.students'));
+        $response->assertRedirect(route(portal_prefix() . '.students'));
 
         $student = Student::where('lrn', '512345678902')->first();
         $this->assertNotNull($student);

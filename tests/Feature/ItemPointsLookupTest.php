@@ -98,7 +98,7 @@ class ItemPointsLookupTest extends TestCase
 
         // Approval keeps the reservation: no second deduction.
         $claim = StudentClaim::where('student_id', $student->id)->where('status', 'Pending')->firstOrFail();
-        $this->actingAs($admin)->patch(route('claims.approve', $claim->id))->assertSessionHas('success');
+        $this->actingAs($admin)->patch(route('admin.claims.approve', $claim->id))->assertSessionHas('success');
 
         $this->lookup($student->lrn)->assertOk()->assertJson(['available_points' => 300]);
     }
