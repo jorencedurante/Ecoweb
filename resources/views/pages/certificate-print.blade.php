@@ -238,7 +238,7 @@
                     if (!text) continue;
 
                     var pref = (parseFloat(el.getAttribute('data-pref')) || 40) * scale;
-                    var min = Math.max(1, (parseFloat(el.getAttribute('data-min')) || 16) * scale);
+                    var min = Math.max(1, (parseFloat(el.getAttribute('data-min')) || 16) * 0.55 * scale);
                     var family = el.getAttribute('data-family') || 'Georgia';
                     var weight = el.getAttribute('data-bold') === '1' ? '700' : '400';
 

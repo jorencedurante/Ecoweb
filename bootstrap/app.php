@@ -38,7 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->redirectUsersTo(function () {
             $user = auth()->user();
-            if ($user && $user->isTeacher()) {
+            if ($user && ($user->isTeacher() || $user->isSubTeacher())) {
                 return route('teacher.dashboard');
             }
             return route('admin.dashboard');
@@ -50,6 +50,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.or.super' => \App\Http\Middleware\AdminOrSuper::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'account.active' => \App\Http\Middleware\EnsureAccountActive::class,
+            'subteacher.access' => \App\Http\Middleware\SubTeacherAccess::class,
+            'principal.only' => \App\Http\Middleware\PrincipalOnly::class,
+            'certificate.print' => \App\Http\Middleware\EnsureCertificatePrintAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

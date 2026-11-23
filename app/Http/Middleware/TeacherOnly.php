@@ -10,7 +10,11 @@ class TeacherOnly
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || !auth()->user()->isTeacher()) {
+        $user = auth()->user();
+
+        // Sub Teachers use the teacher-style portal but are further restricted
+        // by the subteacher.access middleware and per-route permission checks.
+        if (!$user || (!$user->isTeacher() && !$user->isSubTeacher())) {
             abort(403, 'Unauthorized access.');
         }
 

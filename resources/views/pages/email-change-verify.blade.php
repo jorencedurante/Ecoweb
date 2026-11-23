@@ -70,7 +70,7 @@
                     </form>
                     <form method="POST" action="{{ route('account.email-change.cancel') }}" style="flex:1;" id="cancelEmailChangeForm">
                         @csrf
-                        <button type="submit" style="width:100%;padding:10px;border:1.5px solid #fecaca;border-radius:10px;background:#fff;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s;" onclick="return confirm('Cancel email change?')">Cancel</button>
+                        <button type="button" id="cancelEmailChangeBtn" style="width:100%;padding:10px;border:1.5px solid #fecaca;border-radius:10px;background:#fff;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s;">Cancel</button>
                     </form>
                 </div>
 
@@ -78,6 +78,21 @@
                     <a href="{{ route(portal_prefix() . '.settings.edit') }}" style="font-size:13px;color:#6b7280;text-decoration:none;">← Back to Account Settings</a>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- EcoCollect confirmation modal: cancel email change -->
+<div id="cancelEmailChangeModal" style="display:none;position:fixed;inset:0;background:rgba(17,24,39,0.6);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+    <div role="dialog" aria-modal="true" aria-labelledby="cancelEmailChangeTitle" style="width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
+        <div style="padding:28px 28px 8px;text-align:center;">
+            <div style="width:56px;height:56px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;" aria-hidden="true">⚠️</div>
+            <h3 id="cancelEmailChangeTitle" style="font-size:18px;font-weight:700;color:#111827;margin:0 0 8px;">Cancel Email Change?</h3>
+            <p style="font-size:14px;color:#6b7280;line-height:1.5;margin:0;">Are you sure you want to cancel your email change? Your current email address will remain unchanged.</p>
+        </div>
+        <div style="padding:20px 28px 28px;display:flex;gap:12px;">
+            <button type="button" id="continueVerificationBtn" style="flex:1;padding:11px 16px;border:1.5px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;font-size:14px;font-weight:600;cursor:pointer;">Continue Verification</button>
+            <button type="button" id="confirmCancelEmailBtn" style="flex:1;padding:11px 16px;border:none;border-radius:10px;background:#dc2626;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Yes, Cancel Change</button>
         </div>
     </div>
 </div>
@@ -188,6 +203,37 @@
     });
 
     updateHidden();
+})();
+
+(function () {
+    const cancelBtn = document.getElementById('cancelEmailChangeBtn');
+    const modal = document.getElementById('cancelEmailChangeModal');
+    const continueBtn = document.getElementById('continueVerificationBtn');
+    const confirmBtn = document.getElementById('confirmCancelEmailBtn');
+    const cancelForm = document.getElementById('cancelEmailChangeForm');
+
+    function openModal() {
+        modal.style.display = 'flex';
+        continueBtn.focus();
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    if (cancelBtn) cancelBtn.addEventListener('click', openModal);
+    if (continueBtn) continueBtn.addEventListener('click', closeModal);
+    if (confirmBtn) confirmBtn.addEventListener('click', function () {
+        cancelForm.submit();
+    });
+
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+    });
 })();
 </script>
 @endpush

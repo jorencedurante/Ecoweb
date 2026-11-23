@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\CertificateAward;
 use App\Models\StudentClaim;
 use App\Models\ClaimItem;
+use App\Services\CollaborationService;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -19,22 +20,24 @@ class DashboardController extends Controller
         $awardsQuery = CertificateAward::query();
         $claimsQuery = StudentClaim::query();
 
-        if (Auth::user()->isTeacher()) {
-            $studentsQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+        $teacherId = Auth::user()->scopeTeacherId();
+
+        if ($teacherId !== null) {
+            $studentsQuery->whereHas('enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             });
-            $bottlesQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            $bottlesQuery->whereHas('student.enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
-            $awardsQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            $awardsQuery->whereHas('student.enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
-            $claimsQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+            $claimsQuery->whereHas('student.enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -58,9 +61,9 @@ class DashboardController extends Controller
         // Weekly collection data (last 7 days)
         $weeklyBaseQuery = BottleCollection::selectRaw('DAYNAME(collection_date) as day, SUM(bottle_count) as total')
             ->where('collection_date', '>=', now()->subDays(6));
-        if (Auth::user()->isTeacher()) {
-            $weeklyBaseQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+        if ($teacherId !== null) {
+            $weeklyBaseQuery->whereHas('student.enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -77,10 +80,50 @@ class DashboardController extends Controller
             $collectionData[$day] = $weeklyData[$day]->total ?? 0;
         }
 
+        $user = Auth::user();
+        $subTeacherInfo = null;
+        $collaborators = [];
+
+        if ($user->isSubTeacher()) {
+            $assignment = $user->assignmentData();
+            $subTeacherInfo = [
+                'name' => $user->name,
+                'role' => User::roleLabel($user->role),
+                'assigned' => $assignment !== null,
+                'teacher_name' => $assignment
+                    ? (User::find($assignment['teacher_id'])->name ?? '—')
+                    : null,
+                'access_level' => $assignment
+                    ? (CollaborationService::accessLevels()[$assignment['access_level']] ?? $assignment['access_level'])
+                    : null,
+                'permissions' => $assignment
+                    ? CollaborationService::permissionsFor($assignment['access_level'], $assignment['permissions'])
+                    : [],
+            ];
+        }
+
+        if ($user->isTeacher()) {
+            $collaborators = $user->subTeachers()
+                ->get()
+                ->filter(function ($subTeacher) {
+                    return $subTeacher->hasEffectiveAssignment();
+                })
+                ->map(function ($subTeacher) {
+                    $level = $subTeacher->sub_teacher_access_level ?: 'collaborator';
+
+                    return [
+                        'name' => $subTeacher->name,
+                        'access_level' => CollaborationService::accessLevels()[$level] ?? ucfirst($level),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
         return view('pages.dashboard', compact(
             'totalStudents', 'totalBottles', 'totalTeachers', 'totalAdmins', 'totalAwards',
             'totalClaimedItems', 'totalPointsRedeemed', 'availableClaimItems',
-            'femaleCount', 'maleCount', 'collectionData'
+            'femaleCount', 'maleCount', 'collectionData', 'subTeacherInfo', 'collaborators'
         ));
     }
 }

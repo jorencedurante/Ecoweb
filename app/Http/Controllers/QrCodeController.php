@@ -8,6 +8,7 @@ use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\QrCode as QrCodeGenerator;
@@ -15,41 +16,73 @@ use Endroid\QrCode\Writer\SvgWriter;
 
 class QrCodeController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Shared filtered query for the page and its live-search AJAX endpoint.
+     */
+    private function buildFilteredQuery(Request $request)
     {
         $query = QrCode::with(['student', 'creator']);
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $query->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', Auth::user()->scopeTeacherId())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
         }
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('qr_type', 'like', "%{$search}%")
-                  ->orWhere('qr_value', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($studentQuery) use ($search) {
-                      $studentQuery->nameSearch($search);
-                  })
-                  ->orWhereHas('creator', function ($creatorQuery) use ($search) {
-                      $creatorQuery->where('name', 'like', "%{$search}%");
-                  });
-            });
+            $search = trim((string) $request->search);
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('qr_type', 'like', "%{$search}%")
+                      ->orWhere('qr_value', 'like', "%{$search}%")
+                      ->orWhereHas('student', function ($studentQuery) use ($search) {
+                          $studentQuery->nameSearch($search);
+                      })
+                      ->orWhereHas('creator', function ($creatorQuery) use ($search) {
+                          $creatorQuery->where('name', 'like', "%{$search}%");
+                      });
+                });
+            }
         }
 
         if ($request->filled('qr_type')) {
             $query->where('qr_type', $request->qr_type);
         }
 
-        if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->date);
+        $date = $request->get('date');
+        if (is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $query->whereDate('created_at', $date);
         }
 
-        $qrCodes = $query->latest()->paginate(10)->withQueryString();
+        return $query;
+    }
+
+    public function data(Request $request)
+    {
+        $qrCodes = $this->buildFilteredQuery($request)->latest()->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'html' => View::make('partials.qrcode-results', compact('qrCodes'))->render(),
+            'pagination' => [
+                'current_page' => $qrCodes->currentPage(),
+                'last_page' => $qrCodes->lastPage(),
+                'total' => $qrCodes->total(),
+                'from' => $qrCodes->firstItem(),
+                'to' => $qrCodes->lastItem(),
+            ],
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        if ($notice = $this->unassignedSubTeacherNotice('QR Code')) {
+            return $notice;
+        }
+
+        $qrCodes = $this->buildFilteredQuery($request)->latest()->paginate(10)->withQueryString();
 
         $qrCode = null;
         if ($generatedId = session('generated_qr_id')) {
@@ -58,9 +91,9 @@ class QrCodeController extends Controller
 
         // Students for QR select dropdown
         $studentsForQrQuery = Student::whereNotIn('status', ['Archived', 'archived']);
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $studentsForQrQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', Auth::user()->scopeTeacherId())->where('status', 'active');
             });
         }
         $studentsForQr = $studentsForQrQuery->orderBy('last_name')->orderBy('first_name')->get();
@@ -75,9 +108,9 @@ class QrCodeController extends Controller
         ]);
 
         $studentsQuery = Student::whereNotIn('status', ['Archived', 'archived']);
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $studentsQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', Auth::user()->scopeTeacherId())->where('status', 'active');
             });
         }
         $student = $studentsQuery->findOrFail($validated['student_id']);

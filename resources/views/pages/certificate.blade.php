@@ -17,6 +17,13 @@
     </div>
 </div>
 
+@if(!auth()->user()->canPrintCertificates())
+    <div class="certificate-print-notice" role="status" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;padding:12px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:1.5;">
+        <span aria-hidden="true" style="font-size:16px;line-height:1.2;">🔒</span>
+        <span><strong>Certificate printing access has not been granted. Please contact your administrator.</strong><br>You can still prepare certificates, but Print Preview and printing are disabled.</span>
+    </div>
+@endif
+
 <form id="certificateForm" method="POST" action="{{ route(portal_prefix() . '.certificate.save-canvas') }}" enctype="multipart/form-data">
     @csrf
     <div class="card" style="margin-bottom:20px;">
@@ -25,7 +32,7 @@
                 <span style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Auto Generated Certificate</span>
                 <span class="student-name-badge">Auto</span>
             </div>
-            <span style="font-size:12px;color:var(--text-light);">Upload template → Select student → Select teacher → Print Preview</span>
+            <span style="font-size:12px;color:var(--text-light);">Upload template → Select student → Select adviser → Print Preview</span>
         </div>
         <div class="card-body" style="padding:20px;">
             <div class="auto-cert-grid">
@@ -59,24 +66,21 @@
                     </div>
 
                     <div class="form-group" style="margin-top:16px;">
-                        <label for="adviserSelect">Select Teacher / Adviser</label>
-                        @php
-                            $isTeacherRole = Auth::user()->isTeacher();
-                        @endphp
+                        <label for="adviserSelect">Select Adviser</label>
                         <select id="adviserSelect" name="adviser_id"
                                 style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
-                                aria-label="Select teacher or adviser">
-                            <option value="" disabled selected>Select Teacher / Adviser</option>
+                                aria-label="Select adviser">
+                            <option value="" disabled selected>Select Adviser</option>
                             @foreach($teachers as $t)
                                 <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) old('adviser_id') === (string) $t->id ? 'selected' : '' }}>
-                                    {{ $t->name }}{{ !$isTeacherRole ? ' · ' . ucfirst(str_replace('_', ' ', $t->role)) . ($t->position ? ' — ' . $t->position : '') : '' }}
+                                    {{ $t->name }}{{ $t->position ? ' — ' . $t->position : '' }}
                                 </option>
                             @endforeach
                         </select>
                         <div id="assignedTeacherHint" style="font-size:11px;color:var(--text-light);margin-top:4px;display:{{ $studentAssignedTeacherName ? 'block' : 'none' }};">
                             Assigned teacher for selected student: <strong id="assignedTeacherHintName">{{ $studentAssignedTeacherName }}</strong>
                         </div>
-                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the teacher or adviser whose name appears on the certificate.</div>
+                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the adviser whose name will appear on the certificate.</div>
                     </div>
 
                     <div class="form-group" style="margin-top:16px;">
@@ -90,7 +94,7 @@
                                 <option value="" disabled selected>Select School OIC / Principal</option>
                                 @foreach($signatories as $s)
                                     <option value="{{ $s->id }}" data-name="{{ $s->name }}" data-role="{{ $s->role }}" {{ (string) old('principal_id') === (string) $s->id ? 'selected' : '' }}>
-                                        {{ $s->name }} · {{ ucfirst(str_replace('_', ' ', $s->role)) }}{{ $s->position ? ' — ' . $s->position : '' }}
+                                        {{ $s->name }}{{ $s->position ? ' — ' . $s->position : '' }}
                                     </option>
                                 @endforeach
                             @endif
@@ -125,11 +129,8 @@
                     </div>
 
                     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
-                        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;">Print Preview</button>
-                        <button type="button" id="awardToStudentBtn" class="btn btn-sm" style="background:#16A34A;color:#fff;padding:10px 24px;">Award to Student</button>
-                    </div>
-                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
-                        <button type="button" id="resetNamePositionsBtn" class="btn btn-sm" style="background:#fff;color:#6B7280;border:1px solid var(--border);padding:10px 18px;" title="Restore the automatic name positions">Reset Name Positions</button>
+                        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;" disabled {{ auth()->user()->canPrintCertificates() ? '' : 'title="Certificate printing access has not been granted. Please contact your administrator."' }}>Print Preview</button>
+                        <button type="button" id="awardToStudentBtn" class="btn btn-sm" style="background:#16A34A;color:#fff;padding:10px 24px;" disabled>Award to Student</button>
                     </div>
                     <div id="awardStatus" role="status" aria-live="polite" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
                 </div>
@@ -138,9 +139,9 @@
                     <div class="certificate-preview-wrapper">
                         <div id="certificateCanvas" class="certificate-canvas">
                             <img id="certificateBg" class="certificate-bg" src="" alt="Certificate Template" style="display:none;">
-                            <div id="certificateStudentName" class="certificate-name-overlay" data-role="student_name"></div>
-                            <div id="certificateAdviserName" class="certificate-adviser-overlay" data-role="adviser_name"></div>
-                            <div id="certificatePrincipalName" class="certificate-principal-overlay" data-role="principal_name"></div>
+                            <div id="certificateStudentName" class="certificate-name-overlay" data-role="student_name" aria-hidden="true"></div>
+                            <div id="certificateAdviserName" class="certificate-adviser-overlay" data-role="adviser_name" aria-hidden="true"></div>
+                            <div id="certificatePrincipalName" class="certificate-principal-overlay" data-role="principal_name" aria-hidden="true"></div>
                             <div id="emptyTemplateMessage" class="empty-template-message">
                                 Upload a certificate template to start.
                             </div>
@@ -338,6 +339,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/ocrad.js') }}?v=1"></script>
 <style>
 .auto-cert-grid {
     display: grid;
@@ -405,53 +407,34 @@
     background: rgba(255, 255, 255, 0.12);
     user-select: none;
     pointer-events: none;
-    /* pointer drag support (mouse + touch) without scrolling the page */
-    touch-action: none;
+    /* name overlays are display-only: positioning is fully automatic */
     z-index: 5;
 }
 .certificate-name-overlay {
-    width: 30%;
-    left: 51.61%;
+    width: 29.65%;
+    left: 51.65%;
     transform: translateX(-50%);
-    top: 57.3%;
+    top: 57.32%;
     height: 7%;
 }
 .certificate-adviser-overlay {
-    width: 13.25%;
+    width: 13.10%;
     left: 26.13%;
     transform: translateX(-50%);
-    top: 87%;
+    top: 87.02%;
     height: 5.3%;
 }
 .certificate-principal-overlay {
-    width: 13.25%;
-    left: 73.87%;
+    width: 15.80%;
+    left: 73.21%;
     transform: translateX(-50%);
-    top: 87%;
+    top: 87.02%;
     height: 5.3%;
 }
 .certificate-name-overlay.is-visible,
 .certificate-adviser-overlay.is-visible,
 .certificate-principal-overlay.is-visible {
     display: block;
-    pointer-events: auto;
-    cursor: move;
-}
-/* subtle dashed feedback only on hover / while dragging — preview stays clean */
-.certificate-name-overlay.is-visible:hover,
-.certificate-adviser-overlay.is-visible:hover,
-.certificate-principal-overlay.is-visible:hover,
-.certificate-name-overlay.is-visible.is-dragging,
-.certificate-adviser-overlay.is-visible.is-dragging,
-.certificate-principal-overlay.is-visible.is-dragging {
-    outline: 2px dashed rgba(37, 99, 235, 0.6);
-    outline-offset: -2px;
-}
-.certificate-name-overlay.is-dragging,
-.certificate-adviser-overlay.is-dragging,
-.certificate-principal-overlay.is-dragging {
-    outline-color: rgba(37, 99, 235, 0.95);
-    background: rgba(255, 255, 255, 0.25);
 }
 .font-settings {
     margin-top: 12px;
@@ -603,17 +586,22 @@
     var measureCanvas = document.createElement('canvas');
     var measureCtx = measureCanvas.getContext('2d');
 
-    // Line anchors, measured from the actual certificate image (sample
-    // template is 1366x768). All values are % OF THE IMAGE; the canvas is
-    // sized to the image, so % coordinates on the overlays map 1:1 to the image.
-    var studentLineCenterX = 51.61; // horizontal center of the recipient underline
-    var studentLineY = 64.32;       // top edge of the recipient underline
+    // Automatic text anchors, measured directly from the CURRENT certificate
+    // template (1366x768). Values are % OF THE IMAGE, so they stay aligned at
+    // every responsive size and on any template with the same layout.
+    // Measured blank lines:
+    //   recipient   y=494 (64.32%)  x=503..908  center 51.65%  width 29.65%
+    //   Class Adviser y=709 (92.32%) x=268..447  center 26.13%  width 13.10%
+    //   School OIC    y=709 (92.32%) x=892..1108 center 73.21%  width 15.80%
+    var studentLineCenterX = 51.65; // horizontal center of the recipient underline
+    var studentLineY = 64.32;       // baseline of the recipient underline
+    var studentBoxWidth = 29.65;    // usable length of the recipient underline
     var adviserLineCenterX = 26.13; // center of the LEFT Class Adviser line (never School OIC)
-    var adviserLineY = 92.32;       // top edge of the Class Adviser line
-    var adviserBoxWidth = 13.25;    // usable length of the Class Adviser line
-    var principalLineCenterX = 73.87; // center of the RIGHT School OIC/Principal line
-    var principalLineY = 92.32;       // top edge of the School OIC/Principal line
-    var principalBoxWidth = 13.25;
+    var adviserLineY = 92.32;       // baseline of the Class Adviser line
+    var adviserBoxWidth = 13.10;    // usable length of the Class Adviser line
+    var principalLineCenterX = 73.21; // center of the RIGHT School OIC/Principal line
+    var principalLineY = 92.32;       // baseline of the School OIC/Principal line
+    var principalBoxWidth = 15.80;    // usable length of the School OIC/Principal line
 
     // Shared font style; separate preferred size per name.
     var sharedFontFamily = 'Georgia';
@@ -621,16 +609,24 @@
     var adviserPreferredFontSize = 18;
     var principalPreferredFontSize = 18;
 
-    var studentCfg = { centerX: studentLineCenterX, top: 57.3, height: 7, baseline: studentLineY, width: 30, min: 16, color: '#1F2937', weight: '700', centered: true };
-    var adviserCfg = { centerX: adviserLineCenterX, top: 87, height: 5.3, baseline: adviserLineY, width: adviserBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
-    var principalCfg = { centerX: principalLineCenterX, top: 87, height: 5.3, baseline: principalLineY, width: principalBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
+    // `top` + `height` place the box so its bottom sits on the measured line;
+    // positionBaselineBox() then fine-tunes the top from the live font metrics.
+    var studentCfg = { centerX: studentLineCenterX, top: studentLineY - 7, height: 7, baseline: studentLineY, width: studentBoxWidth, min: 16, color: '#1F2937', weight: '700', centered: true };
+    var adviserCfg = { centerX: adviserLineCenterX, top: adviserLineY - 5.3, height: 5.3, baseline: adviserLineY, width: adviserBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
+    var principalCfg = { centerX: principalLineCenterX, top: principalLineY - 5.3, height: 5.3, baseline: principalLineY, width: principalBoxWidth, min: 10, color: '#1F2937', weight: '600', centered: true };
 
     // Optional manual position overrides set by dragging (% of the image).
     // null = use the existing automatic alignment (the default).
     var studentPosOverride = null; // { centerX, baseline }
     var adviserPosOverride = null;
     var principalPosOverride = null;
-    var activeDrag = null;         // overlay currently being dragged
+    var activeDrag = null;
+    var templateHash = null;          // stable content hash of the uploaded template
+    var pendingHash = null;           // hash resolved before the image finished loading
+    var imageReady = false;           // true once the new template's img.onload ran
+    var detectedLines = [];           // candidate blank lines from the last scan
+    var alignmentVerified = false;    // all three fields positioned for this template
+    var PRINT_ALLOWED = {{ auth()->user()->canPrintCertificates() ? 'true' : 'false' }};         // overlay currently being dragged
 
     var selectedStudentId = null;
     var selectedStudentName = '';
@@ -680,6 +676,9 @@
         var top = cfg.top;
         var left = cfg.centered ? cfg.centerX : boxLeft(cfg);
 
+        // Normalized percentages always stay inside the image, whatever the
+        // screen size or where the user dragged the box.
+        if (cfg.centered) left = Math.min(100 - cfg.width / 2, Math.max(cfg.width / 2, left));
         if (!cfg.centered && left < 0) left = 0;
         if (!cfg.centered && left + cfg.width > 100) left = 100 - cfg.width;
         if (top < 0) top = 0;
@@ -708,6 +707,9 @@
         }
 
         var scale = nameScale();
+        // The user's minimum is preferred, but a long name must still fit the
+        // line. Allow a modest safety margin below it before declaring failure.
+        var floorSize = Math.max(1, (options.minSize || 12) * 0.55 * scale);
         var minSize = Math.max(1, (options.minSize || 12) * scale);
         var maxSize = Math.max(minSize, (options.maxSize || 40) * scale);
         var weight = options.weight || '700';
@@ -722,7 +724,7 @@
 
         var size = maxSize;
         var fits = false;
-        while (size >= minSize) {
+        while (size >= floorSize) {
             measureCtx.font = weight + ' ' + size + 'px "' + family + '"';
             if (measureCtx.measureText(text).width <= availW) {
                 fits = true;
@@ -730,7 +732,7 @@
             }
             size -= 0.25;
         }
-        if (!fits) size = minSize;
+        if (!fits) size = floorSize;
 
         element.style.fontSize = size + 'px';
 
@@ -891,6 +893,16 @@
         var file = this.files[0];
         if (!file) return;
 
+        // Clear any previous feedback so a new image can never appear to
+        // reuse an old "alignment restored" message.
+        var previousStatus = $('awardStatus');
+        if (previousStatus) { previousStatus.textContent = ''; previousStatus.style.display = 'none'; }
+        imageReady = false;
+        pendingHash = null;
+        detectedLines = [];
+        alignmentVerified = false;
+        setOutputControlsEnabled(false);
+
         var img = $('certificateBg');
         var canvas = $('certificateCanvas');
         var emptyMessage = $('emptyTemplateMessage');
@@ -901,15 +913,399 @@
                 img.style.display = 'block';
                 canvas.classList.add('has-template');
                 if (emptyMessage) emptyMessage.style.display = 'none';
-                // a new template gets fresh automatic positions
+                // A new template always gets fresh automatic positions.
+                // Resetting every override is essential: a previously dragged
+                // Principal label would otherwise stay at the OLD coordinates
+                // and look misaligned on the new template.
                 studentPosOverride = null;
                 adviserPosOverride = null;
+                principalPosOverride = null;
+                activeDrag = null;
+                imageReady = true;
                 refreshAll();
+                // Restore only AFTER the image load reset above, otherwise
+                // onload would wipe the saved coordinates again.
+                if (pendingHash) {
+                    templateHash = pendingHash;
+                    pendingHash = null;
+                    restoreSavedAlignment();
+                }
+                runAutomaticAlignment();
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
+
+        // Stable identity for this template: a hash of its actual bytes.
+        // The same image uploaded again reuses its saved alignment.
+        if (file.arrayBuffer) {
+            file.arrayBuffer().then(function (buffer) {
+                if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+                    return window.crypto.subtle.digest('SHA-256', buffer).then(function (digest) {
+                        var bytes = new Uint8Array(digest);
+                        var hex = '';
+                        for (var i = 0; i < 12; i++) hex += ('0' + bytes[i].toString(16)).slice(-2);
+                        return hex;
+                    });
+                }
+                return simpleHash(new Uint8Array(buffer));
+            }).then(function (hash) {
+                templateHash = hash;
+                if (imageReady) {
+                    restoreSavedAlignment();
+                    runAutomaticAlignment();
+                } else {
+                    pendingHash = hash;
+                }
+            }).catch(function () {
+                templateHash = simpleHash(file.name + '|' + file.size + '|' + file.lastModified);
+                if (imageReady) {
+                    restoreSavedAlignment();
+                    runAutomaticAlignment();
+                } else {
+                    pendingHash = templateHash;
+                }
+            });
+        } else {
+            templateHash = simpleHash(file.name + '|' + file.size + '|' + file.lastModified);
+            if (imageReady) {
+                restoreSavedAlignment();
+                runAutomaticAlignment();
+            } else {
+                pendingHash = templateHash;
+            }
+        }
     });
+
+    /* ---------- Smart alignment: detection, dragging, save ---------- */
+    function simpleHash(value) {
+        var str = typeof value === 'string' ? value : '';
+        if (value && value.length !== undefined && typeof value !== 'string') {
+            for (var i = 0; i < Math.min(value.length, 4096); i++) str += String.fromCharCode(value[i]);
+        }
+        var h = 2166136261;
+        for (var j = 0; j < str.length; j++) {
+            h ^= str.charCodeAt(j);
+            h = Math.imul(h, 16777619);
+        }
+        return ('00000000' + (h >>> 0).toString(16)).slice(-8);
+    }
+
+    function alignmentKey() {
+        return templateHash ? 'ecocollect.certificate.alignment.' + templateHash : null;
+    }
+
+    function setOutputControlsEnabled(enabled) {
+        var printBtn = $('previewPrintBtn');
+        var awardBtn = $('awardToStudentBtn');
+        if (printBtn) printBtn.disabled = !enabled || !PRINT_ALLOWED;
+        if (awardBtn) awardBtn.disabled = !enabled;
+    }
+
+    function applyAlignment(alignment) {
+        if (!alignment) return;
+        var clamp = function (cfg, override) {
+            if (!override) return null;
+            return {
+                centerX: Math.min(100 - cfg.width / 2, Math.max(cfg.width / 2, override.centerX)),
+                baseline: Math.min(99, Math.max(1, override.baseline))
+            };
+        };
+        studentPosOverride = clamp(studentCfg, alignment.student);
+        adviserPosOverride = clamp(adviserCfg, alignment.adviser);
+        principalPosOverride = clamp(principalCfg, alignment.principal);
+        refreshAll();
+    }
+
+    function restoreSavedAlignment() {
+        var key = alignmentKey();
+        if (!key) return false;
+        try {
+            var raw = window.localStorage.getItem(key);
+            if (!raw) return false;
+            var saved = JSON.parse(raw);
+            if (!saved || !saved.alignment) return false;
+            applyAlignment(saved.alignment);
+            alignmentVerified = true;
+            setOutputControlsEnabled(true);
+            showAlignmentMessage('Name positions restored for this certificate template.', 'info');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Remember a successful detection so the same template never needs to be
+    // analysed twice. No button and no user action required.
+    function rememberAlignment() {
+        if (!alignmentKey()) return;
+        try {
+            window.localStorage.setItem(alignmentKey(), JSON.stringify({
+                template: templateHash,
+                saved_at: new Date().toISOString(),
+                alignment: {
+                    student: { centerX: effectiveCfg(studentCfg, studentPosOverride).centerX, baseline: effectiveCfg(studentCfg, studentPosOverride).baseline },
+                    adviser: { centerX: effectiveCfg(adviserCfg, adviserPosOverride).centerX, baseline: effectiveCfg(adviserCfg, adviserPosOverride).baseline },
+                    principal: { centerX: effectiveCfg(principalCfg, principalPosOverride).centerX, baseline: effectiveCfg(principalCfg, principalPosOverride).baseline }
+                }
+            }));
+        } catch (e) { /* storage unavailable - alignment still applies this session */ }
+    }
+
+    function showAlignmentMessage(message, kind) {
+        var el = $('awardStatus');
+        if (!el) return;
+        el.textContent = message;
+        el.style.display = 'block';
+        var colors = {
+            success: ['rgba(0,200,83,.08)', '#16A34A', '#166534'],
+            warning: ['rgba(245,158,11,.08)', '#f59e0b', '#92400e'],
+            error: ['rgba(220,38,38,.08)', '#EF4444', '#991B1B'],
+            info: ['rgba(107,114,128,.08)', '#9CA3AF', '#374151']
+        };
+        var c = colors[kind] || colors.info;
+        el.style.background = c[0];
+        el.style.border = '1px solid ' + c[1];
+        el.style.color = c[2];
+        // Errors are shown once inline; no toast noise for automatic steps.
+        if (kind === 'error' && window.EcoToast) {
+            window.EcoToast.show('error', message, { key: 'certificate-alignment' });
+        }
+    }
+
+    /* Best-effort detection: find long dark horizontal runs and group them. */
+    function detectBlankLines(img) {
+        var W = img.naturalWidth || img.width;
+        var H = img.naturalHeight || img.height;
+        if (!W || !H) return [];
+        var scale = Math.min(1, 1200 / W);
+        var w = Math.max(1, Math.round(W * scale));
+        var h = Math.max(1, Math.round(H * scale));
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        var ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return [];
+        ctx.drawImage(img, 0, 0, w, h);
+        var data;
+        try { data = ctx.getImageData(0, 0, w, h).data; } catch (e) { return []; }
+
+        var minRun = Math.max(24, Math.round(w * 0.08));
+        var rows = [];
+        for (var y = 0; y < h; y++) {
+            var start = -1;
+            // Collect EVERY qualifying run on the row. Keeping only the
+            // longest one would lose a second signature line that happens to
+            // sit on the same row (e.g. Adviser and School OIC lines).
+            for (var x = 0; x <= w; x++) {
+                var dark = false;
+                if (x < w) {
+                    var i = (y * w + x) * 4;
+                    dark = data[i] < 120 && data[i + 1] < 120 && data[i + 2] < 120;
+                }
+                if (dark) { if (start < 0) start = x; }
+                else if (start >= 0) {
+                    var len = x - start;
+                    if (len >= minRun) {
+                        rows.push({ y: y, start: start, len: len, centerX: (start + len / 2) / w * 100 });
+                    }
+                    start = -1;
+                }
+            }
+        }
+
+        var groups = [];
+        rows.forEach(function (r) {
+            // A run belongs to an existing line when it is on a nearby row and
+            // horizontally aligned with that line.
+            var match = null;
+            for (var i = groups.length - 1; i >= 0 && i >= groups.length - 6; i--) {
+                var g = groups[i];
+                if (r.y - g.endY <= 3 && Math.abs(r.centerX - g.centerX) <= 5) { match = g; break; }
+            }
+            if (match) {
+                match.endY = r.y;
+                match.sumY += r.y;
+                match.sumX += r.centerX * r.len;
+                match.sumW += r.len;
+                match.count++;
+                if (r.len > match.len) match.len = r.len;
+                match.centerX = match.sumX / match.sumW;
+            } else {
+                groups.push({
+                    startY: r.y, endY: r.y, len: r.len, centerX: r.centerX,
+                    sumY: r.y, sumX: r.centerX * r.len, sumW: r.len, count: 1
+                });
+            }
+        });
+
+        return groups.map(function (g) {
+            // `centerX` is accumulated while grouping runs; there is no
+            // `start` field any more. Reading `g.start` here produced NaN
+            // centre points, which silently disabled every auto placement.
+            return {
+                centerX: g.centerX,
+                baseline: (g.sumY / g.count) / h * 100,
+                width: g.len / w * 100,
+                strength: g.count
+            };
+        }).filter(function (line) {
+            return isFinite(line.centerX) && isFinite(line.baseline) && isFinite(line.width);
+        }).sort(function (a, b) { return a.baseline - b.baseline; });
+    }
+
+    /* ---------- Fully automatic, OCR-assisted name alignment ----------
+       No buttons and no manual interaction: uploading a template starts the
+       analysis, identifies the three name lines, places the names and saves
+       the result for this exact image. */
+    var FAILURE_MESSAGE = "We couldn't identify all name positions on this certificate. Please use a clearer template with visible name lines and labels.";
+
+    function editDistance(a, b) {
+        var prev = [], curr = [], i, j;
+        for (j = 0; j <= b.length; j++) prev[j] = j;
+        for (i = 1; i <= a.length; i++) {
+            curr[0] = i;
+            for (j = 1; j <= b.length; j++) {
+                curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+            }
+            prev = curr.slice();
+        }
+        return prev[b.length];
+    }
+
+    function normalizeOcr(text) {
+        return (text || '').toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function hasAnchor(text, words) {
+        var tokens = normalizeOcr(text).split(' ').filter(Boolean);
+        for (var i = 0; i < tokens.length; i++) {
+            for (var w = 0; w < words.length; w++) {
+                var word = words[w];
+                if (tokens[i] === word) return true;
+                if (tokens[i].length >= 3 && Math.abs(tokens[i].length - word.length) <= 2
+                    && editDistance(tokens[i], word) <= 1) return true;
+            }
+        }
+        return false;
+    }
+
+    function ocrTextBands(img) {
+        if (typeof OCRAD !== 'function') return [];
+        var W = img.naturalWidth || img.width;
+        var H = img.naturalHeight || img.height;
+        var count = 8;
+        var bandHeight = Math.floor(H / count);
+        var texts = [];
+        for (var i = 0; i < count; i++) {
+            var strip = document.createElement('canvas');
+            // Upscale before OCR: small italic labels on the certificate are
+            // not recognised at native resolution.
+            strip.width = Math.min(2800, W * 2);
+            strip.height = Math.max(1, Math.floor(bandHeight * strip.width / W));
+            var g = strip.getContext('2d');
+            if (!g) { texts.push(''); continue; }
+            g.drawImage(img, 0, i * bandHeight, W, bandHeight, 0, 0, strip.width, strip.height);
+            var data;
+            try { data = g.getImageData(0, 0, strip.width, strip.height); } catch (e) { texts.push(''); continue; }
+            for (var k = 0; k < data.data.length; k += 4) {
+                var grey = data.data[k] * 0.299 + data.data[k + 1] * 0.587 + data.data[k + 2] * 0.114;
+                var value = grey < 170 ? 0 : 255;
+                data.data[k] = data.data[k + 1] = data.data[k + 2] = value;
+            }
+            g.putImageData(data, 0, 0);
+            var text = '';
+            try { text = OCRAD(g.getImageData(0, 0, strip.width, strip.height), { inversion: true }); } catch (e) { text = ''; }
+            texts.push(text || '');
+        }
+        return texts;
+    }
+
+    function anchorBand(texts, words) {
+        for (var i = 0; i < texts.length; i++) {
+            if (hasAnchor(texts[i], words)) return i;
+        }
+        return -1;
+    }
+
+    function pickLine(lines, filter, preferredBand, bandCount) {
+        var matches = lines.filter(filter);
+        if (!matches.length) return null;
+        if (preferredBand >= 0) {
+            var anchorY = (preferredBand + 0.5) / bandCount * 100;
+            matches.sort(function (a, b) {
+                return Math.abs(a.baseline - anchorY) - Math.abs(b.baseline - anchorY) || b.width - a.width;
+            });
+        } else {
+            matches.sort(function (a, b) { return b.width - a.width; });
+        }
+        return matches[0];
+    }
+
+    function runAutomaticAlignment() {
+        var img = $('certificateBg');
+        if (!img || !img.naturalWidth || !templateHash) return;
+        if (alignmentVerified) return; // saved alignment already applied
+
+        detectedLines = detectBlankLines(img);
+        var texts = ocrTextBands(img);
+        var bandCount = 8;
+
+        // Recognise the printed labels. Geometry is used only to pair an
+        // anchor with its nearest underline - never to guess by "leftmost"
+        // or "rightmost" line alone.
+        var studentAnchor = anchorBand(texts, ['given', 'awarded', 'presented', 'recipient']);
+        var adviserAnchor = anchorBand(texts, ['adviser', 'advisor', 'teacher']);
+        var principalAnchor = anchorBand(texts, ['principal', 'oic', 'officer', 'director']);
+
+        var studentLine = pickLine(detectedLines, function (line) {
+            return line.baseline >= 45 && line.baseline <= 82 && line.width >= 15;
+        }, studentAnchor, bandCount);
+
+        var adviserLine = pickLine(detectedLines, function (line) {
+            return line.baseline >= 70 && line.baseline <= 99 && line.centerX < 50 && line.width >= 6;
+        }, adviserAnchor, bandCount);
+
+        var principalLine = pickLine(detectedLines, function (line) {
+            return line.baseline >= 70 && line.baseline <= 99 && line.centerX > 50 && line.width >= 6;
+        }, principalAnchor, bandCount);
+
+        var anchorCount = (studentAnchor >= 0 ? 1 : 0)
+            + (adviserAnchor >= 0 ? 1 : 0)
+            + (principalAnchor >= 0 ? 1 : 0);
+        var anchors = [studentAnchor, adviserAnchor, principalAnchor].filter(function (b) { return b >= 0; });
+        var nearAnchor = function (line) {
+            var lineBand = Math.floor(line.baseline / 100 * bandCount);
+            return anchors.some(function (b) { return Math.abs(b - lineBand) <= 2; });
+        };
+        var confident = anchorCount >= 2
+            && studentLine && adviserLine && principalLine
+            && (studentAnchor >= 0 || nearAnchor(studentLine))
+            && (adviserAnchor >= 0 || nearAnchor(adviserLine))
+            && (principalAnchor >= 0 || nearAnchor(principalLine));
+
+        if (!confident) {
+            alignmentVerified = false;
+            setOutputControlsEnabled(false);
+            showAlignmentMessage(FAILURE_MESSAGE, 'error');
+            return;
+        }
+
+        var place = function (cfg, line) {
+            return {
+                centerX: Math.min(100 - cfg.width / 2, Math.max(cfg.width / 2, line.centerX)),
+                baseline: Math.min(99, Math.max(1, line.baseline))
+            };
+        };
+        studentPosOverride = place(studentCfg, studentLine);
+        adviserPosOverride = place(adviserCfg, adviserLine);
+        principalPosOverride = place(principalCfg, principalLine);
+
+        refreshAll();
+        rememberAlignment();
+        alignmentVerified = true;
+        setOutputControlsEnabled(true);
+        showAlignmentMessage('Name positions detected automatically. Review the preview before printing.', 'info');
+    }
 
     // --- STUDENT SEARCH AUTOCOMPLETE ---
     var searchTimer = null;
@@ -1106,115 +1502,6 @@
         if (v > 0) { principalPreferredFontSize = v; refreshAll(); }
     });
 
-    // --- OPTIONAL DRAG POSITIONING (manual override on top of automatic alignment) ---
-    function attachDrag(box, getOverride, setOverride, cfg) {
-        var drag = null;
-
-        box.addEventListener('pointerdown', function (e) {
-            if (activeDrag || !box.classList.contains('is-visible')) return;
-            var text = (box.textContent || '').trim();
-            if (!text) return; // disabled for empty name fields
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-
-            var canvas = $('certificateCanvas');
-            if (!canvas || !canvas.classList.contains('has-template') || canvas.clientWidth <= 0) return;
-
-            var topStyle = box.style.top || '';
-            if (!topStyle || topStyle.indexOf('%') !== -1) return; // not positioned yet
-            var startTop = parseFloat(topStyle);
-            if (isNaN(startTop)) return;
-
-            var canvasRect = canvas.getBoundingClientRect();
-            var ccs = window.getComputedStyle(canvas);
-            var borderL = parseFloat(ccs.borderLeftWidth) || 0;
-            var borderT = parseFloat(ccs.borderTopWidth) || 0;
-            var boxRect = box.getBoundingClientRect();
-
-            drag = {
-                id: e.pointerId,
-                grabDX: e.clientX - boxRect.left, // pointer offset inside the box
-                grabDY: e.clientY - boxRect.top,
-                canvas: canvas,
-                borderL: borderL,
-                borderT: borderT,
-                canvasW: canvas.clientWidth,
-                canvasH: canvas.clientHeight,
-                boxW: box.offsetWidth,
-                boxH: box.offsetHeight,
-                startTop: startTop,
-                startBaseline: getOverride() ? getOverride().baseline : cfg.baseline,
-                centerX: null,
-                top: null
-            };
-
-            try { box.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-            box.classList.add('is-dragging');
-            activeDrag = box;
-            e.preventDefault(); // block text selection / touch scrolling
-        });
-
-        box.addEventListener('pointermove', function (e) {
-            if (!drag || e.pointerId !== drag.id) return;
-
-            // coordinates relative to the certificate image (canvas padding box)
-            var canvasRect = drag.canvas.getBoundingClientRect();
-            var px = e.clientX - canvasRect.left - drag.borderL;
-            var py = e.clientY - canvasRect.top - drag.borderT;
-
-            // clamp: whole box stays inside the image, never the outer card
-            var left = Math.min(Math.max(px - drag.grabDX, 0), Math.max(0, drag.canvasW - drag.boxW));
-            var top = Math.min(Math.max(py - drag.grabDY, 0), Math.max(0, drag.canvasH - drag.boxH));
-
-            drag.centerX = left + drag.boxW / 2; // translateX(-50%): layout left = center
-            drag.top = top;
-
-            box.style.left = drag.centerX + 'px';
-            box.style.top = top + 'px';
-            e.preventDefault();
-        });
-
-        function endDrag(e) {
-            if (!drag || (e && e.pointerId !== drag.id)) return;
-            var d = drag;
-            drag = null;
-            activeDrag = null;
-            box.classList.remove('is-dragging');
-            try { box.releasePointerCapture(d.id); } catch (err) { /* ignore */ }
-
-            if (d.centerX === null || d.top === null) return; // click without movement
-
-            // convert pixels back to % of the certificate image (responsive coords)
-            var baseline = d.startBaseline + ((d.top - d.startTop) / d.canvasH) * 100;
-            setOverride({
-                centerX: (d.centerX / d.canvasW) * 100,
-                baseline: baseline
-            });
-            refreshAll();
-        }
-
-        box.addEventListener('pointerup', endDrag);
-        box.addEventListener('pointercancel', endDrag);
-    }
-
-    if (studentBox) {
-        attachDrag(studentBox, function () { return studentPosOverride; }, function (v) { studentPosOverride = v; }, studentCfg);
-    }
-    if (adviserBox) {
-        attachDrag(adviserBox, function () { return adviserPosOverride; }, function (v) { adviserPosOverride = v; }, adviserCfg);
-    }
-    if (principalBox) {
-        attachDrag(principalBox, function () { return principalPosOverride; }, function (v) { principalPosOverride = v; }, principalCfg);
-    }
-
-    // --- RESET NAME POSITIONS (clears only the manual overrides) ---
-    $('resetNamePositionsBtn').addEventListener('click', function () {
-        studentPosOverride = null;
-        adviserPosOverride = null;
-        principalPosOverride = null;
-        principalPosOverride = null;
-        refreshAll();
-    });
-
     // --- COLLECT CANVAS DATA ---
     function collectCanvasData() {
         var data = [];
@@ -1315,6 +1602,10 @@
 
     // --- PRINT PREVIEW ---
     document.getElementById('previewPrintBtn').addEventListener('click', function () {
+        @if(!auth()->user()->canPrintCertificates())
+            showAwardStatus('Certificate printing access has not been granted. Please contact your administrator.', 'error');
+            return;
+        @endif
         if (!$('certificateBg').src && !$('template_file').files[0]) {
             alert('Please upload a template first.');
             return;
@@ -1332,7 +1623,7 @@
             var left = typeof box.left === 'number' ? box.left : ((box.x || 50) - width / 2);
             var top = typeof box.top === 'number' ? box.top : ((box.y || 45) - height / 2);
             nameHtml += '<div class="print-fit-box" data-pref="' + box.fontSizePref +
-                '" data-min="' + box.fontSizeMin + '" data-family="' + escapeHtml(box.fontFamily) +
+                '" data-fitted="' + box.fontSize + '" data-min="' + box.fontSizeMin + '" data-family="' + escapeHtml(box.fontFamily) +
                 '" data-bold="' + (box.fontWeight === '400' || box.fontWeight === 'normal' ? '0' : '1') +
                 '" data-baseline="' + (typeof box.baseline === 'number' ? box.baseline : '') +
                 '" style="left:' + left + '%;top:' + top + '%;width:' + width + '%;height:' + height +
@@ -1354,8 +1645,9 @@
             'var el=els[i];' +
             'var text=el.textContent.trim();' +
             'if(!text)continue;' +
-            'var pref=(parseFloat(el.getAttribute("data-pref"))||24)*scale;' +
-            'var min=(parseFloat(el.getAttribute("data-min"))||12)*scale;' +
+            'var fitted=parseFloat(el.getAttribute("data-fitted"));' +
+            'var pref=(isNaN(fitted)?(parseFloat(el.getAttribute("data-pref"))||24):fitted)*scale;' +
+            'var min=Math.max(1,(parseFloat(el.getAttribute("data-min"))||12)*0.55*scale);' +
             'if(pref<min)pref=min;' +
             'var fam=el.getAttribute("data-family")||"Georgia";' +
             'var weight=el.getAttribute("data-bold")==="1"?"700":"400";' +

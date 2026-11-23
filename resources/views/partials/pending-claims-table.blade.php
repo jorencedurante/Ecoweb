@@ -26,6 +26,7 @@
         $pendingStudentIds = $pendingGroups->keys()->toArray();
         $pendingPage = isset($pendingPage) ? (int) $pendingPage : (int) request('pending_page', 1);
         $pendingPerPage = 10;
+        $pendingPage = min(max(1, $pendingPage), max(1, (int) ceil(count($pendingStudentIds) / $pendingPerPage)));
         $pendingOffset = max(0, ($pendingPage - 1) * $pendingPerPage);
         $pendingPageStudentIds = array_slice($pendingStudentIds, $pendingOffset, $pendingPerPage);
         $pendingPaginatedGroups = [];
@@ -41,6 +42,7 @@
             ? $pendingStudentIds
             : array_keys($pendingPaginatedGroups);
         $pendingPage = isset($pendingPage) ? (int) $pendingPage : (int) request('pending_page', 1);
+        $pendingPage = min(max(1, $pendingPage), max(1, (int) ceil(count($pendingStudentIds) / 10)));
         $pendingHasMorePages = isset($pendingHasMorePages) ? (bool) $pendingHasMorePages : false;
     }
 
@@ -106,8 +108,8 @@
                 $pendingCount = $claimsGroup->count();
                 $collapseId = 'pending-student-' . $studentId;
             @endphp
-            <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;">
-                <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;flex-wrap:wrap;gap:8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="togglePendingStudent('{{ $collapseId }}')">
+            <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:7px;overflow:hidden;">
+                <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;flex-wrap:wrap;gap:6px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="togglePendingStudent('{{ $collapseId }}')">
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:700;font-size:14px;color:#111827;">{{ $studentName }}</div>
                         <div style="font-size:12px;color:#6b7280;margin-top:2px;">
@@ -116,38 +118,38 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
                         <div style="text-align:center;">
-                            <div style="font-size:18px;font-weight:700;color:#111827;">{{ $pendingCount }}</div>
+                            <div style="font-size:16px;font-weight:700;color:#111827;">{{ $pendingCount }}</div>
                             <div style="font-size:11px;color:#6b7280;">Pending</div>
                         </div>
-                        <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
-                            View Requests ▼
+                        <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-controls="{{ $collapseId }}">
+                            View Requests
                         </button>
                     </div>
                 </div>
-                <div id="{{ $collapseId }}" class="approved-student-details" style="display:none;padding:0;">
+                <template id="{{ $collapseId }}" class="approved-student-details">
                     <div class="table-responsive">
                         <table style="width:100%;border-collapse:collapse;font-size:13px;">
                             <thead>
                                 <tr style="background:#f3f4f6;">
-                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
-                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
-                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Required</th>
-                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Date Requested</th>
-                                    <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Status</th>
-                                    <th scope="col" style="padding:10px 14px;text-align:center;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Actions</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Required</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Date Requested</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Status</th>
+                                    <th scope="col" style="padding:8px 10px;text-align:center;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($claimsGroup->sortByDesc('created_at') as $claim)
                                 <tr style="border-bottom:1px solid #f3f4f6;">
-                                    <td style="padding:10px 14px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
-                                    <td style="padding:10px 14px;">{{ $claim->quantity ?? 1 }}</td>
-                                    <td style="padding:10px 14px;color:#ef4444;font-weight:600;">{{ number_format($claim->points_deducted) }}</td>
-                                    <td style="padding:10px 14px;">{{ $claim->created_at->format('M d, Y h:i A') }}</td>
-                                    <td style="padding:10px 14px;">
+                                    <td style="padding:8px 10px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
+                                    <td style="padding:8px 10px;">{{ $claim->quantity ?? 1 }}</td>
+                                    <td style="padding:8px 10px;color:#ef4444;font-weight:600;">{{ number_format($claim->points_deducted) }}</td>
+                                    <td style="padding:8px 10px;">{{ $claim->created_at->format('M d, Y h:i A') }}</td>
+                                    <td style="padding:8px 10px;">
                                         <span class="status-badge pending">Pending</span>
                                     </td>
-                                    <td style="padding:10px 14px;text-align:center;">
+                                    <td style="padding:8px 10px;text-align:center;">
                                         <div class="action-button-group">
                                             <form method="POST" action="{{ route('admin.claims.approve', $claim->id) }}" style="display:inline;" data-student-name="{{ $studentName }}" data-item-name="{{ $claim->item_name }}" data-quantity="{{ $claim->quantity ?? 1 }}" onsubmit="event.preventDefault(); openClaimConfirmModal(this, 'Approve Item Claim?', 'Are you sure you want to approve this student\'s item request?', 'approve'); return false;">
                                                 @csrf @method('PATCH')
@@ -178,27 +180,17 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </template>
             </div>
         @endforeach
 
         {{-- Pending Claims Pagination --}}
-        <div class="pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
-            <span class="page-info" style="font-size:13px;color:#6b7280;">
-                Student groups {{ (($pendingPage - 1) * 10) + 1 }} to {{ min($pendingPage * 10, count($pendingStudentIds)) }} of {{ count($pendingStudentIds) }}
-            </span>
-            <div class="page-btns" style="display:flex;gap:4px;">
-                @if ($pendingPage > 1)
-                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage - 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
-                @endif
-                @for ($i = max(1, $pendingPage - 2); $i <= min($pendingPage + 2, ceil(count($pendingStudentIds) / 10)); $i++)
-                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $i])) }}#pending-claims-section" class="page-btn {{ $i == $pendingPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $pendingPage ? '#10b981' : '#374151' }};background:{{ $i == $pendingPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
-                @endfor
-                @if ($pendingHasMorePages)
-                    <a href="{{ route('admin.claims.index', array_merge(request()->query(), ['pending_page' => $pendingPage + 1])) }}#pending-claims-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
-                @endif
-            </div>
-        </div>
+        @include('partials.claims-pagination', [
+            'page' => $pendingPage,
+            'totalGroups' => count($pendingStudentIds),
+            'pageParam' => 'pending_page',
+            'anchor' => 'pending-claims-section',
+        ])
     @endif
 @if(!request()->ajax())
     </div>
