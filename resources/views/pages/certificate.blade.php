@@ -1028,7 +1028,6 @@
             applyAlignment(saved.alignment);
             alignmentVerified = true;
             setOutputControlsEnabled(true);
-            showAlignmentMessage('Name positions restored for this certificate template.', 'info');
             return true;
         } catch (e) {
             return false;

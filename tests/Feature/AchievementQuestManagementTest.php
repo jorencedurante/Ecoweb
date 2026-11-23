@@ -288,12 +288,19 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacherB->id,
         ]);
 
-        $this->actingAs($teacherA)->post(route('teacher.bottle-collection.store'), [
+        // Collections now originate from the machine. Seed a record directly
+        // and exercise the achievement logic that used to run on manual add.
+        \App\Models\BottleCollection::create([
             'student_id' => $student->id,
+            'lrn' => $student->lrn,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
             'bottle_count' => 3,
-        ])->assertRedirect(route('teacher.bottle-collection'));
+            'points_earned' => 3,
+            'created_by' => $teacherA->id,
+        ]);
+        $student->increment('total_points', 3);
+        $student->syncEarnedAchievements($teacherA->id);
 
         $this->assertDatabaseHas('student_achievements', [
             'student_id' => $student->id,
@@ -327,12 +334,17 @@ class AchievementQuestManagementTest extends TestCase
             'created_by' => $teacher->id,
         ]);
 
-        $this->actingAs($teacher)->post(route('teacher.bottle-collection.store'), [
+        \App\Models\BottleCollection::create([
             'student_id' => $student->id,
+            'lrn' => $student->lrn,
             'collection_date' => now()->toDateString(),
             'collection_time' => '08:30',
             'bottle_count' => 1,
-        ])->assertRedirect(route('teacher.bottle-collection'));
+            'points_earned' => 1,
+            'created_by' => $teacher->id,
+        ]);
+        $student->increment('total_points', 1);
+        $student->syncEarnedAchievements($teacher->id);
 
         $this->assertDatabaseHas('student_achievements', [
             'student_id' => $student->id,
@@ -367,8 +379,8 @@ class AchievementQuestManagementTest extends TestCase
                 'bottle_count' => 5,
             ]);
 
-        $response->assertRedirect(route('admin.bottle-collection'));
-        $response->assertSessionHasErrors('student_id');
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('bottle_collections', ['student_id' => $student->id]);
 
         $this->assertDatabaseMissing('student_achievements', [
             'student_id' => $student->id,
