@@ -192,16 +192,9 @@ function initSettingsTabs() {
         });
     });
 
-    // Save buttons (placeholder)
-    document.querySelectorAll('.btn-success').forEach(btn => {
-        if (btn.closest('.settings-section')) {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                // TODO: Connect form submission to backend
-                alert('Settings saved! (Placeholder - no database connected)');
-            });
-        }
-    });
+    // Settings forms submit normally to the backend. Success and error
+    // feedback are rendered by the shared EcoCollect notification system
+    // through partials/alerts.blade.php (no native alerts, no placeholder).
 }
 
 // ---------- QR Generation ----------

@@ -54,9 +54,6 @@
                         <a href="{{ route('password.request') }}">Forgot Password?</a>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Login</button>
-                    <div class="signup-link">
-                        Don't have an account? <a href="{{ route('register') }}">Create an account</a>
-                    </div>
                 </form>
             </div>
         </div>

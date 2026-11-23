@@ -213,6 +213,7 @@ class CertificateStudentDesignTest extends TestCase
     public function test_print_page_renders_student_name_box_without_editing_borders(): void
     {
         $teacher = $this->createTeacher();
+        $teacher->forceFill(['can_print_certificates' => true])->save();
         $student = $this->createStudent($teacher, [
             'first_name' => 'Juan Miguel Alexander Santiago',
             'last_name' => 'Dela Cruz Villanueva',

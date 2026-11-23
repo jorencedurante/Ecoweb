@@ -260,6 +260,7 @@ class CertificateAccessTest extends TestCase
     {
         $admin = $this->createAdmin();
         $teacherA = $this->createTeacher();
+        $teacherA->forceFill(['can_print_certificates' => true])->save();
         $adviser = $this->createTeacher();
         $student = $this->createStudent($teacherA);
         $award = $this->awardCertificate($admin, $student, $adviser);
@@ -332,6 +333,7 @@ class CertificateAccessTest extends TestCase
     public function test_student_awards_page_shows_print_always_and_download_only_with_final_file(): void
     {
         $teacher = $this->createTeacher();
+        $teacher->forceFill(['can_print_certificates' => true])->save();
         $adviser = $this->createTeacher();
         $student = $this->createStudent($teacher);
 

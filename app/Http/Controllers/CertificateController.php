@@ -20,10 +20,14 @@ class CertificateController extends Controller
 {
     public function index(Request $request)
     {
+        if ($notice = $this->unassignedSubTeacherNotice('Certificate Award')) {
+            return $notice;
+        }
+
         // Teachers manage their own quests; admins/super admins see all
         // quests read-only for monitoring.
         $quests = Achievement::whereNull('student_id')
-            ->when(Auth::user()->isTeacher(), fn ($query) => $query->where('created_by', Auth::id()))
+            ->when(Auth::user()->hasTeacherScope(), fn ($query) => $query->where('created_by', Auth::user()->scopeTeacherId()))
             ->with('creator')
             ->latest()
             ->get();
@@ -33,14 +37,21 @@ class CertificateController extends Controller
             $teachers = collect([$user])->map(function ($u) {
                 return (object) ['id' => $u->id, 'name' => $u->name, 'role' => $u->role, 'position' => $u->position];
             });
+        } elseif ($user->isSubTeacher() && $user->hasTeacherScope()) {
+            $assignedTeacher = User::find($user->scopeTeacherId());
+            $teachers = $assignedTeacher ? collect([$assignedTeacher]) : collect();
         } else {
-            $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+            // Only real Teacher accounts may sign as adviser. Position text
+            // must never be used to infer the role.
+            $teachers = User::where('role', 'teacher')
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->get(['id', 'name', 'role', 'position']);
         }
 
-        $signatories = User::whereIn('role', ['admin', 'super_admin'])
+        // Principal is represented by the super_admin role. Admin accounts
+        // are a separate role and must not be offered as School OIC / Principal.
+        $signatories = User::where('role', 'super_admin')
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'role', 'position']);
@@ -77,9 +88,9 @@ class CertificateController extends Controller
 
         if ($request->filled('student_id')) {
             $studentQuery = Student::query();
-            if (Auth::user()->isTeacher()) {
+            if (Auth::user()->hasTeacherScope()) {
                 $studentQuery->whereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id());
+                    $q->where('teacher_id', Auth::user()->scopeTeacherId());
                 });
             }
             $studentQuery->findOrFail($validated['student_id']);
@@ -89,7 +100,7 @@ class CertificateController extends Controller
 
         $award = CertificateAward::create([
             'student_id' => $validated['student_id'] ?? null,
-            'teacher_id' => Auth::user()->isTeacher() ? Auth::id() : null,
+            'teacher_id' => Auth::user()->scopeTeacherId(),
             'award_title' => $validated['certificate_title'],
             'award_description' => $validated['award_description'] ?? null,
             'awarded_date' => $validated['awarded_date'],
@@ -129,9 +140,9 @@ class CertificateController extends Controller
         $user = Auth::user();
         if ($request->filled('student_id')) {
             $studentQuery = Student::query();
-            if ($user->isTeacher()) {
+            if ($user->hasTeacherScope()) {
                 $studentQuery->whereHas('enrollments', function ($q) use ($user) {
-                    $q->where('teacher_id', $user->id)->where('status', 'active');
+                    $q->where('teacher_id', $user->scopeTeacherId())->where('status', 'active');
                 });
             }
             $studentQuery->findOrFail($validated['student_id']);
@@ -140,8 +151,8 @@ class CertificateController extends Controller
         $adviserName = null;
         $adviserId = $request->filled('adviser_id') ? (int) $validated['adviser_id'] : null;
         if ($adviserId) {
-            if ($user->isTeacher() && $adviserId !== (int) $user->id) {
-                abort(403, 'Teachers may only select themselves as adviser.');
+            if ($user->hasTeacherScope() && $adviserId !== $user->scopeTeacherId()) {
+                abort(403, 'You may only select the assigned Teacher as adviser.');
             }
             $adviserName = User::whereKey($adviserId)
                 ->whereIn('role', ['teacher', 'admin', 'super_admin'])
@@ -167,7 +178,7 @@ class CertificateController extends Controller
 
         $award = CertificateAward::create([
             'student_id' => $validated['student_id'] ?? null,
-            'teacher_id' => $user->isTeacher() ? $user->id : ($adviserId ?: null),
+            'teacher_id' => $user->hasTeacherScope() ? $user->scopeTeacherId() : ($adviserId ?: null),
             'issued_by' => $user->id,
             'award_title' => ($validated['award_title'] ?? null) ?: 'Certificate',
             'award_description' => $validated['award_description'] ?? null,
@@ -203,9 +214,9 @@ class CertificateController extends Controller
 
         $user = Auth::user();
         $studentQuery = Student::query();
-        if ($user->isTeacher()) {
+        if ($user->hasTeacherScope()) {
             $studentQuery->whereHas('enrollments', function ($q) use ($user) {
-                $q->where('teacher_id', $user->id)->where('status', 'active');
+                $q->where('teacher_id', $user->scopeTeacherId())->where('status', 'active');
             });
         }
         $student = $studentQuery->findOrFail($validated['student_id']);
@@ -219,9 +230,9 @@ class CertificateController extends Controller
                 'message' => 'The selected adviser is not available to sign certificates.',
             ], 422);
         }
-        if ($user->isTeacher() && (int) $adviser->id !== (int) $user->id) {
+        if ($user->hasTeacherScope() && (int) $adviser->id !== $user->scopeTeacherId()) {
             return response()->json([
-                'message' => 'Teachers may only select themselves as adviser.',
+                'message' => 'You may only select the assigned Teacher as adviser.',
             ], 403);
         }
 
@@ -325,7 +336,7 @@ class CertificateController extends Controller
                 try {
                     $award = CertificateAward::create([
                         'student_id' => $student->id,
-                        'teacher_id' => $user->isTeacher() ? $user->id : null,
+                        'teacher_id' => $user->scopeTeacherId(),
                         'issued_by' => $user->id,
                         'award_title' => 'Certificate',
                         'awarded_date' => now()->toDateString(),
@@ -368,7 +379,8 @@ class CertificateController extends Controller
     public function edit(CertificateAward $award)
     {
         $user = Auth::user();
-        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null && (int) $award->teacher_id !== $scopeTeacherId) {
             abort(403);
         }
 
@@ -378,7 +390,8 @@ class CertificateController extends Controller
     public function updateCanvas(Request $request, CertificateAward $award)
     {
         $user = Auth::user();
-        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null && (int) $award->teacher_id !== $scopeTeacherId) {
             abort(403);
         }
 
@@ -403,9 +416,9 @@ class CertificateController extends Controller
 
         if ($request->filled('student_id')) {
             $studentQuery = Student::query();
-            if (Auth::user()->isTeacher()) {
+            if (Auth::user()->hasTeacherScope()) {
                 $studentQuery->whereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id());
+                    $q->where('teacher_id', Auth::user()->scopeTeacherId());
                 });
             }
             $studentQuery->findOrFail($validated['student_id']);
@@ -427,8 +440,8 @@ class CertificateController extends Controller
         $user = Auth::user();
         $templates = CertificateTemplate::where('status', 'active')
             ->where(function ($q) use ($user) {
-                if ($user->isTeacher()) {
-                    $q->where('visibility', 'global')->orWhere('uploaded_by', Auth::id());
+                if ($user->hasTeacherScope()) {
+                    $q->where('visibility', 'global')->orWhere('uploaded_by', $user->scopeTeacherId());
                 }
             })
             ->orderBy('template_name')
@@ -451,15 +464,16 @@ class CertificateController extends Controller
             return;
         }
 
-        if ($user->isTeacher()) {
-            if ((int) $award->teacher_id === (int) $user->id) {
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null) {
+            if ((int) $award->teacher_id === $scopeTeacherId) {
                 return;
             }
 
             $assigned = $award->student_id
                 && $award->student
                 && $award->student->enrollments()
-                    ->where('teacher_id', $user->id)
+                    ->where('teacher_id', $scopeTeacherId)
                     ->where('status', 'active')
                     ->exists();
 
@@ -469,6 +483,18 @@ class CertificateController extends Controller
         }
 
         abort(403, 'You are not authorized to access this certificate.');
+    }
+
+    /**
+     * Printing is an explicit grant. Teachers (including Sub Teachers) must
+     * be granted printing access by an Admin or Principal. Admin/Principal
+     * accounts retain their existing ability to print.
+     */
+    private function authorizePrinting(): void
+    {
+        if (!Auth::user()->canPrintCertificates()) {
+            abort(403, 'Certificate printing access has not been granted. Please contact your administrator.');
+        }
     }
 
     /**
@@ -490,6 +516,7 @@ class CertificateController extends Controller
     public function download(CertificateAward $award)
     {
         $this->authorizeAwardAccess($award);
+        $this->authorizePrinting();
 
         $studentPart = $award->student
             ? Str::slug($award->student->full_name)
@@ -551,6 +578,7 @@ class CertificateController extends Controller
     public function print(CertificateAward $award)
     {
         $this->authorizeAwardAccess($award);
+        $this->authorizePrinting();
 
         $award->load('issuer', 'teacher');
         return view('pages.certificate-print', compact('award'));
@@ -559,6 +587,7 @@ class CertificateController extends Controller
     public function file(CertificateAward $award)
     {
         $this->authorizeAwardAccess($award);
+        $this->authorizePrinting();
 
         $display = $award->displayCertificateFile();
         if ($display) {
@@ -664,7 +693,8 @@ class CertificateController extends Controller
     public function archive(CertificateAward $award)
     {
         $user = Auth::user();
-        if ($user->isTeacher() && $award->teacher_id !== $user->id) {
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null && (int) $award->teacher_id !== $scopeTeacherId) {
             abort(403);
         }
         $award->update(['status' => 'Archived']);

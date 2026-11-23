@@ -42,15 +42,17 @@
             @page { size: A4; margin: 15mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 20px; padding-bottom: 15px; }
+            .report-branding .school-name { font-size: 20px; }
             .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
     <div class="report-header">
-        <h1>📊 Student Performance Report</h1>
-        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }} | Student: {{ $student->full_name }}</div>
+        @include('partials.reports.print-header', [
+            'reportTitle' => '📊 Student Performance Report',
+            'reportMeta' => ['Generated: ' . now()->format('F j, Y \a\t g:i A') . ' | Student: ' . $student->full_name],
+        ])
     </div>
 
     {{-- Student Information --}}

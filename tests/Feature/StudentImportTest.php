@@ -33,6 +33,7 @@ class StudentImportTest extends TestCase
 
         $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.students.import'), [
             'file' => $this->makeImportFile('512345678901'),
+            'grade_level' => 'Grade 4',
         ]);
 
         $response->assertRedirect(route(portal_prefix() . '.students'));
@@ -54,6 +55,7 @@ class StudentImportTest extends TestCase
 
         $response = $this->actingAs($superAdmin)->post(route(portal_prefix() . '.students.import'), [
             'file' => $this->makeImportFile('512345678902'),
+            'grade_level' => 'Grade 4',
         ]);
 
         $response->assertRedirect(route(portal_prefix() . '.students'));

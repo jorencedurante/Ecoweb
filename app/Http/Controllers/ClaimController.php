@@ -138,6 +138,7 @@ class ClaimController extends Controller
         $studentIds = $groupedByStudent->keys()->toArray();
         $pendingPage = (int) $request->get('pending_page', 1);
         $pendingPerPage = 10;
+        $pendingPage = min(max(1, $pendingPage), max(1, (int) ceil(count($studentIds) / $pendingPerPage)));
         $pendingOffset = max(0, ($pendingPage - 1) * $pendingPerPage);
         $pendingPageStudentIds = array_slice($studentIds, $pendingOffset, $pendingPerPage);
         $pendingPaginatedGroups = [];
@@ -204,6 +205,7 @@ class ClaimController extends Controller
         $historyStudentIds = $claimHistoryByStudent->keys()->toArray();
         $historyPage = $request->get('history_page', 1);
         $historyPerPage = 10;
+        $historyPage = min(max(1, (int) $historyPage), max(1, (int) ceil(count($historyStudentIds) / $historyPerPage)));
         $historyOffset = ($historyPage - 1) * $historyPerPage;
         $historyPageStudentIds = array_slice($historyStudentIds, $historyOffset, $historyPerPage);
         $historyPaginatedByStudent = [];
@@ -211,6 +213,7 @@ class ClaimController extends Controller
             $historyPaginatedByStudent[$sid] = $claimHistoryByStudent[$sid];
         }
         $historyHasMorePages = count($historyStudentIds) > $historyPage * $historyPerPage;
+        $historyTotalGroups = count($historyStudentIds);
 
         $students = Student::query()->whereNotIn('status', ['Archived', 'archived']);
         if (Auth::user()->isTeacher()) {
@@ -287,6 +290,7 @@ class ClaimController extends Controller
             $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
             $approvedPage = $request->get('approved_page', 1);
             $approvedPerPage = 10;
+            $approvedPage = min(max(1, (int) $approvedPage), max(1, (int) ceil(count($approvedStudentIds) / $approvedPerPage)));
             $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
             $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
             $approvedPaginatedByStudent = [];
@@ -351,6 +355,7 @@ class ClaimController extends Controller
             $archivedStudentIds = $archivedClaimsByStudent->keys()->toArray();
             $archivedPage = $request->get('archived_page', 1);
             $archivedPerPage = 10;
+            $archivedPage = min(max(1, (int) $archivedPage), max(1, (int) ceil(count($archivedStudentIds) / $archivedPerPage)));
             $archivedOffset = ($archivedPage - 1) * $archivedPerPage;
             $archivedPageStudentIds = array_slice($archivedStudentIds, $archivedOffset, $archivedPerPage);
             $archivedPaginatedByStudent = [];
@@ -363,7 +368,9 @@ class ClaimController extends Controller
         return view('pages.claims', compact(
             'claimItems', 'claimItemsForSearch', 'claims', 'claimHistoryByStudent', 'pendingClaims', 'students', 'availableItems', 'allClaimItems',
             'approvedClaimsByStudent', 'archivedClaimsByStudent', 'studentsForClaim', 'studentsForHistorySearch', 'itemsForHistorySearch',
-            'historyHasMorePages', 'historyPage', 'approvedHasMorePages', 'approvedPage', 'archivedHasMorePages', 'archivedPage'
+            'historyHasMorePages', 'historyPage', 'historyTotalGroups', 'historyPaginatedByStudent',
+            'approvedHasMorePages', 'approvedPage', 'archivedHasMorePages', 'archivedPage',
+            'archivedPaginatedByStudent'
         ));
     }
 
@@ -846,7 +853,21 @@ class ClaimController extends Controller
         $claimHistoryByStudent = $allClaims->groupBy('student_id');
         $claims = $allClaims;
 
-        return view('partials.claim-history-table', compact('claims', 'claimHistoryByStudent'))->render();
+        // Paginate by student group so each student is one compact row.
+        $historyStudentIds = $claimHistoryByStudent->keys()->toArray();
+        $historyTotalGroups = count($historyStudentIds);
+        $historyPage = max(1, (int) $request->get('history_page', 1));
+        $historyPage = min($historyPage, max(1, (int) ceil($historyTotalGroups / 10)));
+        $historyPageStudentIds = array_slice($historyStudentIds, ($historyPage - 1) * 10, 10);
+        $historyPaginatedByStudent = [];
+        foreach ($historyPageStudentIds as $sid) {
+            $historyPaginatedByStudent[$sid] = $claimHistoryByStudent[$sid];
+        }
+
+        return view('partials.claim-history-table', compact(
+            'claims', 'claimHistoryByStudent', 'historyPaginatedByStudent',
+            'historyTotalGroups', 'historyPage'
+        ))->render();
     }
 
     public function filterApproved(Request $request)
@@ -903,6 +924,7 @@ class ClaimController extends Controller
         $approvedStudentIds = $approvedClaimsByStudent->keys()->toArray();
         $approvedPage = $request->get('approved_page', 1);
         $approvedPerPage = 10;
+        $approvedPage = min(max(1, (int) $approvedPage), max(1, (int) ceil(count($approvedStudentIds) / $approvedPerPage)));
         $approvedOffset = ($approvedPage - 1) * $approvedPerPage;
         $approvedPageStudentIds = array_slice($approvedStudentIds, $approvedOffset, $approvedPerPage);
         $approvedPaginatedByStudent = [];
@@ -989,6 +1011,7 @@ class ClaimController extends Controller
         $pendingStudentIds = $groupedByStudent->keys()->toArray();
         $pendingPage = (int) $request->get('pending_page', 1);
         $pendingPerPage = 10;
+        $pendingPage = min(max(1, $pendingPage), max(1, (int) ceil(count($pendingStudentIds) / $pendingPerPage)));
         $pendingOffset = ($pendingPage - 1) * $pendingPerPage;
         $pendingPageStudentIds = array_slice($pendingStudentIds, $pendingOffset, $pendingPerPage);
         $pendingPaginatedGroups = [];
