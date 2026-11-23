@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\SendOtpMail;
+use App\Mail\TeacherSetupInvitation;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -17,43 +18,53 @@ class EmailVerificationTest extends TestCase
         Mail::fake();
     }
 
-    public function test_registration_creates_an_unverified_teacher_account_only_in_users(): void
+    public function test_public_registration_is_blocked_and_cannot_create_accounts(): void
     {
+        $this->get(route('register'))->assertNotFound();
+
         $response = $this->post(route('register.submit'), [
-            'name' => 'Registered Teacher',
-            'username' => 'regteacher1',
-            'email' => 'regteacher1@example.com',
+            'name' => 'Blocked Registration',
+            'username' => 'blockedreg',
+            'email' => 'blocked-registration@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'position' => 'Teacher 1',
+            'position' => 'Teacher',
         ]);
+        $response->assertNotFound();
 
-        $response->assertRedirect(route('verification.notice', ['email' => 'regteacher1@example.com']));
-
-        $user = User::where('email', 'regteacher1@example.com')->first();
-        $this->assertNotNull($user);
-        $this->assertSame('teacher', $user->role);
-        $this->assertSame('active', $user->status);
-        $this->assertNull($user->email_verified_at);
-
-        $this->assertDatabaseMissing('teachers', ['email' => 'regteacher1@example.com']);
-        Mail::assertSent(SendOtpMail::class);
+        $this->assertNull(User::where('email', 'blocked-registration@example.com')->first());
+        Mail::assertNothingSent();
     }
 
-    public function test_registration_cannot_create_a_super_admin_account(): void
+    public function test_only_admin_can_create_teacher_accounts_and_send_invitations(): void
     {
-        $this->post(route('register.submit'), [
-            'name' => 'Sneaky User',
-            'username' => 'sneaky1',
-            'email' => 'sneaky1@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'role' => 'super_admin',
-        ]);
+        $admin = $this->createAdmin();
 
-        $user = User::where('email', 'sneaky1@example.com')->first();
-        $this->assertNotNull($user);
-        $this->assertSame('teacher', $user->role);
+        $response = $this->actingAs($admin)->postJson(route('admin.teachers.create-account'), [
+            'name' => 'Invited Teacher',
+            'username' => 'invited.teacher',
+            'email' => 'invited-teacher@example.com',
+            'position' => 'Teacher',
+        ]);
+        $response->assertOk()->assertJsonPath('success', true)->assertJsonPath('invitation_sent', true);
+
+        $invited = User::where('email', 'invited-teacher@example.com')->firstOrFail();
+        $this->assertSame('teacher', $invited->role);
+        $this->assertSame('pending_setup', $invited->status);
+        $this->assertNotNull($invited->email_verification_code);
+        Mail::assertSent(TeacherSetupInvitation::class, function ($mail) use ($invited) {
+            return $mail->hasTo($invited->email) && str_contains($mail->setupUrl, 'teacher-setup/' . $invited->id);
+        });
+
+        $teacher = $this->createTeacher();
+        $this->actingAs($teacher)->postJson(route('admin.teachers.create-account'), [
+            'name' => 'Denied Teacher',
+            'username' => 'denied.teacher',
+            'email' => 'denied-teacher@example.com',
+            'position' => 'Teacher',
+        ])->assertForbidden();
+
+        $this->assertNull(User::where('email', 'denied-teacher@example.com')->first());
     }
 
     public function test_wrong_otp_is_rejected(): void

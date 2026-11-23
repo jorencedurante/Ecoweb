@@ -13,6 +13,10 @@ class BottleCollectionController extends Controller
 {
     public function index(Request $request)
     {
+        if ($notice = $this->unassignedSubTeacherNotice('Bottle Collection')) {
+            return $notice;
+        }
+
         $query = $this->buildFilteredQuery($request);
 
         $collections = $query->orderBy('collection_date', 'desc')
@@ -40,6 +44,8 @@ class BottleCollectionController extends Controller
                 'time' => $c->collection_time ? \Carbon\Carbon::parse($c->collection_time)->format('h:i A') : '',
                 'bottle_count' => (int) $c->bottle_count,
                 'points' => (int) $c->points_earned,
+                // Owner is the assigned Teacher; this is the actual actor.
+                'recorded_by' => $c->recorder->name ?? 'System / IoT',
             ];
         });
 
@@ -58,18 +64,18 @@ class BottleCollectionController extends Controller
 
     private function buildFilteredQuery(Request $request)
     {
-        $query = BottleCollection::with('student');
+        $query = BottleCollection::with('student', 'recorder');
 
         if (Auth::user()->isSuperAdmin()) {
             // Super Admin sees all records — no filter needed
         } elseif (Auth::user()->isAdmin()) {
             // Admin sees all records (no school/campus scope in this system)
-        } elseif (Auth::user()->isTeacher()) {
+        } elseif (($teacherId = Auth::user()->scopeTeacherId()) !== null) {
             $studentIds = Student::where('status', '!=', 'Archived')
-                ->where(function ($q) {
-                    $q->where('teacher_id', Auth::id())
-                      ->orWhereHas('enrollments', function ($qq) {
-                          $qq->where('teacher_id', Auth::id())->where('status', 'active');
+                ->where(function ($q) use ($teacherId) {
+                    $q->where('teacher_id', $teacherId)
+                      ->orWhereHas('enrollments', function ($qq) use ($teacherId) {
+                          $qq->where('teacher_id', $teacherId)->where('status', 'active');
                       });
                 })
                 ->pluck('id');
@@ -169,12 +175,14 @@ class BottleCollectionController extends Controller
 
         $student = Student::findOrFail($validated['student_id']);
 
-        if (Auth::user()->isTeacher()) {
+        $teacherId = Auth::user()->scopeTeacherId();
+
+        if ($teacherId !== null) {
             $hasAccess = $student->enrollments()
-                    ->where('teacher_id', Auth::id())
+                    ->where('teacher_id', $teacherId)
                     ->where('status', 'active')
                     ->exists()
-                || $student->teacher_id === Auth::id();
+                || (int) $student->teacher_id === $teacherId;
 
             if (!$hasAccess) {
                 abort(403, 'You cannot add bottle collections for students assigned to another teacher.');
@@ -188,7 +196,7 @@ class BottleCollectionController extends Controller
     // Link the collection to the student's current active enrollment so
     // school-year activity stays isolated from historical records.
     $currentEnrollment = $student->enrollments()
-        ->when(Auth::user()->isTeacher(), fn ($q) => $q->where('teacher_id', Auth::id()))
+        ->when($teacherId !== null, fn ($q) => $q->where('teacher_id', $teacherId))
         ->where('status', 'active')
         ->latest('id')
         ->first();

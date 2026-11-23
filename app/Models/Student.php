@@ -116,9 +116,11 @@ class Student extends Model
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isTeacher()) {
-            return $query->whereHas('enrollments', function ($q) use ($user) {
-                $q->where('teacher_id', $user->id)->where('status', 'active');
+        $teacherId = $user->scopeTeacherId();
+
+        if ($teacherId !== null) {
+            return $query->whereHas('enrollments', function ($q) use ($teacherId) {
+                $q->where('teacher_id', $teacherId)->where('status', 'active');
             });
         }
 

@@ -13,6 +13,10 @@ class ReportController extends Controller
 {
     public function index()
     {
+        if ($notice = $this->unassignedSubTeacherNotice('Reports')) {
+            return $notice;
+        }
+
         $user = Auth::user();
         $now = now();
         $currentYear = $now->year;
@@ -30,7 +34,7 @@ class ReportController extends Controller
         $bottlesBase = BottleCollection::query();
         $awardsBase = \App\Models\CertificateAward::query();
 
-        if ($user->isTeacher()) {
+        if ($user->hasTeacherScope()) {
             $studentsBase->whereHas('enrollments', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id)->where('status', 'active');
             });
@@ -96,7 +100,7 @@ class ReportController extends Controller
             ->having('quarter_bottles', '>', 0)
             ->orderByDesc('quarter_bottles')
             ->orderBy('full_name', 'asc')
-            ->take($user->isTeacher() ? 3 : 10)
+            ->take($user->hasTeacherScope() ? 3 : 10)
             ->get();
 
         return view('pages.reports', compact(
@@ -109,7 +113,7 @@ class ReportController extends Controller
 
     public function studentReport(Request $request)
     {
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             return $this->teacherStudentRanking($request);
         }
 
@@ -164,10 +168,10 @@ class ReportController extends Controller
 
     public function studentReportDetails(Request $request, $id)
     {
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $student = Student::whereNotIn('status', ['Archived', 'archived'])
                 ->whereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id())->where('status', 'active');
+                    $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
                 })
                 ->where('id', $id)
                 ->first();
@@ -264,7 +268,7 @@ class ReportController extends Controller
                         'awarded_date' => $c->awarded_date ? $c->awarded_date->format('M d, Y') : 'N/A',
                         'status' => $c->status ?? 'N/A',
                         'has_file' => $c->hasFinalCertificateFile(),
-                        'can_render' => $c->canRenderCertificate(),
+                        'can_render' => $c->canRenderCertificate() && Auth::user()->canPrintCertificates(),
                     ];
                 }),
             ],
@@ -273,10 +277,10 @@ class ReportController extends Controller
 
     public function printStudentReport(Request $request, $id)
     {
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $student = Student::whereNotIn('status', ['Archived', 'archived'])
                 ->whereHas('enrollments', function ($q) {
-                    $q->where('teacher_id', Auth::id())->where('status', 'active');
+                    $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
                 })
                 ->where('id', $id)
                 ->first();
@@ -319,7 +323,7 @@ class ReportController extends Controller
             'claims' => $claims,
             'achievements' => $achievements,
             'certificates' => $certificates,
-            'isTeacher' => Auth::user()->isTeacher(),
+            'isTeacher' => Auth::user()->hasTeacherScope(),
         ]);
     }
 
@@ -327,7 +331,7 @@ class ReportController extends Controller
     {
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
             ->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             });
 
         if ($search = $request->get('search')) {
@@ -356,9 +360,9 @@ class ReportController extends Controller
 
         $baseQuery = BottleCollection::with('student');
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -383,9 +387,9 @@ class ReportController extends Controller
         $studentsQuery = Student::whereIn('id', $studentIds)
             ->whereNotIn('status', ['Archived', 'archived']);
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $studentsQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             });
         }
 
@@ -427,9 +431,9 @@ class ReportController extends Controller
         // Summary statistics — independent of quarter filter (Task 6)
         $summaryQuery = BottleCollection::query();
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $summaryQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -452,9 +456,9 @@ class ReportController extends Controller
         // Chart data - last 7 days
         $trendQuery = BottleCollection::selectRaw('DAYNAME(collection_date) as day, SUM(bottle_count) as total')
             ->where('collection_date', '>=', now()->subDays(6));
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $trendQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -497,9 +501,9 @@ class ReportController extends Controller
 
         $baseQuery = BottleCollection::with('student');
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -523,9 +527,9 @@ class ReportController extends Controller
         $studentsQuery = Student::whereIn('id', $studentIds)
             ->whereNotIn('status', ['Archived', 'archived']);
 
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $studentsQuery->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             });
         }
 
@@ -578,9 +582,9 @@ class ReportController extends Controller
         // Chart data - last 7 days within filtered period
         $trendQuery = BottleCollection::selectRaw('DAYNAME(collection_date) as day, SUM(bottle_count) as total')
             ->where('collection_date', '>=', now()->subDays(6));
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             $trendQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -624,7 +628,7 @@ class ReportController extends Controller
 
     public function adminActivities(Request $request)
     {
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             return $this->teacherItemClaims($request);
         }
 
@@ -635,7 +639,7 @@ class ReportController extends Controller
     {
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
             ->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })
             // Keep students with any saved request visible, including those
             // whose only requests are Pending or Rejected (total shows 0).
@@ -643,7 +647,7 @@ class ReportController extends Controller
 
         // Summary covers every student in the teacher's scope, independent of
         // the student-table search and pagination.
-        $summaryItems = $this->teacherApprovedSummaryItems(Auth::id());
+        $summaryItems = $this->teacherApprovedSummaryItems(effective_teacher_id());
         $summaryTotal = $summaryItems->sum('total_quantity');
 
         if ($search = $request->get('search')) {
@@ -919,14 +923,14 @@ class ReportController extends Controller
     private function applyTeacherScope($query)
     {
         return $query->whereHas('enrollments', function ($q) {
-            $q->where('teacher_id', Auth::id())->where('status', 'active');
+            $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
         });
     }
 
     public function printTopStudents(Request $request)
     {
         $user = Auth::user();
-        $isTeacher = $user->isTeacher();
+        $isTeacher = $user->hasTeacherScope();
         $quarter = (int) $request->get('quarter', date('n'));
         $year = (int) $request->get('year', now()->year);
 
@@ -959,7 +963,7 @@ class ReportController extends Controller
     public function topStudentsData(Request $request)
     {
         $user = Auth::user();
-        $isTeacher = $user->isTeacher();
+        $isTeacher = $user->hasTeacherScope();
         $quarter = (int) $request->get('quarter', date('n'));
         $year = (int) $request->get('year', now()->year);
 
@@ -1001,7 +1005,7 @@ class ReportController extends Controller
 
     public function printStudentRanking(Request $request)
     {
-        if (Auth::user()->isTeacher()) {
+        if (Auth::user()->hasTeacherScope()) {
             return $this->printTeacherStudentRanking($request);
         }
 
@@ -1045,7 +1049,7 @@ class ReportController extends Controller
     {
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
             ->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             });
 
         if ($search = $request->get('search')) {
@@ -1070,13 +1074,13 @@ class ReportController extends Controller
 
     public function printBottleCollection(Request $request)
     {
-        $isTeacher = Auth::user()->isTeacher();
+        $isTeacher = Auth::user()->hasTeacherScope();
 
         $baseQuery = BottleCollection::with('student');
 
         if ($isTeacher) {
             $baseQuery->whereHas('student.enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             })->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'Archived');
             });
@@ -1129,7 +1133,7 @@ class ReportController extends Controller
     public function printSummaryItem()
     {
         $user = Auth::user();
-        if (!$user->isTeacher()) {
+        if (!$user->hasTeacherScope()) {
             abort(403, 'Only teachers can print this report.');
         }
 
@@ -1147,7 +1151,7 @@ class ReportController extends Controller
     {
         $query = Student::whereNotIn('status', ['Archived', 'archived'])
             ->whereHas('enrollments', function ($q) {
-                $q->where('teacher_id', Auth::id())->where('status', 'active');
+                $q->where('teacher_id', effective_teacher_id())->where('status', 'active');
             });
 
         if ($search = $request->get('search')) {

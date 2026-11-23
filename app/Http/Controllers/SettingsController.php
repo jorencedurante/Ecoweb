@@ -10,8 +10,18 @@ use Illuminate\Support\Facades\Hash;
 
 class SettingsController extends Controller
 {
+    /**
+     * Defense in depth in addition to the principal.only route middleware.
+     */
+    private function authorizePrincipal(): void
+    {
+        abort_unless(auth()->user() && auth()->user()->isSuperAdmin(), 403, 'Only Principal can access System Settings.');
+    }
+
     public function index()
     {
+        $this->authorizePrincipal();
+
         $settings = SystemSetting::firstOrCreate(['id' => 1]);
         $user = Auth::user();
 
@@ -20,6 +30,8 @@ class SettingsController extends Controller
 
     public function updateGeneral(Request $request)
     {
+        $this->authorizePrincipal();
+
         $validated = $request->validate([
             'admin_name' => 'required|string|max:100',
             'school_organization' => 'required|string|max:150',
@@ -40,6 +52,8 @@ class SettingsController extends Controller
 
     public function updateSecurity(Request $request)
     {
+        $this->authorizePrincipal();
+
         $user = Auth::user();
 
         $validated = $request->validate([

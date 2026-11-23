@@ -174,7 +174,7 @@ class StudentOverviewTest extends TestCase
             ->assertSee('stu-chip', false)
             ->assertSee('Clear all', false)
             ->assertSee('Chipper', false)
-            ->assertSee('Showing 1 student matching your filters', false);
+            ->assertSee('Showing 1 to 1 of 1 entries matching your filters', false);
     }
 
     public function test_students_page_without_filters_has_no_filter_chips(): void
@@ -186,7 +186,7 @@ class StudentOverviewTest extends TestCase
 
         $response->assertOk()
             ->assertDontSee('Active filters', false)
-            ->assertSee('Showing 1 student', false);
+            ->assertSee('Showing 1 to 1 of 1 entries', false);
     }
 
     public function test_overview_returns_full_details_profile_progress_and_activity(): void

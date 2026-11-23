@@ -30,12 +30,20 @@ trait CreatesApplicationTables
                 $table->string('position', 100)->nullable();
                 $table->string('profile_photo', 255)->nullable();
                 $table->string('status', 30)->default('active');
+                $table->foreignId('assigned_teacher_id')->nullable()->constrained('users')->nullOnDelete();
+                $table->string('sub_teacher_access_level', 30)->nullable();
+                $table->text('sub_teacher_permissions')->nullable();
+                $table->boolean('can_print_certificates')->default(false);
                 $table->string('email_verification_code', 255)->nullable();
                 $table->string('email_change_otp', 255)->nullable();
                 $table->timestamp('email_change_otp_expires_at')->nullable();
                 $table->timestamp('email_verification_expires_at')->nullable();
                 $table->rememberToken();
                 $table->timestamps();
+            });
+        } elseif (!Schema::hasColumn('users', 'can_print_certificates')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->boolean('can_print_certificates')->default(false);
             });
         }
 
@@ -205,12 +213,21 @@ trait CreatesApplicationTables
             Schema::create('student_achievements', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
+                $table->unsignedBigInteger('enrollment_id')->nullable()->after('student_id');
                 $table->foreignId('achievement_quest_id')->constrained('achievements')->cascadeOnDelete();
                 $table->date('awarded_date');
                 $table->foreignId('awarded_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->timestamps();
 
+                $table->foreign('enrollment_id')
+                    ->references('id')->on('student_enrollments')->nullOnDelete();
                 $table->unique(['student_id', 'achievement_quest_id'], 'unique_student_quest');
+            });
+        } elseif (!Schema::hasColumn('student_achievements', 'enrollment_id')) {
+            Schema::table('student_achievements', function (Blueprint $table) {
+                $table->unsignedBigInteger('enrollment_id')->nullable()->after('student_id');
+                $table->foreign('enrollment_id')
+                    ->references('id')->on('student_enrollments')->nullOnDelete();
             });
         }
 
@@ -246,6 +263,7 @@ trait CreatesApplicationTables
                 $table->text('rejected_reason')->nullable();
                 $table->boolean('is_archived')->default(false);
                 $table->timestamp('released_at')->nullable();
+                $table->foreignId('released_by')->nullable();
                 $table->boolean('is_reserved')->default(false);
                 $table->string('request_token', 64)->nullable()->unique();
                 $table->timestamps();

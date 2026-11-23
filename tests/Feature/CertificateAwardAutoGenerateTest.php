@@ -28,7 +28,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertDontSee('Certificate / Award History', false);
         $response->assertDontSee('Design Certificate', false);
         $response->assertSee('Search and Select Student', false);
-        $response->assertSee('Select Teacher / Adviser', false);
+        $response->assertSee('Select Adviser', false);
         $response->assertSee('adviserSelect', false);
         // Admin is view-only: no quest management controls.
         $response->assertDontSee('Add Achievement Quest', false);
@@ -63,7 +63,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
 
         // The placeholder option is the only one selected.
         $this->assertMatchesRegularExpression(
-            '/<option value="" disabled selected>Select Teacher \/ Adviser<\/option>/',
+            '/<option value="" disabled selected>Select Adviser<\/option>/',
             $response->getContent()
         );
 
@@ -115,7 +115,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertSee('Adviser Name Size', false);
         self::assertSame(1, substr_count($response->getContent(), 'Font Style'));
         self::assertSame(1, substr_count($response->getContent(), 'id="fontSettings"'));
-        $response->assertSeeInOrder(['Select Teacher / Adviser', 'Font Settings', 'Print Preview']);
+        $response->assertSeeInOrder(['Select Adviser', 'Font Settings', 'Print Preview']);
         $response->assertSee('Garamond', false);
         $response->assertSee('Print Preview', false);
     }
@@ -184,6 +184,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
     public function test_save_canvas_stores_adviser(): void
     {
         $teacher = $this->createTeacher();
+        $teacher->forceFill(['can_print_certificates' => true])->save();
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [

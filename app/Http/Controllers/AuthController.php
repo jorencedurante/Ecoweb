@@ -18,10 +18,38 @@ class AuthController extends Controller
     private function dashboardRoute($user = null): string
     {
         $user = $user ?? Auth::user();
-        if ($user && method_exists($user, 'isTeacher') && $user->isTeacher()) {
+        if ($user && method_exists($user, 'isTeacher')
+            && ($user->isTeacher() || $user->isSubTeacher())) {
             return 'teacher.dashboard';
         }
         return 'admin.dashboard';
+    }
+
+    /**
+     * Only reuse an intended URL when it resolves to a route belonging to the
+     * newly authenticated user's portal. This prevents a stale destination
+     * from a previous account (for example /admin/dashboard) from sending a
+     * Sub Teacher into the admin portal. Unrecognised or external URLs are
+     * always discarded.
+     */
+    private function safeIntendedUrl(Request $request, $user, string $fallback): string
+    {
+        $intended = $request->session()->pull('url.intended');
+        if (!$intended || !filter_var($intended, FILTER_VALIDATE_URL)) {
+            return $fallback;
+        }
+
+        try {
+            $routeName = (string) app('router')->getRoutes()
+                ->match(Request::create($intended, 'GET'))->getName();
+        } catch (\Throwable $e) {
+            return $fallback;
+        }
+
+        $teacherPortal = $user->isTeacher() || $user->isSubTeacher();
+        $expectedPrefix = $teacherPortal ? 'teacher.' : 'admin.';
+
+        return str_starts_with($routeName, $expectedPrefix) ? $intended : $fallback;
     }
 
     public function showLogin()
@@ -82,7 +110,10 @@ class AuthController extends Controller
                 'module' => 'Auth',
             ]);
 
-            return redirect()->intended(route($this->dashboardRoute($user)))
+            $dashboard = route($this->dashboardRoute($user));
+            $redirectTo = $this->safeIntendedUrl($request, $user, $dashboard);
+
+            return redirect()->to($redirectTo)
                 ->with('success', 'Welcome back, ' . $user->name . '!');
         }
 
@@ -307,6 +338,10 @@ class AuthController extends Controller
         ]);
 
         Auth::logout();
+        // Explicitly drop any intended destination from the previous account,
+        // then invalidate the session and rotate the CSRF token. Auth::logout()
+        // also expires the remember-me cookie.
+        $request->session()->forget('url.intended');
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

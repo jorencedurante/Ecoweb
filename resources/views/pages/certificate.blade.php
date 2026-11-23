@@ -17,6 +17,13 @@
     </div>
 </div>
 
+@if(!auth()->user()->canPrintCertificates())
+    <div class="certificate-print-notice" role="status" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;padding:12px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:1.5;">
+        <span aria-hidden="true" style="font-size:16px;line-height:1.2;">🔒</span>
+        <span><strong>Certificate printing access has not been granted. Please contact your administrator.</strong><br>You can still prepare certificates, but Print Preview and printing are disabled.</span>
+    </div>
+@endif
+
 <form id="certificateForm" method="POST" action="{{ route(portal_prefix() . '.certificate.save-canvas') }}" enctype="multipart/form-data">
     @csrf
     <div class="card" style="margin-bottom:20px;">
@@ -25,7 +32,7 @@
                 <span style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Auto Generated Certificate</span>
                 <span class="student-name-badge">Auto</span>
             </div>
-            <span style="font-size:12px;color:var(--text-light);">Upload template → Select student → Select teacher → Print Preview</span>
+            <span style="font-size:12px;color:var(--text-light);">Upload template → Select student → Select adviser → Print Preview</span>
         </div>
         <div class="card-body" style="padding:20px;">
             <div class="auto-cert-grid">
@@ -59,24 +66,21 @@
                     </div>
 
                     <div class="form-group" style="margin-top:16px;">
-                        <label for="adviserSelect">Select Teacher / Adviser</label>
-                        @php
-                            $isTeacherRole = Auth::user()->isTeacher();
-                        @endphp
+                        <label for="adviserSelect">Select Adviser</label>
                         <select id="adviserSelect" name="adviser_id"
                                 style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;"
-                                aria-label="Select teacher or adviser">
-                            <option value="" disabled selected>Select Teacher / Adviser</option>
+                                aria-label="Select adviser">
+                            <option value="" disabled selected>Select Adviser</option>
                             @foreach($teachers as $t)
                                 <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) old('adviser_id') === (string) $t->id ? 'selected' : '' }}>
-                                    {{ $t->name }}{{ !$isTeacherRole ? ' · ' . ucfirst(str_replace('_', ' ', $t->role)) . ($t->position ? ' — ' . $t->position : '') : '' }}
+                                    {{ $t->name }}{{ $t->position ? ' — ' . $t->position : '' }}
                                 </option>
                             @endforeach
                         </select>
                         <div id="assignedTeacherHint" style="font-size:11px;color:var(--text-light);margin-top:4px;display:{{ $studentAssignedTeacherName ? 'block' : 'none' }};">
                             Assigned teacher for selected student: <strong id="assignedTeacherHintName">{{ $studentAssignedTeacherName }}</strong>
                         </div>
-                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the teacher or adviser whose name appears on the certificate.</div>
+                        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Select the adviser whose name will appear on the certificate.</div>
                     </div>
 
                     <div class="form-group" style="margin-top:16px;">
@@ -90,7 +94,7 @@
                                 <option value="" disabled selected>Select School OIC / Principal</option>
                                 @foreach($signatories as $s)
                                     <option value="{{ $s->id }}" data-name="{{ $s->name }}" data-role="{{ $s->role }}" {{ (string) old('principal_id') === (string) $s->id ? 'selected' : '' }}>
-                                        {{ $s->name }} · {{ ucfirst(str_replace('_', ' ', $s->role)) }}{{ $s->position ? ' — ' . $s->position : '' }}
+                                        {{ $s->name }}{{ $s->position ? ' — ' . $s->position : '' }}
                                     </option>
                                 @endforeach
                             @endif
@@ -125,7 +129,7 @@
                     </div>
 
                     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
-                        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;">Print Preview</button>
+                        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;" {{ auth()->user()->canPrintCertificates() ? '' : 'disabled title="Certificate printing access has not been granted. Please contact your administrator."' }}>Print Preview</button>
                         <button type="button" id="awardToStudentBtn" class="btn btn-sm" style="background:#16A34A;color:#fff;padding:10px 24px;">Award to Student</button>
                     </div>
                     <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
@@ -1315,6 +1319,10 @@
 
     // --- PRINT PREVIEW ---
     document.getElementById('previewPrintBtn').addEventListener('click', function () {
+        @if(!auth()->user()->canPrintCertificates())
+            showAwardStatus('Certificate printing access has not been granted. Please contact your administrator.', 'error');
+            return;
+        @endif
         if (!$('certificateBg').src && !$('template_file').files[0]) {
             alert('Please upload a template first.');
             return;
