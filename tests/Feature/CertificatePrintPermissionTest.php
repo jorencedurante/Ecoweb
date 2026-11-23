@@ -142,23 +142,29 @@ class CertificatePrintPermissionTest extends TestCase
         $principal = $this->createSuperAdmin(['name' => 'Lenny Gloton Caoayan', 'position' => 'Principal']);
         $teacher = $this->createTeacher(['name' => 'Joshua Garcia', 'position' => 'Teacher 4']);
 
-        $html = (string) $this->actingAs($admin)->get(route('admin.certificate'))->getContent();
+        // Act as the Principal so the Admin's name only appears if a dropdown
+        // wrongly includes it (the topbar shows the acting user's name).
+        $html = (string) $this->actingAs($principal)->get(route('admin.certificate'))->getContent();
 
         $this->assertStringContainsString('Select Adviser', $html);
         $this->assertStringContainsString('Select the adviser whose name will appear on the certificate.', $html);
         $this->assertStringContainsString('Joshua Garcia — Teacher 4', $html);
-        $this->assertStringContainsString('Karen Ballesteros — Administrator', $html);
         $this->assertStringContainsString('Lenny Gloton Caoayan — Principal', $html);
+
+        // Adviser is Teacher-only; School OIC / Principal is Principal (super_admin)-only.
+        $this->assertStringNotContainsString('Karen Ballesteros', $html);
 
         foreach ([' · Teacher', ' · Admin', ' · Super admin', ' · Sub teacher'] as $roleLabel) {
             $this->assertStringNotContainsString($roleLabel, $html);
         }
 
-        // Eligibility is unchanged: Sub Teachers do not appear in either dropdown.
+        // Sub Teachers and archived/inactive accounts never appear.
         $subTeacher = $this->createAccount(['name' => 'Hidden Sub', 'role' => 'sub_teacher', 'status' => 'active']);
-        $htmlWithSub = (string) $this->actingAs($admin)->get(route('admin.certificate'))->getContent();
+        $archivedTeacher = $this->createTeacher(['name' => 'Archived Teacher', 'status' => 'archived']);
+        $htmlWithSub = (string) $this->actingAs($principal)->get(route('admin.certificate'))->getContent();
         $this->assertStringNotContainsString('Hidden Sub', $htmlWithSub);
-        $this->assertTrue($teacher->isTeacher() && $principal->isSuperAdmin());
+        $this->assertStringNotContainsString('Archived Teacher', $htmlWithSub);
+        $this->assertTrue($teacher->isTeacher() && $principal->isSuperAdmin() && $admin->isAdmin());
     }
 
     public function test_admin_account_management_has_permission_control_and_custom_confirmation(): void

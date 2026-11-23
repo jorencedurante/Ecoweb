@@ -34,6 +34,7 @@
             @page { size: landscape; margin: 15mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 20px; padding-bottom: 15px; }
+            .report-branding .school-name { font-size: 22px; }
             .summary { gap: 12px; }
             th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -43,9 +44,10 @@
 </head>
 <body>
     <div class="report-header">
-        <h1>🧴 {{ $title }}</h1>
-        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }} | {{ $collections->count() }} record(s)</div>
+        @include('partials.reports.print-header', [
+            'reportTitle' => '🧴 ' . $title,
+            'reportMeta' => ['Generated: ' . now()->format('F j, Y \a\t g:i A') . ' | ' . $collections->count() . ' record(s)'],
+        ])
     </div>
 
     @php

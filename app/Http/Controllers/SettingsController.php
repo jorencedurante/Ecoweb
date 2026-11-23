@@ -20,12 +20,13 @@ class SettingsController extends Controller
 
     public function index()
     {
-        $this->authorizePrincipal();
-
+        // Every active, verified account may VIEW System Settings. Writes are
+        // still guarded by authorizePrincipal() in the update methods below.
         $settings = SystemSetting::firstOrCreate(['id' => 1]);
         $user = Auth::user();
+        $canEdit = $user->isSuperAdmin();
 
-        return view('pages.settings', compact('settings', 'user'));
+        return view('pages.settings', compact('settings', 'user', 'canEdit'));
     }
 
     public function updateGeneral(Request $request)
@@ -47,7 +48,7 @@ class SettingsController extends Controller
             'module' => 'Settings',
         ]);
 
-        return redirect()->route(portal_prefix() . '.system-settings')->with('success', 'General settings saved successfully!');
+        return redirect()->route(portal_prefix() . '.system-settings')->with('success', 'Settings saved successfully.');
     }
 
     public function updateSecurity(Request $request)

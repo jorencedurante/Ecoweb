@@ -37,6 +37,7 @@
             @page { size: A4 landscape; margin: 12mm 10mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 12px; padding-bottom: 10px; }
+            .report-branding .school-name { font-size: 20px; }
             th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             tr:hover { background: transparent; }
             .no-print { display: none !important; }
@@ -44,13 +45,20 @@
     </style>
 </head>
 <body>
+    @php
+        $reportFilters = null;
+        if ($teacher_id = request('teacher_id')) {
+            $reportFilters = 'Teacher: ' . ($teacherGroups[0]['teacher']->name ?? '')
+                . (!empty($grade_level) ? ' · Grade: ' . $grade_level : '')
+                . ((!empty($date_from) || !empty($date_to)) ? ' · Date: ' . ($date_from ?? '') . ' to ' . ($date_to ?? '') : '');
+        }
+    @endphp
     <div class="report-header">
-        <h1>📈 {{ $title }}</h1>
-        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }}</div>
-        @if($teacher_id = request('teacher_id'))
-        <div class="filters">Teacher: {{ $teacherGroups[0]['teacher']->name ?? '' }} @if($grade_level) · Grade: {{ $grade_level }} @endif @if($date_from || $date_to) · Date: {{ $date_from ?? '' }} to {{ $date_to ?? '' }} @endif</div>
-        @endif
+        @include('partials.reports.print-header', [
+            'reportTitle' => '📈 ' . $title,
+            'reportMeta' => ['Generated: ' . now()->format('F j, Y \a\t g:i A')],
+            'reportFilters' => $reportFilters,
+        ])
     </div>
 
     <!-- All Teachers Summary Table -->

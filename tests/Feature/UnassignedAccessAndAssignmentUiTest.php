@@ -24,12 +24,13 @@ class UnassignedAccessAndAssignmentUiTest extends TestCase
         $this->createStudent($teacher, ['full_name' => 'Secret Student Record']);
 
         // The dashboard notice itself already exists; this suite covers the
-        // four module pages (dashboard SQL uses MySQL-only DAYNAME()).
+        // module pages (dashboard SQL uses MySQL-only DAYNAME()).
         $modules = [
             'teacher.students',
             'teacher.bottle-collection',
             'teacher.reports',
             'teacher.qrcode',
+            'teacher.certificate',
         ];
 
         foreach ($modules as $route) {
@@ -59,6 +60,19 @@ class UnassignedAccessAndAssignmentUiTest extends TestCase
         $this->actingAs($subTeacher)->postJson(route('teacher.qrcode.generate'), [
             'student_id' => $student->id,
         ])->assertForbidden();
+
+        // Certificate data and output remain protected for unassigned Sub Teachers.
+        $award = \App\Models\CertificateAward::create([
+            'student_id' => $student->id,
+            'award_title' => 'Restricted Certificate',
+            'awarded_date' => now()->toDateString(),
+            'status' => 'Active',
+            'issued_by' => $teacher->id,
+        ]);
+        $this->actingAs($subTeacher)->get(route('teacher.certificate.print', $award))->assertForbidden();
+        $this->actingAs($subTeacher)->get(route('teacher.certificate.file', $award))->assertForbidden();
+        $this->actingAs($subTeacher)->get(route('teacher.certificate.download', $award))->assertForbidden();
+        $this->actingAs($subTeacher)->postJson(route('teacher.certificate.award'), [])->assertForbidden();
     }
 
     public function test_sub_teacher_login_redirects_to_teacher_dashboard_even_after_principal_session(): void

@@ -61,31 +61,45 @@ class Phase3UIFixesTest extends TestCase
         $response->assertSee('sta-page');
     }
 
-    public function test_system_settings_is_principal_only_for_pages_and_writes(): void
+    public function test_system_settings_is_viewable_by_all_roles_but_writable_by_principal_only(): void
     {
         $admin = $this->createAdmin();
+        $teacher = $this->createTeacher();
+        $subTeacher = $this->createAccount(['role' => 'sub_teacher', 'status' => 'active']);
         $principal = $this->createSuperAdmin();
 
-        $this->actingAs($admin)->get(route('admin.system-settings'))->assertForbidden();
-        $this->actingAs($admin)->post(route('admin.settings.general'), [
-            'admin_name' => 'Hacked',
-            'school_organization' => 'Hacked',
-        ])->assertForbidden();
-        $this->actingAs($admin)->post(route('admin.settings.security'), [])->assertForbidden();
+        foreach ([$admin, $teacher, $subTeacher] as $viewer) {
+            $this->actingAs($viewer)->get(route('admin.system-settings'))
+                ->assertOk()
+                ->assertSee('View only. Only Principal can edit these settings.')
+                ->assertDontSee('id="settingsSaveBtn"', false)
+                ->assertSee('readonly');
+        }
 
-        $this->actingAs($principal)->get(route('admin.system-settings'))->assertOk();
+        foreach ([$admin, $teacher, $subTeacher] as $viewer) {
+            $this->actingAs($viewer)->post(route('admin.settings.general'), [
+                'admin_name' => 'Hacked',
+                'school_organization' => 'Hacked',
+            ])->assertForbidden();
+            $this->actingAs($viewer)->post(route('admin.settings.security'), [])->assertForbidden();
+        }
+
+        $this->actingAs($principal)->get(route('admin.system-settings'))
+            ->assertOk()
+            ->assertSee('id="settingsSaveBtn"', false)
+            ->assertDontSee('View only. Only Principal can edit these settings.');
     }
 
-    public function test_system_settings_link_hidden_from_admin_sidebar(): void
+    public function test_system_settings_link_visible_in_sidebar_for_all_roles(): void
     {
         $admin = $this->createAdmin();
+        $teacher = $this->createTeacher();
         $principal = $this->createSuperAdmin();
 
-        $this->actingAs($admin)->get(route('admin.teachers'))
-            ->assertOk()->assertDontSee('System Settings');
-
-        $this->actingAs($principal)->get(route('admin.teachers'))
-            ->assertOk()->assertSee('System Settings');
+        foreach ([$admin, $teacher, $principal] as $user) {
+            $this->actingAs($user)->get(route('admin.system-settings'))
+                ->assertOk()->assertSee('data-label="System Settings"', false);
+        }
     }
 
     public function test_archived_action_buttons_have_spacing(): void

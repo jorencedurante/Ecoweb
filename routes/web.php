@@ -149,6 +149,11 @@ $registerPortalRoutes = function (string $asPrefix): void {
 Route::middleware(['auth', 'account.active'])->group(function () use ($registerPortalRoutes) {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // System Settings is visible to every active, verified account (view only
+    // for everyone except Principal). It is registered outside the admin-only
+    // group so Teachers and Sub Teachers can reach the same /admin URL.
+    Route::middleware('verified')->get('/admin/system-settings', [SettingsController::class, 'index'])->name('admin.system-settings');
+
     // Email change routes (outside 'verified' middleware — user's email may not be verified yet)
     Route::get('/account/email-change/verify', [AccountSettingsController::class, 'showEmailChangeVerify'])->name('account.email-change.verify');
     Route::post('/account/email-change/verify', [AccountSettingsController::class, 'confirmEmailChange'])->name('account.email-change.confirm');
@@ -211,9 +216,8 @@ Route::middleware(['auth', 'account.active'])->group(function () use ($registerP
             Route::put('/sub-teacher-assignments/{subTeacher}', [SubTeacherAssignmentController::class, 'update'])->name('admin.sub-teacher-assignments.update');
             Route::delete('/sub-teacher-assignments/{subTeacher}', [SubTeacherAssignmentController::class, 'destroy'])->name('admin.sub-teacher-assignments.destroy');
 
-            // System Settings — Principal / Super Admin only (GET and all writes)
+            // System Settings writes remain Principal / Super Admin only.
             Route::middleware('principal.only')->group(function () {
-                Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.system-settings');
                 Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
                 Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
             });

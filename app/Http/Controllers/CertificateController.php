@@ -20,6 +20,10 @@ class CertificateController extends Controller
 {
     public function index(Request $request)
     {
+        if ($notice = $this->unassignedSubTeacherNotice('Certificate Award')) {
+            return $notice;
+        }
+
         // Teachers manage their own quests; admins/super admins see all
         // quests read-only for monitoring.
         $quests = Achievement::whereNull('student_id')
@@ -37,13 +41,17 @@ class CertificateController extends Controller
             $assignedTeacher = User::find($user->scopeTeacherId());
             $teachers = $assignedTeacher ? collect([$assignedTeacher]) : collect();
         } else {
-            $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+            // Only real Teacher accounts may sign as adviser. Position text
+            // must never be used to infer the role.
+            $teachers = User::where('role', 'teacher')
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->get(['id', 'name', 'role', 'position']);
         }
 
-        $signatories = User::whereIn('role', ['admin', 'super_admin'])
+        // Principal is represented by the super_admin role. Admin accounts
+        // are a separate role and must not be offered as School OIC / Principal.
+        $signatories = User::where('role', 'super_admin')
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'role', 'position']);

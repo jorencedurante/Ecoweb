@@ -91,14 +91,17 @@
                     <span class="nav-icon" aria-hidden="true"><x-icon name="users" :size="19" /></span>
                     <span class="nav-label">Sub Teacher Assignments</span>
                 </a>
-                @if(Auth::user()->isSuperAdmin())
+            </div>
+            @endif
+
+            {{-- SYSTEM — visible to every role; the page itself is view-only except for Principal. --}}
+            <div class="nav-group" role="group" aria-labelledby="nav-group-system">
+                <p class="nav-group-label" id="nav-group-system">System</p>
                 <a href="{{ route('admin.system-settings') }}" class="nav-item {{ request()->routeIs('admin.system-settings') ? 'active' : '' }}" data-label="System Settings" @if(request()->routeIs('admin.system-settings')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="settings" :size="19" /></span>
                     <span class="nav-label">System Settings</span>
                 </a>
-                @endif
             </div>
-            @endif
 
             {{-- ACCOUNT --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-account">

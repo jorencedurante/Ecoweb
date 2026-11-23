@@ -91,7 +91,7 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertDontSee('Font Family', false);
         $response->assertSee('certificate-name-overlay', false);
         $response->assertSee('certificate-adviser-overlay', false);
-        $response->assertSee('width: 30%', false);
+        $response->assertSee('width: 29.65%', false);
     }
 
     public function test_font_settings_replaced_description_field(): void
@@ -120,29 +120,59 @@ class CertificateAwardAutoGenerateTest extends TestCase
         $response->assertSee('Print Preview', false);
     }
 
-    public function test_optional_drag_positioning_and_reset_control(): void
+    public function test_name_overlays_are_automatic_and_not_user_positioned(): void
     {
         $admin = $this->createAdmin();
 
         $response = $this->actingAs($admin)->get(route(portal_prefix() . '.certificate'));
 
         $response->assertOk();
-        // reset button sits below Font Settings in the left column
-        $response->assertSee('id="resetNamePositionsBtn"', false);
-        $response->assertSee('Reset Name Positions', false);
-        $response->assertSeeInOrder(['Font Settings', 'Reset Name Positions']);
-        // pointer-event drag plumbing on the existing overlays
-        $response->assertSee('setPointerCapture', false);
-        $response->assertSee('pointercancel', false);
-        $response->assertSee('studentPosOverride', false);
-        $response->assertSee('adviserPosOverride', false);
-        $response->assertSee('effectiveCfg', false);
-        // default automatic alignment stays the source position
-        $response->assertSee('centerX: studentLineCenterX', false);
-        $response->assertSee('centerX: adviserLineCenterX', false);
-        // hidden until hover/active so the preview stays clean
-        $response->assertSee('touch-action: none', false);
-        $response->assertSee('cursor: move', false);
+        $source = (string) $response->getContent();
+
+        $this->assertStringContainsString('centerX: studentLineCenterX', $source);
+        $this->assertStringContainsString('centerX: adviserLineCenterX', $source);
+        $this->assertStringContainsString('effectiveCfg', $source);
+        $this->assertStringContainsString('runAutomaticAlignment()', $source);
+
+        $this->assertStringNotContainsString('setPointerCapture', $source);
+        $this->assertStringNotContainsString('touch-action: none', $source);
+        $this->assertStringNotContainsString('cursor: move', $source);
+        $this->assertStringNotContainsString('Reset Name Positions', $source);
+    }
+
+    public function test_automatic_text_positions_are_calibrated_to_current_template(): void
+    {
+        $source = (string) file_get_contents(resource_path('views/pages/certificate.blade.php'));
+
+        // Anchors measured from the current 1366x768 certificate template.
+        foreach ([
+            'var studentLineCenterX = 51.65;',
+            'var studentLineY = 64.32;',
+            'var studentBoxWidth = 29.65;',
+            'var adviserLineCenterX = 26.13;',
+            'var adviserLineY = 92.32;',
+            'var adviserBoxWidth = 13.10;',
+            'var principalLineCenterX = 73.21;',
+            'var principalLineY = 92.32;',
+            'var principalBoxWidth = 15.80;',
+        ] as $constant) {
+            $this->assertStringContainsString($constant, $source, $constant);
+        }
+
+        // The matching CSS overlay defaults must agree with the JS config.
+        foreach (['width: 29.65%', 'left: 51.65%', 'width: 13.10%', 'left: 73.21%'] as $style) {
+            $this->assertStringContainsString($style, $source, $style);
+        }
+
+        // Uploading a new template clears every drag override, including the
+        // Principal one, so no old position survives the template change.
+        $uploadBlock = substr($source, strpos($source, 'A new template always gets fresh automatic positions'), 500);
+        $this->assertStringContainsString('studentPosOverride = null;', $uploadBlock);
+        $this->assertStringContainsString('adviserPosOverride = null;', $uploadBlock);
+        $this->assertStringContainsString('principalPosOverride = null;', $uploadBlock);
+
+        $response = $this->actingAs($this->createAdmin())->get(route(portal_prefix() . '.certificate'));
+        $response->assertOk()->assertSee('Automatic', false);
     }
 
     public function test_obsolete_create_route_redirects_to_certificate_award(): void

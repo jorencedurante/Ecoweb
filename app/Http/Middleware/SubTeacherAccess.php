@@ -40,7 +40,7 @@ class SubTeacherAccess
             // Only the four module landing pages may render the styled
             // unassigned notice. Every data endpoint, export and write route
             // still returns a real 403 below - no records are exposed.
-            $noticePages = ['students', 'bottle-collection', 'reports', 'qrcode'];
+            $noticePages = ['students', 'bottle-collection', 'reports', 'qrcode', 'certificate'];
             if ($request->isMethod('GET') && in_array($suffix, $noticePages, true)) {
                 return $next($request);
             }
