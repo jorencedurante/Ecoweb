@@ -47,6 +47,52 @@ document.addEventListener('DOMContentLoaded', () => {
     initPagination();
 });
 
+// ---------- Permission denied popup ----------
+function showPermissionDenied(action, message) {
+    const modal = document.getElementById('permissionDeniedModal');
+    if (!modal) return;
+    const contact = 'Please contact your Teacher or Principal to request access.';
+    const defaults = {
+        add: "You don't have permission to add students. " + contact,
+        edit: "You don't have permission to edit students. " + contact,
+        delete: "You don't have permission to delete students. " + contact,
+    };
+    const text = modal.querySelector('#permissionDeniedMessage');
+    if (text) text.textContent = message || defaults[action] || defaults.add;
+    modal.classList.add('show');
+    document.body.classList.add('modal-open');
+}
+
+window.EcoPermission = {
+    show: showPermissionDenied,
+    /**
+     * Call before opening ANY permission-gated modal. Returns false when the
+     * action must be blocked; in that case the warning popup is shown and the
+     * target form modal is explicitly closed.
+     */
+    guard: function (btn) {
+        const action = btn.dataset.permissionAction;
+        if (action && btn.dataset.permissionAllowed === 'false') {
+            const target = document.getElementById(btn.dataset.modalTarget);
+            if (target) {
+                target.classList.remove('show');
+                target.setAttribute('aria-hidden', 'true');
+                target.setAttribute('inert', '');
+            }
+            showPermissionDenied(action);
+            return false;
+        }
+        return true;
+    },
+    showFromResponse: function (payload) {
+        if (payload && payload.permission_denied) {
+            showPermissionDenied(payload.action, payload.message || payload.error);
+            return true;
+        }
+        return false;
+    },
+};
+
 // ---------- Modals ----------
 function initModals() {
     const openBtns = document.querySelectorAll('[data-modal-target]');
@@ -55,6 +101,7 @@ function initModals() {
     openBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (!window.EcoPermission.guard(btn)) return;
             const target = btn.dataset.modalTarget;
             const modal = document.getElementById(target);
             if (modal) {
@@ -87,7 +134,12 @@ function initModals() {
         });
     });
 
-
+    if (window.ecPermissionDenied && window.ecPermissionDenied.permission_denied) {
+        showPermissionDenied(
+            window.ecPermissionDenied.action,
+            window.ecPermissionDenied.message || window.ecPermissionDenied.error
+        );
+    }
 }
 
 function populateEditModal(studentId) {
@@ -108,16 +160,63 @@ function populateEditModal(studentId) {
     if (genderRadio) genderRadio.checked = true;
 }
 
-// ---------- Password Toggle ----------
-function initPasswordToggle() {
-    document.querySelectorAll('.toggle-pw').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const input = btn.closest('.input-wrapper').querySelector('input');
-            if (!input) return;
-            const type = input.type === 'password' ? 'text' : 'password';
-            input.type = type;
-            btn.textContent = type === 'password' ? '👁' : '👁‍🗨';
+// ---------- Password Toggle (shared by every password field) ----------
+// One Lucide icon set (eye / eye-off) and one behaviour for the whole app.
+(function () {
+    const SVG_ATTRS = 'class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" '
+        + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+        + 'stroke-linejoin="round" aria-hidden="true" focusable="false"';
+    const ICONS = {
+        hidden: '<svg ' + SVG_ATTRS + '><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+        visible: '<svg ' + SVG_ATTRS + '><path d="M17.94 11.34a10 10 0 0 1-4.11 0 10.75 10.75 0 0 1-5.88-1.86M17.94 3c-.51 0-1 .45-1 1s.45 1 1 1"/><circle cx="12" cy="12" r="3"/><path d="M1 1l15 15M4.93 4.93 19.07 19.07"/></svg>',
+    };
+
+    function findInput(btn) {
+        const targetId = btn.getAttribute('data-target');
+        if (targetId) return document.getElementById(targetId);
+        const wrapper = btn.closest('.input-wrapper, .password-field-wrapper');
+        return wrapper ? wrapper.querySelector('input') : null;
+    }
+
+    function render(btn, isVisible) {
+        btn.innerHTML = isVisible ? ICONS.visible : ICONS.hidden;
+        const showLabel = btn.getAttribute('data-show-label') || 'Show password';
+        const hideLabel = btn.getAttribute('data-hide-label') || 'Hide password';
+        const label = isVisible ? hideLabel : showLabel;
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+        btn.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+    }
+
+    function toggle(btn) {
+        const input = findInput(btn);
+        if (!input) return;
+        const isVisible = input.type === 'password';
+        input.type = isVisible ? 'text' : 'password';
+        render(btn, isVisible);
+    }
+
+    function reset(root) {
+        (root || document).querySelectorAll('.password-toggle').forEach(function (btn) {
+            const input = findInput(btn);
+            if (input) input.type = 'password';
+            render(btn, false);
         });
+    }
+
+    window.EcoPasswordToggle = { render: render, toggle: toggle, reset: reset };
+})();
+
+function initPasswordToggle() {
+    // Delegation keeps dynamically opened modals working without rebinding.
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('.password-toggle, .toggle-pw');
+        if (!btn) return;
+        event.preventDefault();
+        window.EcoPasswordToggle.toggle(btn);
+    });
+    document.querySelectorAll('.password-toggle, .toggle-pw').forEach(function (btn) {
+        window.EcoPasswordToggle.render(btn, false);
     });
 }
 

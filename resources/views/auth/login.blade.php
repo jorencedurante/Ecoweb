@@ -46,7 +46,7 @@
                         <label for="password-login">Password</label>
                         <div class="input-wrapper">
                             <input type="password" id="password-login" name="password" placeholder="Enter your password" required>
-                            <button type="button" class="toggle-pw" aria-label="Toggle password visibility">👁</button>
+                            <button type="button" class="password-toggle" data-target="password-login" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="checkbox-row">

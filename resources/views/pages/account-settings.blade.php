@@ -179,7 +179,7 @@
                         <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Current Password</label>
                         <div class="password-field-wrapper" style="position:relative;">
                             <input type="password" name="current_password" id="cpCurrentPassword" placeholder="Enter your current password" aria-label="Current password" style="width:100%;height:44px;padding:0 40px 0 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;" required>
-                            <button type="button" class="password-toggle" data-target="cpCurrentPassword" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
+                            <button type="button" class="password-toggle" data-target="cpCurrentPassword" aria-label="Show password" title="Show password" aria-pressed="false" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
 
@@ -188,7 +188,7 @@
                         <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">New Password</label>
                         <div class="password-field-wrapper" style="position:relative;">
                             <input type="password" name="password" id="cpPassword" placeholder="At least 8 characters" aria-label="New password" style="width:100%;height:44px;padding:0 40px 0 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;" required>
-                            <button type="button" class="password-toggle" data-target="cpPassword" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
+                            <button type="button" class="password-toggle" data-target="cpPassword" aria-label="Show password" title="Show password" aria-pressed="false" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
 
@@ -197,7 +197,7 @@
                         <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Confirm New Password</label>
                         <div class="password-field-wrapper" style="position:relative;">
                             <input type="password" name="password_confirmation" id="cpPasswordConfirmation" placeholder="Confirm your new password" aria-label="Confirm new password" style="width:100%;height:44px;padding:0 40px 0 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;" required>
-                            <button type="button" class="password-toggle" data-target="cpPasswordConfirmation" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
+                            <button type="button" class="password-toggle" data-target="cpPasswordConfirmation" aria-label="Show password" title="Show password" aria-pressed="false" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
 
@@ -270,15 +270,10 @@
             document.getElementById('reqCase').style.color = '#6b7280';
             document.getElementById('reqNumber').style.color = '#6b7280';
             document.getElementById('reqMatch').style.color = '#6b7280';
-            // Reset eye icons to hidden state
-            document.querySelectorAll('#changePasswordModalOverlay .password-toggle').forEach(function(btn) {
-                var svg = btn.querySelector('svg');
-                if (svg) {
-                    svg.outerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>';
-                }
-                var input = document.getElementById(btn.getAttribute('data-target'));
-                if (input) input.type = 'password';
-            });
+            // Reset all password fields and icons to the shared hidden state.
+            if (window.EcoPasswordToggle) {
+                window.EcoPasswordToggle.reset(document.getElementById('changePasswordModalOverlay'));
+            }
             if (lastOpenedPasswordBtn) {
                 lastOpenedPasswordBtn.focus();
             }
@@ -314,23 +309,7 @@
             openChangePasswordModal();
         });
 
-        // ---------- Password Toggle ----------
-        document.querySelectorAll('.password-toggle').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var targetId = this.getAttribute('data-target');
-                var input = document.getElementById(targetId);
-                if (!input) return;
-                var type = input.type === 'password' ? 'text' : 'password';
-                input.type = type;
-                var icon = this.querySelector('svg');
-                if (icon) {
-                    icon.outerHTML = type === 'password'
-                        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>'
-                        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="true"><path d="M17.94 11.34a10 10 0 0 1-4.11 0 10.75 10.75 0 0 1-5.88-1.86M17.94 3c-.51 0-1 .45-1 1s.45 1 1 1"/><circle cx="12" cy="12" r="3"/><path d="M1 1l15 15M4.93 4.93 19.07 19.07"/></svg>';
-                }
-            });
-        });
-
+        // Password show/hide is handled by the shared app.js helper.
         // ---------- Password Requirements Real-time Validation ----------
         var newPasswordInput = document.getElementById('cpPassword');
         var confirmPasswordInput = document.getElementById('cpPasswordConfirmation');
