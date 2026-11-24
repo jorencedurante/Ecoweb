@@ -11,6 +11,20 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
+    /**
+     * A Sub Teacher without an effective assignment must never fall through
+     * to an admin-wide query. The middleware already denies this; this is
+     * defense in depth for controller entry points.
+     */
+    private function guardSubTeacherScope(): void
+    {
+        $user = Auth::user();
+
+        if ($user && $user->isSubTeacher() && !$user->hasTeacherScope()) {
+            abort(403, app(\App\Services\CollaborationService::class)->unassignedMessage());
+        }
+    }
+
     public function index()
     {
         if ($notice = $this->unassignedSubTeacherNotice('Reports')) {
@@ -113,6 +127,8 @@ class ReportController extends Controller
 
     public function studentReport(Request $request)
     {
+        $this->guardSubTeacherScope();
+
         if (Auth::user()->hasTeacherScope()) {
             return $this->teacherStudentRanking($request);
         }
@@ -628,6 +644,8 @@ class ReportController extends Controller
 
     public function adminActivities(Request $request)
     {
+        $this->guardSubTeacherScope();
+
         if (Auth::user()->hasTeacherScope()) {
             return $this->teacherItemClaims($request);
         }

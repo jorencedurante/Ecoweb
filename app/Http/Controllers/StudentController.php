@@ -9,6 +9,7 @@ use App\Models\CertificateAward;
 use App\Models\AdminActivity;
 use App\Models\StudentEnrollment;
 use App\Imports\StudentsImport;
+use App\Exceptions\StudentPermissionDeniedException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,24 +53,37 @@ class StudentController extends Controller
         abort(403, 'Unauthorized access to this student record.');
     }
 
-    private function ensureCanManageStudents(string $permission = 'edit_students'): void
+    private function permissionAction(string $permission): string
+    {
+        return match ($permission) {
+            'add_students' => 'add',
+            'delete_students' => 'delete',
+            default => 'edit',
+        };
+    }
+
+    /** Shared with the Students page so the UI can warn before an action. */
+    private function canManageStudents(string $permission): bool
     {
         $user = Auth::user();
 
         if ($user->role === 'admin') {
-            abort(403, 'Admin accounts are view-only and cannot modify student records.');
+            return false;
         }
 
         if ($user->isTeacher() || $user->isSuperAdmin()) {
-            return;
+            return true;
         }
 
-        if ($user->isSubTeacher()
-            && app(\App\Services\CollaborationService::class)->can($user, $permission)) {
-            return;
-        }
+        return $user->isSubTeacher()
+            && app(\App\Services\CollaborationService::class)->can($user, $permission);
+    }
 
-        abort(403, 'You are not allowed to manage student records.');
+    private function ensureCanManageStudents(string $permission = 'edit_students'): void
+    {
+        if (!$this->canManageStudents($permission)) {
+            throw new StudentPermissionDeniedException($this->permissionAction($permission));
+        }
     }
 
     /**
@@ -211,7 +225,20 @@ class StudentController extends Controller
             })
             ->count();
 
-        return view('pages.students', compact('students', 'gradeLevels', 'teachers', 'archiveSchoolYears', 'nullSchoolYearCount'));
+        $canAddStudents = $this->canManageStudents('add_students');
+        $canEditStudents = $this->canManageStudents('edit_students');
+        $canDeleteStudents = $this->canManageStudents('delete_students');
+
+        return view('pages.students', compact(
+            'students',
+            'gradeLevels',
+            'teachers',
+            'archiveSchoolYears',
+            'nullSchoolYearCount',
+            'canAddStudents',
+            'canEditStudents',
+            'canDeleteStudents'
+        ));
     }
 
     public function filterStudents(Request $request)
@@ -261,11 +288,18 @@ class StudentController extends Controller
             ->filter(fn ($filter) => $filter['value'] !== null && $filter['value'] !== '')
             ->values();
 
+        $canAddStudents = $this->canManageStudents('add_students');
+        $canEditStudents = $this->canManageStudents('edit_students');
+        $canDeleteStudents = $this->canManageStudents('delete_students');
+
         return view('partials.students-table', compact(
             'students',
             'appliedFilters',
             'actionsColClass',
-            'nullSchoolYearCount'
+            'nullSchoolYearCount',
+            'canAddStudents',
+            'canEditStudents',
+            'canDeleteStudents'
         ))->render();
     }
 

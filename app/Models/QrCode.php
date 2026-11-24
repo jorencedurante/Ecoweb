@@ -27,4 +27,18 @@ class QrCode extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    /**
+     * Display label only. The stored qr_type value is never changed.
+     */
+    public function getDisplayTypeAttribute(): string
+    {
+        $type = strtolower(trim((string) $this->qr_type));
+
+        return match ($type) {
+            'lrn' => 'LRN',
+            '' => '—',
+            default => ucwords(str_replace('_', ' ', $type)),
+        };
+    }
 }

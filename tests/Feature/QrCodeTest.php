@@ -46,6 +46,27 @@ class QrCodeTest extends TestCase
         $this->assertDatabaseMissing('qr_codes', ['student_id' => $studentOfA->id]);
     }
 
+    public function test_qr_type_is_displayed_as_lrn_without_changing_stored_value(): void
+    {
+        $teacher = $this->createTeacher();
+        $student = $this->createStudent($teacher);
+
+        $qr = QrCode::create([
+            'student_id' => $student->id,
+            'student_name' => $student->full_name,
+            'qr_type' => 'lrn',
+            'qr_value' => 'LRN: ' . $student->lrn,
+            'qr_image_path' => 'qr_codes/test.svg',
+            'created_by' => $teacher->id,
+        ]);
+
+        $this->assertSame('LRN', $qr->display_type);
+        $this->assertSame('lrn', $qr->fresh()->qr_type);
+
+        $response = $this->actingAs($teacher)->get(route('teacher.qrcode'));
+        $response->assertOk()->assertSee('>LRN</td>', false)->assertDontSee('>Lrn</td>', false);
+    }
+
     public function test_qr_page_lists_only_students_of_the_teacher(): void
     {
         $teacherA = $this->createTeacher();
