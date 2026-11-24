@@ -51,6 +51,21 @@ class CertificateAlignmentTest extends TestCase
         }
 
         $this->assertStringNotContainsString('window.alert(', $source);
+
+        foreach ([
+            'var ALIGNMENT_VERSION = 2;',
+            'function savedAlignmentMatchesImage(alignment)',
+            'if (saved.version !== ALIGNMENT_VERSION) return false;',
+            'if (!savedAlignmentMatchesImage(saved.alignment)) return false;',
+            'version: ALIGNMENT_VERSION,',
+            'function pickSignatureLine(lines, filter, preferredBand, bandCount)',
+            'var adviserLine = pickSignatureLine(',
+            'var principalLine = pickSignatureLine(',
+            'var closeSignature = function(saved, filter)',
+            'saved.baseline <= line.baseline + 0.3',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $source, $needle);
+        }
     }
 
     public function test_certificate_page_keeps_only_the_expected_workflow_controls(): void
