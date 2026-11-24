@@ -124,7 +124,7 @@ class StudentAssignmentTest extends TestCase
             'school_year' => '2025-2026',
         ]);
 
-        $response->assertForbidden();
+        $response->assertRedirect()->assertSessionHas('permission_denied.action', 'add');
         $this->assertDatabaseMissing('students', ['lrn' => '323456789012']);
     }
 

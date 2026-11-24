@@ -32,7 +32,7 @@
     <div class="report-cards">
         <div class="report-card">
             <div class="report-icon" style="background:rgba(0,200,83,0.12);color:var(--green);">👥</div>
-            @if(auth()->user()->isTeacher())
+            @if(auth()->user()->hasTeacherScope())
             <h4>Student Ranking</h4>
             <p>Ranking of students in your assigned class based on points and bottle collections.</p>
             @else
@@ -49,7 +49,7 @@
         </div>
         <div class="report-card">
             <div class="report-icon" style="background:rgba(255,193,7,0.12);color:var(--yellow);">🔐</div>
-            @if(auth()->user()->isTeacher())
+            @if(auth()->user()->hasTeacherScope())
             <h4>Item Claims</h4>
             <p>Summary of item claims made by students in your assigned class.</p>
             @else

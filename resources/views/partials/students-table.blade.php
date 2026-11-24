@@ -13,7 +13,7 @@
             <button type="button" class="btn btn-outline btn-sm fix-school-years-btn" style="border-color:var(--amber);color:var(--amber);" data-modal-target="fixSchoolYearsModal" aria-label="Assign school year to {{ $nullSchoolYearCount }} student(s) without one">⚠️ Fix School Years</button>
             @endif
             <button type="button" class="btn btn-primary btn-sm" data-modal-target="importStudentModal">📥 Import</button>
-            <button type="button" class="btn btn-primary" data-modal-target="addStudentModal">+ Add Student</button>
+            <button type="button" class="btn btn-primary" data-modal-target="addStudentModal" data-permission-action="add" data-permission-allowed="{{ $canAddStudents ? 'true' : 'false' }}">+ Add Student</button>
             @endif
         </div>
     </div>
@@ -90,6 +90,7 @@
                                 ->first();
                         @endphp
                         <button type="button" class="action-icon-btn edit" title="Edit Student" aria-label="Edit student" data-modal-target="editStudentModal"
+                            data-permission-action="edit" data-permission-allowed="{{ $canEditStudents ? 'true' : 'false' }}"
                             data-id="{{ $student->id }}"
                             data-lrn="{{ $student->lrn }}"
                             data-first="{{ $student->first_name }}"

@@ -122,6 +122,9 @@
                 'appliedFilters' => $appliedFilters,
                 'actionsColClass' => $actionsColClass,
                 'nullSchoolYearCount' => $nullSchoolYearCount,
+                'canAddStudents' => $canAddStudents,
+                'canEditStudents' => $canEditStudents,
+                'canDeleteStudents' => $canDeleteStudents,
             ])
         </div>
 
@@ -697,11 +700,14 @@
             </div>
         </div>
     </div>
+
+    @include('partials.permission-denied-modal')
 @endsection
 
 @push('scripts')
 <script>
 window.studentFormOld = @json(old() ?: new stdClass());
+window.ecPermissionDenied = @json(session('permission_denied'));
 window.studentFormRestore = {
     modal: @json($openModal),
     studentId: @json($openModalStudentId),
@@ -716,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editModal = document.getElementById('editStudentModal');
     document.querySelectorAll('[data-modal-target="editStudentModal"]').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (!window.EcoPermission.guard(btn)) return;
             populateEditStudentForm(btn);
             if (editModal) editModal.classList.add('show');
         });
@@ -987,6 +994,7 @@ function initStudentToolbar() {
 
         const modalBtn = e.target.closest('[data-modal-target]');
         if (modalBtn) {
+            if (!window.EcoPermission.guard(modalBtn)) return;
             const target = modalBtn.getAttribute('data-modal-target');
             const modal = document.getElementById(target);
             if (modal) {

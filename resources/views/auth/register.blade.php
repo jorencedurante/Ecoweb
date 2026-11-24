@@ -58,14 +58,14 @@
                         <label for="register-password">Password</label>
                         <div class="input-wrapper">
                             <input type="password" name="password" id="register-password" placeholder="Create a password (min. 8 characters)" required>
-                            <button type="button" class="toggle-pw" aria-label="Toggle password visibility">👁</button>
+                            <button type="button" class="password-toggle" data-target="register-password" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="register-password-confirmation">Confirm Password</label>
                         <div class="input-wrapper">
                             <input type="password" name="password_confirmation" id="register-password-confirmation" placeholder="Confirm your password" required>
-                            <button type="button" class="toggle-pw" aria-label="Toggle password visibility">👁</button>
+                            <button type="button" class="password-toggle" data-target="register-password-confirmation" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">

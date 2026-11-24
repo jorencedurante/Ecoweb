@@ -44,14 +44,14 @@
                         <label for="reset-password">New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" name="password" id="reset-password" placeholder="New password (min. 8 characters)" required>
-                            <button type="button" class="password-toggle" data-target="reset-password" aria-label="Toggle password visibility">👁</button>
+                            <button type="button" class="password-toggle" data-target="reset-password" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="reset-password-confirmation">Confirm New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" name="password_confirmation" id="reset-password-confirmation" placeholder="Confirm new password" required>
-                            <button type="button" class="password-toggle" data-target="reset-password-confirmation" aria-label="Toggle password visibility">👁</button>
+                            <button type="button" class="password-toggle" data-target="reset-password-confirmation" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="password-confirm-alert" style="display: none;">

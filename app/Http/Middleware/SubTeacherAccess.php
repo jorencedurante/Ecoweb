@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\StudentPermissionDeniedException;
 use App\Services\CollaborationService;
 use Closure;
 use Illuminate\Http\Request;
@@ -36,7 +37,13 @@ class SubTeacherAccess
             return $next($request);
         }
 
+        $studentAction = $this->studentActionFor($suffix);
+
         if (!$service->isAssigned($user)) {
+            if ($studentAction !== null) {
+                throw new StudentPermissionDeniedException($studentAction);
+            }
+
             // Only the four module landing pages may render the styled
             // unassigned notice. Every data endpoint, export and write route
             // still returns a real 403 below - no records are exposed.
@@ -51,10 +58,35 @@ class SubTeacherAccess
         $permission = $service->permissionForRoute($suffix, $request->method());
 
         if ($permission === null || !$service->can($user, $permission)) {
+            if ($studentAction !== null) {
+                throw new StudentPermissionDeniedException($studentAction);
+            }
+
             return $this->deny($request, 'You do not have permission to perform this action.');
         }
 
         return $next($request);
+    }
+
+    /** Student-workflow denials get a friendly popup instead of a 403 page. */
+    private function studentActionFor(string $suffix): ?string
+    {
+        if (in_array($suffix, ['students.store', 'students.import'], true)) {
+            return 'add';
+        }
+
+        if (in_array($suffix, ['students.destroy', 'students.delete'], true)) {
+            return 'delete';
+        }
+
+        $editRoutes = [
+            'students.update', 'students.archive', 'students.archive-all',
+            'students.restore', 'students.unarchive', 'students.unarchive-all',
+            'students.re-enroll', 'students.move-to-school-year',
+            'students.fix-school-years', 'students.achievements.progress.update',
+        ];
+
+        return in_array($suffix, $editRoutes, true) ? 'edit' : null;
     }
 
     private function deny(Request $request, string $message): Response
