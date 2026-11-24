@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@if(auth()->user()->isTeacher())
+@if(auth()->user()->hasTeacherScope())
 @section('title', 'EcoCollect - Item Claims')
 @section('page-title', 'Item Claims')
 @section('page-subtitle', 'Summary of item claims made by students in your assigned class.')
@@ -13,8 +13,8 @@
 @section('content')
     <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
-    @if(auth()->user()->isTeacher())
-        {{-- ==================== TEACHER: ITEM CLAIMS ==================== --}}
+    @if(auth()->user()->hasTeacherScope())
+        {{-- ==================== TEACHER / SUB TEACHER: SCOPED ITEM CLAIMS ==================== --}}
         <div class="filter-card">
             <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
                 <i class="fas fa-filter"></i> Filters

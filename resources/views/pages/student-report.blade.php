@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@if(auth()->user()->isTeacher())
+@if(auth()->user()->hasTeacherScope())
 @section('title', 'EcoCollect - Student Ranking')
 @section('page-title', 'Student Ranking')
 @section('page-subtitle', 'Ranking of students in your assigned class based on points and bottle collections.')
@@ -13,8 +13,8 @@
 @section('content')
     <a href="{{ route(portal_prefix() . '.reports') }}" class="back-link">← Back to Reports</a>
 
-    @if(auth()->user()->isTeacher())
-        {{-- ==================== TEACHER: STUDENT RANKING ==================== --}}
+    @if(auth()->user()->hasTeacherScope())
+        {{-- ==================== TEACHER / SUB TEACHER: SCOPED STUDENT RANKING ==================== --}}
         <div class="filter-card">
             <button type="button" class="filter-header" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')" aria-expanded="true">
                 <i class="fas fa-filter"></i> Filters
@@ -57,7 +57,7 @@
                     @forelse($students as $i => $s)
                     @php
                         $enr = $s->enrollments->first(function ($e) {
-                            return $e->teacher_id === auth()->id() && $e->status === 'active';
+                            return $e->teacher_id === effective_teacher_id() && $e->status === 'active';
                         });
                     @endphp
                     <tr>

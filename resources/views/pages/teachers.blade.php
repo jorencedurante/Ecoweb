@@ -319,21 +319,21 @@
                         <label for="teacherCurrentPasswordInput">Current Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherCurrentPasswordInput" name="current_password" required placeholder="Enter current password" aria-label="Current password" autocomplete="current-password">
-                            <button type="button" class="password-toggle" data-target="teacherCurrentPasswordInput" aria-label="Show current password"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                            <button type="button" class="password-toggle" data-target="teacherCurrentPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="teacherNewPasswordInput">New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherNewPasswordInput" name="password" placeholder="Enter new password" aria-label="New password" autocomplete="new-password">
-                            <button type="button" class="password-toggle" data-target="teacherNewPasswordInput" aria-label="Show new password"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                            <button type="button" class="password-toggle" data-target="teacherNewPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="teacherConfirmPasswordInput">Confirm New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherConfirmPasswordInput" name="password_confirmation" placeholder="Confirm new password" aria-label="Confirm new password" autocomplete="new-password">
-                            <button type="button" class="password-toggle" data-target="teacherConfirmPasswordInput" aria-label="Show confirm password"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                            <button type="button" class="password-toggle" data-target="teacherConfirmPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                         <div id="teacherPasswordMatchFeedback" class="edit-account-help" style="margin-top:6px;"></div>
                     </div>
@@ -1196,12 +1196,9 @@ function hideTeacherEmailFeedback(){ clearTeacherModalNotice('teacherEmailNotifi
 function showTeacherPasswordError(msg){ showTeacherModalNotice('teacherPasswordNotification','error',msg); }
 function hideTeacherPasswordError(){ clearTeacherModalNotice('teacherPasswordNotification'); }
 function resetTeacherPasswordToggles(){
-  var labels={teacherCurrentPasswordInput:'Show current password',teacherNewPasswordInput:'Show new password',teacherConfirmPasswordInput:'Show confirm password'};
-  ['teacherCurrentPasswordInput','teacherNewPasswordInput','teacherConfirmPasswordInput'].forEach(function(id){
-    var i=document.getElementById(id); if(i) i.type='password';
-    var btn=document.querySelector('.password-toggle[data-target="'+id+'"]');
-    if(btn){ btn.setAttribute('aria-label', labels[id]||'Show password'); btn.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'; }
-  });
+  if (window.EcoPasswordToggle) {
+    window.EcoPasswordToggle.reset(document.getElementById('teacherChangePasswordModal'));
+  }
 }
 function updateTeacherPasswordRequirements(){
   var val=document.getElementById('teacherNewPasswordInput').value||''; var confirmVal=document.getElementById('teacherConfirmPasswordInput').value||'';
@@ -1210,23 +1207,12 @@ function updateTeacherPasswordRequirements(){
   var feedback=document.getElementById('teacherPasswordMatchFeedback'); if(!confirmVal){feedback.textContent=''; feedback.style.color='#6b7280';} else if(val===confirmVal){feedback.textContent='Passwords match.'; feedback.style.color='#16a34a';} else {feedback.textContent="Password didn't match. Try again."; feedback.style.color='#dc2626';}
 }
 function setTeacherReqState(id,ok){ var el=document.getElementById(id); if(!el) return; el.style.color=ok?'#00C853':'#6b7280'; el.style.fontWeight=ok?'600':'400'; }
-function bindPasswordToggles(scope){
-  function teacherPasswordToggleLabel(target, show){ var labels={teacherCurrentPasswordInput:['Show current password','Hide current password'],teacherNewPasswordInput:['Show new password','Hide new password'],teacherConfirmPasswordInput:['Show confirm password','Hide confirm password']}; var pair=labels[target]||['Show password','Hide password']; return show?pair[0]:pair[1]; }
-  (scope||document).querySelectorAll('.password-toggle').forEach(function(btn){
-    if(btn.dataset.boundToggle==='1') return; btn.dataset.boundToggle='1';
-    btn.addEventListener('click',function(){
-      var target=this.getAttribute('data-target'); var input=document.getElementById(target); if(!input) return;
-      var show = input.type === 'password'; input.type = show ? 'text' : 'password';
-      this.setAttribute('aria-label', teacherPasswordToggleLabel(target, !show));
-      this.innerHTML = show ? '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94"></path><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.17 4.51"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-    });
-  });
-}
+// Password toggles use the shared app.js helper (EcoPasswordToggle).
 
 window.addEventListener('popstate',function(){ var params=new URLSearchParams(window.location.search); document.getElementById('teacherSearch').value=params.get('search')||''; document.getElementById('teacherRole').value=params.get('role')||''; document.getElementById('teacherStatus').value=params.get('status')||''; fetchTeacherAccounts(parseInt(params.get('page'))||1); });
 
 document.addEventListener('DOMContentLoaded',function(){
-  initTeacherFilters(); bindEditButtons(); bindPasswordToggles(document);
+  initTeacherFilters(); bindEditButtons();
   document.getElementById('openChangeEmailDialogBtn')?.addEventListener('click',function(){ if(document.getElementById('editTeacherId').value) openTeacherChangeEmailModal(); });
   document.getElementById('openChangePasswordDialogBtn')?.addEventListener('click',function(){ if(document.getElementById('editTeacherId').value) openTeacherChangePasswordModal(); });
   var newPw=document.getElementById('teacherNewPasswordInput'); var confirmPw=document.getElementById('teacherConfirmPasswordInput');

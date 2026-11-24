@@ -17,7 +17,7 @@
                     <tr>
                         <td>{{ $qrCodes->firstItem() + $i }}</td>
                         <td><strong>{{ $qr->student->full_name ?? $qr->student_name ?? 'Student not found' }}</strong></td>
-                        <td>{{ ucfirst(str_replace('_', ' ', $qr->qr_type)) }}</td>
+                        <td>{{ $qr->display_type }}</td>
                         <td>{!! nl2br(e($qr->qr_value)) !!}</td>
                         <td>{{ $qr->creator->name ?? $qr->generator->name ?? 'Unknown' }}</td>
                         <td>{{ $qr->created_at->format('Y-m-d') }}</td>

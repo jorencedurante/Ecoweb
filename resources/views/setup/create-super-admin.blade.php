@@ -60,14 +60,14 @@
                         <label for="setup-password">Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="setup-password" name="password" placeholder="Create a password (min. 8 characters)" required>
-                            <button type="button" class="password-toggle" data-target="setup-password" aria-label="Show or hide password">👁</button>
+                            <button type="button" class="password-toggle" data-target="setup-password" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="setup-password-confirmation">Confirm Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="setup-password-confirmation" name="password_confirmation" placeholder="Confirm password" required>
-                            <button type="button" class="password-toggle" data-target="setup-password-confirmation" aria-label="Show or hide confirm password">👁</button>
+                            <button type="button" class="password-toggle" data-target="setup-password-confirmation" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="password-confirm-alert" style="display: none;">

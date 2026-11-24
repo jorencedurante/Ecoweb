@@ -134,7 +134,7 @@ class Phase2CollaborationTest extends TestCase
         $this->actingAs($subTeacher)->post(route('teacher.students.store'), [
             'first_name' => 'Denied', 'last_name' => 'Sub', 'lrn' => '99999999999',
             'grade_level' => 'Grade 1', 'gender' => 'Male', 'school_year' => '2026-2027',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('permission_denied.action', 'add');
 
         $this->assertSame(0, BottleCollection::count());
         $this->assertSame(1, Student::count());

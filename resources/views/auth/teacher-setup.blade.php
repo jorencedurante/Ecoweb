@@ -70,14 +70,14 @@
                         <label for="password">New Password <span class="required" aria-hidden="true">*</span></label>
                         <div class="input-wrapper">
                             <input type="password" id="password" name="password" placeholder="Enter your new password" required minlength="8" autocomplete="new-password">
-                            <button type="button" class="toggle-pw" aria-label="Show password">👁</button>
+                            <button type="button" class="password-toggle" data-target="password" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="password_confirmation">Confirm Password <span class="required" aria-hidden="true">*</span></label>
                         <div class="input-wrapper">
                             <input type="password" id="password_confirmation" name="password_confirmation" placeholder="Re-enter your new password" required minlength="8" autocomplete="new-password">
-                            <button type="button" class="toggle-pw" aria-label="Show password">👁</button>
+                            <button type="button" class="password-toggle" data-target="password_confirmation" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-block setup-submit" id="setupSubmit">Activate Account</button>

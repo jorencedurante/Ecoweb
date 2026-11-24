@@ -285,21 +285,21 @@
                         <label for="teacherCurrentPasswordInput">Current Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherCurrentPasswordInput" name="current_password" placeholder="Enter current password" aria-label="Current password">
-                            <button type="button" class="password-toggle" data-target="teacherCurrentPasswordInput" aria-label="Show or hide current password">👁</button>
+                            <button type="button" class="password-toggle" data-target="teacherCurrentPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="teacherNewPasswordInput">New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherNewPasswordInput" name="password" placeholder="Enter new password" aria-label="New password">
-                            <button type="button" class="password-toggle" data-target="teacherNewPasswordInput" aria-label="Show or hide new password">👁</button>
+                            <button type="button" class="password-toggle" data-target="teacherNewPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="teacherConfirmPasswordInput">Confirm New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="teacherConfirmPasswordInput" name="password_confirmation" placeholder="Confirm new password" aria-label="Confirm new password">
-                            <button type="button" class="password-toggle" data-target="teacherConfirmPasswordInput" aria-label="Show or hide confirm password">👁</button>
+                            <button type="button" class="password-toggle" data-target="teacherConfirmPasswordInput" aria-label="Show password" title="Show password" aria-pressed="false"><x-icon name="eye" :size="18" /></button>
                         </div>
                         <div id="teacherPasswordMatchFeedback" class="edit-account-help" style="margin-top:6px;"></div>
                     </div>
