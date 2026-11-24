@@ -314,6 +314,7 @@ class CertificateAwardToStudentTest extends TestCase
     public function test_print_view_falls_back_to_legacy_reconstruction_without_generated_file(): void
     {
         $teacher = $this->createTeacher();
+        $teacher->forceFill(['can_print_certificates' => true])->save();
         $student = $this->createStudent($teacher);
 
         $response = $this->actingAs($teacher)->post(route(portal_prefix() . '.certificate.save-canvas'), [

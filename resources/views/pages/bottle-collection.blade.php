@@ -258,11 +258,6 @@
     </div>
 
     <div class="table-container" id="bottle-collection-table" aria-busy="false">
-        <div class="table-header">
-            <div class="table-header-left">
-            </div>
-            <button type="button" class="btn btn-primary" data-modal-target="addCollectionModal">+ Add Collection</button>
-        </div>
         <div class="table-responsive">
         <table>
             <thead>
@@ -331,120 +326,9 @@
         </div>
     </div>
 
-    <!-- Add Collection Modal -->
-    <div class="modal-overlay" id="addCollectionModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add bottle collection</h3>
-                <p class="subtitle">Record a new bottle collection</p>
-            </div>
-            <form method="POST" action="{{ route(portal_prefix() . '.bottle-collection.store') }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="form-group student-search-wrapper">
-                        <label for="bottleStudentSearchInput">Student</label>
-                        <input
-                            type="text"
-                            id="bottleStudentSearchInput"
-                            name="student_display"
-                            class="student-search-input"
-                            placeholder="Search student by name, LRN, or Student ID..."
-                            autocomplete="off"
-                            value="{{ old('student_display') }}"
-                        >
-                        <input
-                            type="hidden"
-                            name="student_id"
-                            id="bottleSelectedStudentId"
-                            value="{{ old('student_id') }}"
-                            aria-label="Select student"
-                        >
-                        <div id="bottleStudentSearchResults" class="student-search-results"></div>
-                        @error('student_id')
-                            <div class="field-error" role="alert">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Date</label>
-                            <input type="date" name="collection_date" value="{{ date('Y-m-d') }}" required aria-label="Collection date" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
-                        </div>
-                        <div class="form-group">
-                            <label>Time</label>
-                            <input type="time" name="collection_time" value="{{ date('H:i') }}" required aria-label="Collection time" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Bottle Count</label>
-                        <input type="number" name="bottle_count" min="1" placeholder="Enter number of bottles" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#FAFAFA;" aria-label="Bottle count">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-modal-close>Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Collection</button>
-                </div>
-            </form>
-        </div>
-    </div>
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('bottleStudentSearchInput');
-    const hiddenId = document.getElementById('bottleSelectedStudentId');
-    const results = document.getElementById('bottleStudentSearchResults');
-    let searchTimeout = null;
-
-    if (searchInput && hiddenId && results) {
-        searchInput.addEventListener('input', function () {
-            const query = this.value.trim();
-            hiddenId.value = '';
-            clearTimeout(searchTimeout);
-            if (query.length < 2) {
-                results.innerHTML = '';
-                results.style.display = 'none';
-                return;
-            }
-            searchTimeout = setTimeout(function () {
-                fetch('{{ route(portal_prefix() . '.students.search') }}?q=' + encodeURIComponent(query))
-                    .then(response => response.json())
-                    .then(students => {
-                        results.innerHTML = '';
-                        if (!students.length) {
-                            results.innerHTML = '<div class="student-search-empty">No student found.</div>';
-                            results.style.display = 'block';
-                            return;
-                        }
-                        students.forEach(student => {
-                            const btn = document.createElement('button');
-                            btn.type = 'button';
-                            btn.className = 'student-search-result-item';
-                            btn.innerHTML = '<strong>' + student.name + '</strong><span>LRN: ' + (student.lrn ?? 'N/A') + ' | ID: ' + (student.student_id ?? 'N/A') + ' | ' + (student.grade_level ?? 'No grade') + '</span>';
-                            btn.addEventListener('click', function () {
-                                searchInput.value = student.name + ' - LRN: ' + (student.lrn ?? 'N/A');
-                                hiddenId.value = student.id;
-                                results.innerHTML = '';
-                                results.style.display = 'none';
-                                const err = document.querySelector('.student-search-wrapper .field-error');
-                                if (err) err.style.display = 'none';
-                            });
-                            results.appendChild(btn);
-                        });
-                        results.style.display = 'block';
-                    })
-                    .catch(function () {
-                        results.innerHTML = '<div class="student-search-empty">Unable to search students.</div>';
-                        results.style.display = 'block';
-                    });
-            }, 300);
-        });
-
-        document.addEventListener('click', function (event) {
-            if (!event.target.closest('.student-search-wrapper')) {
-                results.style.display = 'none';
-            }
-        });
-    }
-
     // ===== Automatic filtering: search / collection date / quarter =====
     const fetchUrl = '{{ route(portal_prefix() . '.bottle-collection.fetch') }}';
     const filterForm = document.getElementById('bottleFilterForm');
@@ -462,7 +346,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let requestSeq = 0;
     let activeRequest = null;
     let searchTimer = null;
-    let isPollingPaused = false;
 
     function buildFilterParams(includePage) {
         const params = new URLSearchParams();
@@ -496,7 +379,6 @@ document.addEventListener('DOMContentLoaded', function () {
     function fetchBottleCollections(options) {
         options = options || {};
         if (options.resetPage) currentPage = 1;
-        if (options.background && isPollingPaused) return;
 
         // Stale-response protection: only the newest request may update the table
         const seq = ++requestSeq;
@@ -745,15 +627,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let pollInterval = setInterval(function () {
         fetchBottleCollections({ background: true });
     }, 3000);
-
-    // Pause polling when the Add Collection modal is open
-    const modalOverlay = document.getElementById('addCollectionModal');
-    if (modalOverlay) {
-        const observer = new MutationObserver(function () {
-            isPollingPaused = modalOverlay.style.display === 'block' || modalOverlay.classList.contains('show');
-        });
-        observer.observe(modalOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
-    }
 
     // Refresh when the tab becomes visible again
     document.addEventListener('visibilitychange', function () {

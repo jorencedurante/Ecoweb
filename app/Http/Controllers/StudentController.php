@@ -36,9 +36,11 @@ class StudentController extends Controller
             return;
         }
 
-        if ($user->isTeacher()) {
+        $teacherId = $user->scopeTeacherId();
+
+        if ($teacherId !== null) {
             $hasAccess = $student->enrollments()
-                ->where('teacher_id', $user->id)
+                ->where('teacher_id', $teacherId)
                 ->where('status', 'active')
                 ->exists();
 
@@ -50,17 +52,24 @@ class StudentController extends Controller
         abort(403, 'Unauthorized access to this student record.');
     }
 
-    private function ensureCanManageStudents(): void
+    private function ensureCanManageStudents(string $permission = 'edit_students'): void
     {
-        $role = Auth::user()->role;
+        $user = Auth::user();
 
-        if ($role === 'admin') {
+        if ($user->role === 'admin') {
             abort(403, 'Admin accounts are view-only and cannot modify student records.');
         }
 
-        if (!in_array($role, ['teacher', 'super_admin'])) {
-            abort(403, 'You are not allowed to manage student records.');
+        if ($user->isTeacher() || $user->isSuperAdmin()) {
+            return;
         }
+
+        if ($user->isSubTeacher()
+            && app(\App\Services\CollaborationService::class)->can($user, $permission)) {
+            return;
+        }
+
+        abort(403, 'You are not allowed to manage student records.');
     }
 
     /**
@@ -149,6 +158,10 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
+        if ($notice = $this->unassignedSubTeacherNotice('Student')) {
+            return $notice;
+        }
+
         $user = Auth::user();
         $query = Student::query()->whereNotIn('status', ['Archived', 'archived']);
         $query->visibleTo(Auth::user());
@@ -181,8 +194,8 @@ class StudentController extends Controller
             ->whereHas('student', function ($q) use ($user) {
                 $q->whereNotIn('status', ['Archived', 'archived']);
             })
-            ->when($user->isTeacher(), function ($q) use ($user) {
-                $q->where('teacher_id', $user->id);
+            ->when($user->hasTeacherScope(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->scopeTeacherId());
             })
             ->orderBy('school_year', 'desc')
             ->pluck('school_year')
@@ -193,8 +206,8 @@ class StudentController extends Controller
         // Count active enrollments with NULL school_year for this teacher
         $nullSchoolYearCount = StudentEnrollment::whereNull('school_year')
             ->where('status', 'active')
-            ->when($user->isTeacher(), function ($q) use ($user) {
-                $q->where('teacher_id', $user->id);
+            ->when($user->hasTeacherScope(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->scopeTeacherId());
             })
             ->count();
 
@@ -231,8 +244,8 @@ class StudentController extends Controller
         // Count active enrollments with NULL school_year for this teacher
         $nullSchoolYearCount = StudentEnrollment::whereNull('school_year')
             ->where('status', 'active')
-            ->when($user->isTeacher(), function ($q) use ($user) {
-                $q->where('teacher_id', $user->id);
+            ->when($user->hasTeacherScope(), function ($q) use ($user) {
+                $q->where('teacher_id', $user->scopeTeacherId());
             })
             ->count();
 
@@ -288,7 +301,7 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
-        $this->ensureCanManageStudents();
+        $this->ensureCanManageStudents('add_students');
 
         $user = Auth::user();
 
@@ -307,12 +320,12 @@ class StudentController extends Controller
 
         $validated = $validator->validated();
 
-        // A teacher is always assigned to themselves; they can never enroll a
-        // student into another teacher's class. Super Admin may still pass an
-        // optional teacher_id (backend only — the form has no teacher dropdown).
+        // A teacher (or assigned Sub Teacher) always enrolls into the Teacher's
+        // own class — ownership is never changed by a collaborator. Super Admin
+        // may still pass an optional teacher_id (backend only).
         $teacherId = null;
-        if ($user->isTeacher()) {
-            $teacherId = $user->id;
+        if ($user->hasTeacherScope()) {
+            $teacherId = $user->scopeTeacherId();
         } elseif ($user->isSuperAdmin() && !empty($validated['teacher_id'])) {
             $teacherId = (int) $validated['teacher_id'];
         }
@@ -423,8 +436,8 @@ class StudentController extends Controller
 
             if ($reassignTeacher && $newTeacherId !== null) {
                 $this->syncEnrollment($student, $newTeacherId, $validated);
-            } elseif ($user->isTeacher()) {
-                $this->syncEnrollment($student, $user->id, $validated);
+            } elseif ($user->hasTeacherScope()) {
+                $this->syncEnrollment($student, $user->scopeTeacherId(), $validated);
             } else {
                 // Super Admin without a teacher change: keep the current
                 // assignment in sync so section / school year stay current.
@@ -809,8 +822,8 @@ class StudentController extends Controller
 
         // Determine the teacher for re-enrollment
         $newTeacherId = null;
-        if ($user->isTeacher()) {
-            $newTeacherId = $user->id;
+        if ($user->hasTeacherScope()) {
+            $newTeacherId = $user->scopeTeacherId();
         } elseif ($user->isSuperAdmin()) {
             $newTeacherId = $request->get('teacher_id') ? (int) $request->get('teacher_id') : null;
         }
@@ -876,10 +889,11 @@ class StudentController extends Controller
 
         $user = Auth::user();
 
-        // Teacher authorization: must have an enrollment (any status) with this teacher
-        if ($user->isTeacher()) {
+        // Teacher / assigned Sub Teacher authorization: must have an enrollment (any status) with this teacher
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null) {
             $hasAccess = $student->enrollments()
-                ->where('teacher_id', $user->id)
+                ->where('teacher_id', $scopeTeacherId)
                 ->exists();
 
             if (!$hasAccess) {
@@ -924,9 +938,9 @@ class StudentController extends Controller
                 ->orderByDesc('id')
                 ->value('school_year');
 
-            if ($user->isTeacher() && empty($enrollmentSchoolYear)) {
+            if ($user->hasTeacherScope() && empty($enrollmentSchoolYear)) {
                 $teacherEnrollment = $student->enrollments()
-                    ->where('teacher_id', $user->id)
+                    ->where('teacher_id', $user->scopeTeacherId())
                     ->whereNotNull('school_year')
                     ->where('school_year', '!=', '')
                     ->orderByDesc('id')
@@ -955,10 +969,10 @@ class StudentController extends Controller
 
             $schoolYear = $requestedYear;
 
-            // Update only the teacher's enrollment school_year (correction).
-            if ($user->isTeacher()) {
+            // Update only the owned teacher's enrollment school_year (correction).
+            if ($user->hasTeacherScope()) {
                 $student->enrollments()
-                    ->where('teacher_id', $user->id)
+                    ->where('teacher_id', $user->scopeTeacherId())
                     ->update(['school_year' => $schoolYear]);
             }
 
@@ -1005,10 +1019,11 @@ class StudentController extends Controller
 
         $user = Auth::user();
 
-        // Teacher authorization: must have an enrollment (any status) with this teacher
-        if ($user->isTeacher()) {
+        // Teacher / assigned Sub Teacher authorization: must have an enrollment (any status) with this teacher
+        $scopeTeacherId = $user->scopeTeacherId();
+        if ($scopeTeacherId !== null) {
             $hasAccess = $student->enrollments()
-                ->where('teacher_id', $user->id)
+                ->where('teacher_id', $scopeTeacherId)
                 ->exists();
 
             if (!$hasAccess) {
@@ -1155,7 +1170,7 @@ class StudentController extends Controller
         ]);
 
         $currentEnrollment = $student->enrollments
-            ->where('teacher_id', Auth::user()->isTeacher() ? Auth::id() : optional($student->enrollments->first())->teacher_id)
+            ->where('teacher_id', Auth::user()->scopeTeacherId() ?? optional($student->enrollments->first())->teacher_id)
             ->first();
 
         return view('pages.student-info', compact('student', 'currentEnrollment'));
@@ -1241,9 +1256,9 @@ class StudentController extends Controller
 
         $students = Student::query()
             ->whereNotIn('status', ['Archived', 'archived'])
-            ->when($user->isTeacher(), function ($query) use ($user) {
+            ->when($user->hasTeacherScope(), function ($query) use ($user) {
                 $query->whereHas('enrollments', function ($q) use ($user) {
-                    $q->where('teacher_id', $user->id)->where('status', 'active');
+                    $q->where('teacher_id', $user->scopeTeacherId())->where('status', 'active');
                 });
             })
             ->when($search, function ($query) use ($search) {
@@ -1288,7 +1303,7 @@ class StudentController extends Controller
         $user = Auth::user();
 
         $currentEnrollment = $student->enrollments()
-            ->when($user->isTeacher(), fn ($query) => $query->where('teacher_id', $user->id))
+            ->when($user->hasTeacherScope(), fn ($query) => $query->where('teacher_id', $user->scopeTeacherId()))
             ->latest()
             ->first();
 
@@ -1472,10 +1487,12 @@ class StudentController extends Controller
                 'progress' => $questProgress,
             ],
             'certificates' => $awards->map(function ($award) use ($user, $student) {
-                $canAccess = ! $user->isTeacher()
-                    || (int) $award->teacher_id === (int) $user->id
+                $canPrint = $user->canPrintCertificates();
+                $scopeTeacherId = $user->scopeTeacherId();
+                $canAccess = $scopeTeacherId === null
+                    || (int) $award->teacher_id === $scopeTeacherId
                     || $student->enrollments()
-                        ->where('teacher_id', $user->id)
+                        ->where('teacher_id', $scopeTeacherId)
                         ->where('status', 'active')
                         ->exists();
                 $hasFinal = $award->hasFinalCertificateFile();
@@ -1489,8 +1506,8 @@ class StudentController extends Controller
                     'status' => $award->status,
                     'awarded_date' => optional($award->awarded_date)->format('M d, Y'),
                     'teacher_name' => $award->teacher?->name,
-                    'view_url' => $canAccess && $hasFinal ? route(portal_prefix() . '.certificate.download', $award) : null,
-                    'print_url' => $canAccess && $award->canRenderCertificate() ? route(portal_prefix() . '.certificate.print', $award) : null,
+                    'view_url' => $canAccess && $canPrint && $hasFinal ? route(portal_prefix() . '.certificate.download', $award) : null,
+                    'print_url' => $canAccess && $canPrint && $award->canRenderCertificate() ? route(portal_prefix() . '.certificate.print', $award) : null,
                 ];
             })->values(),
             'meta' => [
@@ -1503,7 +1520,7 @@ class StudentController extends Controller
 
     public function import(Request $request)
     {
-        $this->ensureCanManageStudents();
+        $this->ensureCanManageStudents('add_students');
 
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls',

@@ -26,4 +26,9 @@ class BottleCollection extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function enrollment(): BelongsTo
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollment_id');
+    }
 }

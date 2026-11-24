@@ -126,9 +126,7 @@
     @endif
 
     @if(session('success'))
-        <section class="preview-section">
-            <div class="public-alert success" role="status">{{ session('success') }}</div>
-        </section>
+        <script type="application/json" id="ecFlashMessages">@json([['type' => 'success', 'message' => (string) session('success')]])</script>
     @endif
 
     @if($errors->any())
@@ -227,5 +225,6 @@
 
 </div>
 
+<script src="{{ asset('js/toast.js') }}?v={{ filemtime(public_path('js/toast.js')) }}"></script>
 </body>
 </html>

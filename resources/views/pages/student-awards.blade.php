@@ -51,11 +51,13 @@
             @endif
             <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
                 @php $hasFinal = $award->hasFinalCertificateFile(); @endphp
+                @if(auth()->user()->canPrintCertificates())
                 <a href="{{ route(portal_prefix() . '.certificate.print', $award->id) }}" class="btn btn-view btn-xs" target="_blank" rel="noopener">View</a>
                 @if($hasFinal)
                 <a href="{{ route(portal_prefix() . '.certificate.download', $award->id) }}" class="btn btn-achievement btn-xs" target="_blank" rel="noopener">Download</a>
                 @endif
                 <a href="{{ route(portal_prefix() . '.certificate.print', $award->id) }}" class="btn btn-xs" style="background:#6B7280;color:#fff;" target="_blank" rel="noopener">Print</a>
+                @endif
             </div>
         </div>
         @empty

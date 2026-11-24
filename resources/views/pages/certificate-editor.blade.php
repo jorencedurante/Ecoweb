@@ -7,6 +7,13 @@
 @section('content')
 <a href="{{ route(portal_prefix() . '.certificate') }}" class="back-link" style="margin-bottom:16px;display:inline-block;">← Back to Certificate Award</a>
 
+@if(!auth()->user()->canPrintCertificates())
+    <div role="status" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;padding:12px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:1.5;">
+        <span aria-hidden="true" style="font-size:16px;line-height:1.2;">🔒</span>
+        <span><strong>Certificate printing access has not been granted. Please contact your administrator.</strong><br>You can still prepare certificates, but Print Preview and printing are disabled.</span>
+    </div>
+@endif
+
 <form id="certificateForm" method="POST"
       action="{{ isset($award) ? route(portal_prefix() . '.certificate.update-canvas', $award->id) : route(portal_prefix() . '.certificate.save-canvas') }}"
       enctype="multipart/form-data">
@@ -142,7 +149,7 @@
 
     <div style="display:flex;gap:12px;margin-bottom:24px;">
         <button type="submit" class="btn btn-success" style="padding:10px 32px;">Save Certificate</button>
-        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;">Print Preview</button>
+        <button type="button" id="previewPrintBtn" class="btn btn-sm" style="background:#6B7280;color:#fff;padding:10px 24px;" {{ auth()->user()->canPrintCertificates() ? '' : 'disabled title="Certificate printing access has not been granted. Please contact your administrator."' }}>Print Preview</button>
     </div>
 </form>
 @endsection
@@ -1015,6 +1022,10 @@ input[type="range"].snp-input {
 
     // --- PRINT PREVIEW ---
     document.getElementById('previewPrintBtn').addEventListener('click', function () {
+        @if(!auth()->user()->canPrintCertificates())
+            alert('Certificate printing access has not been granted. Please contact your administrator.');
+            return;
+        @endif
         if (!document.getElementById('certificateBg').src && !document.getElementById('template_file').files[0]) {
             alert('Please upload a template first.');
             return;

@@ -466,7 +466,7 @@ class ItemClaimFlowTest extends TestCase
         $response->assertSee('Total Required:');
         $response->assertSee('data-points="100"', false);
         $response->assertSee('data-available="14"', false);
-        $response->assertSee('min="1"', false);
+        $response->assertSee('min="0"', false);
         $response->assertSee('max="14"', false);
         $response->assertSee('name="request_token"', false);
     }

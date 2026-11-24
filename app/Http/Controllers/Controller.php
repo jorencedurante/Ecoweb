@@ -4,6 +4,21 @@ namespace App\Http\Controllers;
 
 abstract class Controller
 {
+    /**
+     * Shared UI for unassigned Sub Teachers. Returns null when the user is
+     * allowed to continue to the module, so callers must still rely on the
+     * existing middleware/authorization for all data and write endpoints.
+     */
+    protected function unassignedSubTeacherNotice(string $module)
+    {
+        $user = auth()->user();
+        if ($user && $user->isSubTeacher() && !$user->hasEffectiveAssignment()) {
+            return view('pages.unassigned-sub-teacher-notice', ['module' => $module]);
+        }
+
+        return null;
+    }
+
     protected function getQuarterDateRange(?string $quarter): array
     {
         $now = now();

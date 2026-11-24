@@ -188,29 +188,14 @@
             </form>
         </div>
         <div id="claimHistoryTableContainer">
-            @include('partials.claim-history-table', ['claims' => $claims, 'claimHistoryByStudent' => $historyPaginatedByStudent ?? $claimHistoryByStudent])
+            @include('partials.claim-history-table', [
+                'claims' => $claims,
+                'claimHistoryByStudent' => $historyPaginatedByStudent ?? $claimHistoryByStudent,
+                'historyPage' => $historyPage ?? 1,
+                'historyTotalGroups' => $historyTotalGroups ?? $claimHistoryByStudent->count(),
+            ])
         </div>
     </div>
-
-    {{-- Claim History Pagination --}}
-    @if(isset($historyHasMorePages) && $historyHasMorePages)
-    <div class="pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;margin-top:8px;border-top:1px solid #e2e8f0;">
-        <span class="page-info" style="font-size:13px;color:#6b7280;">
-            Student groups {{ (($historyPage - 1) * 10) + 1 }} to {{ min($historyPage * 10, $claimHistoryByStudent->count()) }} of {{ $claimHistoryByStudent->count() }}
-        </span>
-        <div class="page-btns" style="display:flex;gap:4px;">
-            @if ($historyPage > 1)
-                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage - 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Prev</a>
-            @endif
-            @for ($i = max(1, $historyPage - 2); $i <= min($historyPage + 2, ceil(($claimHistoryByStudent->count() ?? 0) / 10)); $i++)
-                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $i])) }}#claim-history-section" class="page-btn {{ $i == $historyPage ? 'active' : '' }}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:{{ $i == $historyPage ? '#10b981' : '#374151' }};background:{{ $i == $historyPage ? '#d1fae5' : '#fff' }};text-decoration:none;">{{ $i }}</a>
-            @endfor
-            @if ($historyHasMorePages)
-                <a href="{{ route(portal_prefix() . '.claims.index', array_merge(request()->query(), ['history_page' => $historyPage + 1])) }}#claim-history-section" class="page-btn" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;color:#10b981;background:#d1fae5;text-decoration:none;">Next</a>
-            @endif
-        </div>
-    </div>
-    @endif
 
     {{-- All Item Requests by Student (Admin/Super Admin only) --}}
     @if(in_array(Auth::user()->role, ['admin', 'super_admin', 'Admin', 'Super Admin']))
@@ -261,7 +246,7 @@
             </div>
         </div>
         <div id="archived-by-student-container" style="display:none;padding:16px;">
-            @foreach($archivedClaimsByStudent as $studentId => $claimsGroup)
+            @foreach($archivedPaginatedByStudent ?? $archivedClaimsByStudent as $studentId => $claimsGroup)
                 @php
                     $firstClaim = $claimsGroup->first();
                     $student = $firstClaim->student;
@@ -273,8 +258,8 @@
                     $studentGrade = $student->grade_level ?? '';
                     $collapseId = 'archived-student-' . $studentId;
                 @endphp
-                <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;">
-                    <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;flex-wrap:wrap;gap:8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="toggleApprovedStudent('{{ $collapseId }}')">
+                <div class="approved-student-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:7px;overflow:hidden;">
+                    <div class="approved-student-summary" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;flex-wrap:wrap;gap:6px;background:#f9fafb;border-bottom:1px solid #e5e7eb;" onclick="toggleApprovedStudent('{{ $collapseId }}')">
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:700;font-size:14px;color:#111827;">{{ $studentName }}</div>
                             <div style="font-size:12px;color:#6b7280;margin-top:2px;">
@@ -284,60 +269,85 @@
                         </div>
                         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
                             <div style="text-align:center;">
-                                <div style="font-size:18px;font-weight:700;color:#6b7280;">{{ $totalItems }}</div>
+                                <div style="font-size:16px;font-weight:700;color:#6b7280;">{{ $totalItems }}</div>
                                 <div style="font-size:11px;color:#6b7280;">Released</div>
                             </div>
                             <div style="text-align:center;">
-                                <div style="font-size:18px;font-weight:700;color:#6b7280;">{{ number_format($totalPoints) }}</div>
+                                <div style="font-size:16px;font-weight:700;color:#6b7280;">{{ number_format($totalPoints) }}</div>
                                 <div style="font-size:11px;color:#6b7280;">Points</div>
                             </div>
                             <div style="text-align:center;">
                                 <div style="font-size:12px;color:#6b7280;">{{ $latestRelease ? \Carbon\Carbon::parse($latestRelease)->format('M d, Y') : 'N/A' }}</div>
                                 <div style="font-size:11px;color:#9ca3af;">Last Released</div>
                             </div>
-                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-expanded="false" aria-controls="{{ $collapseId }}">
-                                View Requests ▼
+                            <button type="button" id="btn-{{ $collapseId }}" class="btn btn-outline btn-sm" style="white-space:nowrap;font-size:12px;padding:6px 12px;" aria-controls="{{ $collapseId }}">
+                                View Requests
                             </button>
                         </div>
                     </div>
-                    <div id="{{ $collapseId }}" class="approved-student-details" style="display:none;padding:0;">
+                    <template id="{{ $collapseId }}" class="approved-student-details">
                         <div class="table-responsive">
                             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                                 <thead>
                                     <tr style="background:#f3f4f6;">
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released Date</th>
-                                        <th scope="col" style="padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released By</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Item</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Qty</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Points Deducted</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Claim Date</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released Date</th>
+                                        <th scope="col" style="padding:8px 10px;text-align:left;font-size:12px;text-transform:uppercase;color:#6b7280;font-weight:600;">Released By</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($claimsGroup as $claim)
                                     <tr style="border-bottom:1px solid #f3f4f6;">
-                                        <td style="padding:10px 14px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
-                                        <td style="padding:10px 14px;">{{ $claim->quantity ?? 1 }}</td>
-                                        <td style="padding:10px 14px;color:#ef4444;font-weight:600;">-{{ number_format($claim->points_deducted) }}</td>
-                                        <td style="padding:10px 14px;">{{ $claim->claim_date ? \Carbon\Carbon::parse($claim->claim_date)->format('M d, Y') : 'N/A' }}</td>
-                                        <td style="padding:10px 14px;color:#6b7280;">{{ $claim->released_at ? \Carbon\Carbon::parse($claim->released_at)->format('M d, Y') : 'N/A' }}</td>
-                                        <td style="padding:10px 14px;color:#6b7280;">{{ $claim->releaser->name ?? 'System' }}</td>
+                                        <td style="padding:8px 10px;font-weight:600;color:#111827;">{{ $claim->item_name }}</td>
+                                        <td style="padding:8px 10px;">{{ $claim->quantity ?? 1 }}</td>
+                                        <td style="padding:8px 10px;color:#ef4444;font-weight:600;">-{{ number_format($claim->points_deducted) }}</td>
+                                        <td style="padding:8px 10px;">{{ $claim->claim_date ? \Carbon\Carbon::parse($claim->claim_date)->format('M d, Y') : 'N/A' }}</td>
+                                        <td style="padding:8px 10px;color:#6b7280;">{{ $claim->released_at ? \Carbon\Carbon::parse($claim->released_at)->format('M d, Y') : 'N/A' }}</td>
+                                        <td style="padding:8px 10px;color:#6b7280;">{{ $claim->releaser->name ?? 'System' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </template>
                 </div>
             @endforeach
+
+            @include('partials.claims-pagination', [
+                'page' => $archivedPage ?? 1,
+                'totalGroups' => $archivedClaimsByStudent->count(),
+                'pageParam' => 'archived_page',
+                'anchor' => 'archived-by-student-section',
+            ])
         </div>
     </div>
     @endif
+
+    <!-- Student Claim Details Popup (replaces inline expandable rows) -->
+    <div class="modal-overlay claim-details-modal" id="claimDetailsModal" role="dialog" aria-modal="true" aria-labelledby="claimDetailsTitle" style="display:none;">
+        <div class="modal-content claim-details-modal-content">
+            <div class="modal-header">
+                <div class="claim-details-heading">
+                    <h2 id="claimDetailsTitle">Item Requests</h2>
+                    <div class="claim-details-meta" id="claimDetailsMeta"></div>
+                </div>
+                <button type="button" class="modal-close" id="closeClaimDetailsModal" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body claim-details-modal-body" id="claimDetailsBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="closeClaimDetailsFooter">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Claim Approve/Reject Confirmation Modal -->
     <div class="modal-overlay" id="claimConfirmModal" role="dialog" aria-modal="true" aria-labelledby="claimConfirmTitle" style="display:none;">
         <div class="modal-content" style="max-width:480px;width:min(480px,92vw);">
             <div class="modal-header">
+                <span class="claim-confirm-icon" id="claimConfirmIcon" aria-hidden="true">📦</span>
                 <div class="claim-confirm-heading">
                     <h2 id="claimConfirmTitle">Confirm Action</h2>
                     <p id="claimConfirmMessage">Message</p>
@@ -352,12 +362,82 @@
         </div>
     </div>
     <style>
+        /* Claim details popup: centered, scrollable, tables scroll horizontally. */
+        #claimDetailsModal { z-index: 3000; }
+        #claimConfirmModal { z-index: 4000; }
+        #editItemModal { z-index: 3500; }
+
+        /* Slightly tighter claim sections - design, colours and columns unchanged. */
+        .data-card-header { padding: 14px 20px; }
+        .data-card-header h3, .card-title-area h3 { font-size: 19px; }
+        #claim-items-section table th { padding: 9px 12px; font-size: 12px; }
+        #claim-items-section table td { padding: 9px 12px; font-size: 13px; }
+        #claimConfirmModal #claimConfirmMessage { white-space: pre-line; }
+        .claim-confirm-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+            background: #fff7ed; color: #ea580c; font-size: 17px;
+        }
+        .claim-confirm-icon.approve { background: #ecfdf5; color: #059669; }
+        .claim-confirm-icon.reject { background: #fef2f2; color: #dc2626; }
+        .claim-details-modal-content {
+            max-width: min(1040px, 94vw);
+            width: min(1040px, 94vw);
+            max-height: 90vh;
+            max-height: 90dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .claim-details-modal-content .modal-header { flex: 0 0 auto; gap: 16px; }
+        .claim-details-heading { min-width: 0; }
+        .claim-details-heading h2 { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+        .claim-details-meta { margin-top: 6px; font-size: 12px; color: #6b7280; }
+        .claim-details-meta .approved-student-summary {
+            padding: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            cursor: default !important;
+        }
+        .claim-details-modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            overscroll-behavior: contain;
+            padding: 16px 20px;
+        }
+        .claim-details-modal-body .table-responsive { overflow-x: auto; max-width: 100%; }
+        .claim-details-modal-content .modal-footer { flex: 0 0 auto; }
+        .claim-section-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+        .claim-section-pagination .page-btns { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+        .claim-section-pagination .page-btn {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #374151;
+            background: #fff;
+            text-decoration: none;
+        }
+        .claim-section-pagination .page-btn.active { color: #10b981; background: #d1fae5; border-color: #10b981; }
+        .claim-section-pagination .page-btn-disabled { opacity: .5; cursor: default; pointer-events: none; }
+        .claim-section-pagination .page-ellipsis { color: #6b7280; padding: 0 4px; }
         /* Compact confirmation dialog: stacked title/message, no empty body. */
         #claimConfirmModal .modal-header {
             gap: 12px;
             padding: 18px 20px;
         }
         #claimConfirmModal .claim-confirm-heading {
+            flex: 1 1 auto;
             min-width: 0;
         }
         #claimConfirmModal .modal-header h2 {
@@ -897,8 +977,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function submitPendingFilter() {
         if (!pendingClaimsFilterForm || !pendingResultsContainer) return;
         var formData = new FormData(pendingClaimsFilterForm);
-        var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route(portal_prefix() . '.claims.pending.filter') }}' + '?' + queryString;
+        var params = new URLSearchParams(formData);
+        params.set('pending_page', '1');
+        var url = '{{ route(portal_prefix() . '.claims.pending.filter') }}' + '?' + params.toString();
         fetchPartial(url, pendingResultsContainer);
     }
 
@@ -919,8 +1000,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function submitClaimHistoryFilter() {
         if (!claimHistoryFilterForm || !claimHistoryContainer) return;
         var formData = new FormData(claimHistoryFilterForm);
-        var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route(portal_prefix() . '.claims.history.filter') }}' + '?' + queryString;
+        var params = new URLSearchParams(formData);
+        params.set('history_page', '1');
+        var url = '{{ route(portal_prefix() . '.claims.history.filter') }}' + '?' + params.toString();
         fetchPartial(url, claimHistoryContainer);
     }
 
@@ -1023,8 +1105,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function submitApprovedFilter() {
         if (!approvedByStudentForm || !approvedByStudentContainer) return;
         var formData = new FormData(approvedByStudentForm);
-        var queryString = new URLSearchParams(formData).toString();
-        var url = '{{ route(portal_prefix() . '.claims.approved.filter') }}' + '?' + queryString;
+        var params = new URLSearchParams(formData);
+        params.set('approved_page', '1');
+        var url = '{{ route(portal_prefix() . '.claims.approved.filter') }}' + '?' + params.toString();
         fetchPartial(url, approvedByStudentContainer);
     }
 
@@ -1074,30 +1157,90 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <script>
-function togglePendingStudent(id) {
-    var el = document.getElementById(id);
-    var btn = document.getElementById('btn-' + id);
-    if (!el) return;
-    if (el.style.display === 'none' || el.style.display === '') {
-        el.style.display = 'block';
-        if (btn) btn.textContent = 'Hide Requests ▲';
-    } else {
-        el.style.display = 'none';
-        if (btn) btn.textContent = 'View Requests ▼';
+/* --- Shared scroll lock for claim popups and confirmation dialogs --- */
+var claimDetailsScrollY = 0;
+var claimDetailsLastTrigger = null;
+
+function claimAnyModalOpen() {
+    var details = document.getElementById('claimDetailsModal');
+    var confirm = document.getElementById('claimConfirmModal');
+    var edit = document.getElementById('editItemModal');
+    return (details && details.style.display === 'flex')
+        || (confirm && confirm.style.display === 'flex')
+        || (edit && edit.classList.contains('show'));
+}
+
+function syncClaimScrollLock() {
+    if (claimAnyModalOpen()) {
+        if (!document.body.dataset.claimScrollLocked) {
+            document.body.dataset.claimScrollLocked = '1';
+            claimDetailsScrollY = window.scrollY || window.pageYOffset || 0;
+            document.body.style.overflow = 'hidden';
+        }
+    } else if (document.body.dataset.claimScrollLocked) {
+        delete document.body.dataset.claimScrollLocked;
+        document.body.style.overflow = '';
+        window.scrollTo(0, claimDetailsScrollY);
     }
 }
 
-function toggleApprovedStudent(id) {
-    var el = document.getElementById(id);
-    var btn = document.getElementById('btn-' + id);
-    if (!el) return;
-    if (el.style.display === 'none' || el.style.display === '') {
-        el.style.display = 'block';
-        if (btn) btn.textContent = 'Hide Requests ▲';
-    } else {
-        el.style.display = 'none';
-        if (btn) btn.textContent = 'View Requests ▼';
+function openClaimDetailsModal(id, title, trigger) {
+    var template = document.getElementById(id);
+    var modal = document.getElementById('claimDetailsModal');
+    if (!template || !modal || !template.content) return;
+
+    var card = template.closest('.approved-student-card');
+    var summary = card ? card.querySelector('.approved-student-summary') : null;
+    var body = document.getElementById('claimDetailsBody');
+    var meta = document.getElementById('claimDetailsMeta');
+
+    body.innerHTML = '';
+    body.appendChild(template.content.cloneNode(true));
+
+    meta.innerHTML = '';
+    if (summary) {
+        var info = summary.cloneNode(true);
+        info.querySelectorAll('button, form').forEach(function (el) { el.remove(); });
+        meta.appendChild(info);
     }
+
+    document.getElementById('claimDetailsTitle').textContent = title;
+    claimDetailsLastTrigger = trigger || null;
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    syncClaimScrollLock();
+    document.getElementById('closeClaimDetailsModal').focus();
+}
+
+function closeClaimDetailsModal() {
+    var modal = document.getElementById('claimDetailsModal');
+    if (!modal || modal.style.display !== 'flex') return;
+    modal.style.display = 'none';
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    var body = document.getElementById('claimDetailsBody');
+    if (body) body.innerHTML = '';
+    syncClaimScrollLock();
+    if (claimDetailsLastTrigger) {
+        claimDetailsLastTrigger.focus();
+        claimDetailsLastTrigger = null;
+    }
+}
+
+function togglePendingStudent(id) {
+    openClaimDetailsModal(id, 'Pending Item Requests', document.getElementById('btn-' + id));
+}
+
+function toggleApprovedStudent(id) {
+    var title = id.indexOf('archived-student-') === 0
+        ? 'Released Item Requests'
+        : 'Approved Item Requests';
+    openClaimDetailsModal(id, title, document.getElementById('btn-' + id));
+}
+
+function toggleClaimHistoryStudent(id) {
+    openClaimDetailsModal(id, 'Student Claim History', document.getElementById('btn-' + id));
 }
 
 function toggleArchivedSection() {
@@ -1113,82 +1256,88 @@ function toggleArchivedSection() {
     }
 }
 
-function toggleClaimHistoryStudent(id) {
-    var el = document.getElementById(id);
-    var btn = document.getElementById('btn-' + id);
-    if (!el) return;
-    if (el.style.display === 'none' || el.style.display === '') {
-        el.style.display = 'block';
-        if (btn) btn.textContent = 'Hide History â–²';
-    } else {
-        el.style.display = 'none';
-        if (btn) btn.textContent = 'View History â–¼';
-    }
-}
+document.getElementById('closeClaimDetailsModal')?.addEventListener('click', closeClaimDetailsModal);
+document.getElementById('closeClaimDetailsFooter')?.addEventListener('click', closeClaimDetailsModal);
+document.getElementById('claimDetailsModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeClaimDetailsModal();
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    // The confirmation dialog sits above the details popup; close only the
+    // topmost dialog so the parent popup stays open when cancelling.
+    var confirmModal = document.getElementById('claimConfirmModal');
+    if (confirmModal && confirmModal.style.display === 'flex') return;
+    closeClaimDetailsModal();
+});
 
 </script>
 <script>
-// --- Top-center floating toast (claims approve/reject) ---
+// Claim notifications use the shared EcoCollect toast system only.
 function showClaimToast(message, isError) {
-    var existing = document.getElementById('claimToast');
-    if (existing) {
-        if (existing._claimToastHideTimer) clearTimeout(existing._claimToastHideTimer);
-        if (existing._claimToastRemoveTimer) clearTimeout(existing._claimToastRemoveTimer);
-        existing.remove();
+    if (window.EcoToast) {
+        window.EcoToast.show(isError ? 'error' : 'success', message, { key: 'claim-action' });
     }
-    var toast = document.createElement('div');
-    toast.id = 'claimToast';
-    toast.setAttribute('role', isError ? 'alert' : 'status');
-    toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
-    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10050;display:inline-flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));width:max-content;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);pointer-events:auto;opacity:0;transition:opacity .25s ease;box-sizing:border-box;' + (isError ? 'background:#fef2f2;border:1px solid #ef5350;color:#991b1b;' : 'background:#ecfdf3;border:1px solid #22c55e;color:#166534;');
-    var icon = document.createElement('span');
-    icon.setAttribute('aria-hidden', 'true');
-    icon.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px;font-size:14px;font-weight:700;line-height:1;';
-    icon.textContent = isError ? '!' : '✓';
-    var text = document.createElement('span');
-    text.textContent = message || '';
-    text.style.cssText = 'min-width:0;word-break:break-word;';
-    toast.appendChild(icon);
-    toast.appendChild(text);
-    document.body.appendChild(toast);
-    requestAnimationFrame(function () { toast.style.opacity = '1'; });
-    toast._claimToastHideTimer = setTimeout(function () {
-        toast.style.opacity = '0';
-        toast._claimToastRemoveTimer = setTimeout(function () { if (toast.parentNode) toast.remove(); }, 260);
-    }, 5000);
 }
 
-// --- Approve/Reject confirmation modal ---
+// --- Shared approve/reject/release confirmation modal (nested-safe) ---
 var claimConfirmTargetForm = null;
 var claimConfirmActionType = null;
-var claimConfirmScrollY = 0;
+var claimConfirmLastTrigger = null;
+var claimConfirmSubmitting = false;
 
 function releaseClaimModalScrollLock() {
-    document.body.style.overflow = '';
-    window.scrollTo(0, claimConfirmScrollY);
+    // Keep the lock while the parent details popup is still open.
+    syncClaimScrollLock();
 }
 
 function openClaimConfirmModal(form, title, message, type) {
     var modal = document.getElementById('claimConfirmModal');
     if (!modal || !form) return;
 
-    claimConfirmScrollY = window.scrollY || window.pageYOffset || 0;
     claimConfirmTargetForm = form;
     claimConfirmActionType = type;
+    claimConfirmLastTrigger = document.activeElement || null;
+    claimConfirmSubmitting = false;
 
     try {
         document.getElementById('claimConfirmTitle').textContent = title;
         document.getElementById('claimConfirmMessage').textContent = message;
+
+        var icon = document.getElementById('claimConfirmIcon');
+        if (icon) {
+            icon.textContent = type === 'approve' ? '✅' : (type === 'reject' ? '⛔' : '📦');
+            icon.className = 'claim-confirm-icon'
+                + (type === 'approve' ? ' approve' : (type === 'reject' ? ' reject' : ''));
+        }
+
         var detailsEl = document.getElementById('claimConfirmDetails');
         if (detailsEl) {
             var student = form.getAttribute('data-student-name') || 'Unknown student';
-            var item = form.getAttribute('data-item-name') || 'item';
-            var quantity = form.getAttribute('data-quantity') || '1';
-            detailsEl.textContent = 'Student: ' + student + '  ·  Item: ' + item + '  ·  Quantity: ' + quantity;
+            if (type === 'release_all') {
+                detailsEl.textContent = 'Student: ' + student;
+            } else {
+                var item = form.getAttribute('data-item-name') || 'item';
+                var quantity = form.getAttribute('data-quantity') || '1';
+                detailsEl.textContent = 'Student: ' + student + '  ·  Item: ' + item + '  ·  Quantity: ' + quantity;
+            }
+            detailsEl.hidden = false;
         }
+
         var actionBtn = document.getElementById('claimConfirmAction');
-        actionBtn.textContent = type === 'approve' ? 'Approve Claim' : 'Reject Claim';
-        actionBtn.className = 'btn ' + (type === 'approve' ? 'btn-success' : 'btn-danger');
+        if (type === 'approve') {
+            actionBtn.textContent = 'Approve Claim';
+            actionBtn.className = 'btn btn-success';
+        } else if (type === 'reject') {
+            actionBtn.textContent = 'Reject Claim';
+            actionBtn.className = 'btn btn-danger';
+        } else if (type === 'release_all') {
+            actionBtn.textContent = 'Confirm All Releases';
+            actionBtn.className = 'btn btn-warning';
+        } else {
+            // Both single and bulk releases use the orange Mark Released colour.
+            actionBtn.textContent = 'Confirm Release';
+            actionBtn.className = 'btn btn-warning';
+        }
         actionBtn.disabled = false;
 
         // The overlay has an inline display:none; adding .show alone cannot
@@ -1197,7 +1346,7 @@ function openClaimConfirmModal(form, title, message, type) {
         modal.style.display = 'flex';
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
+        syncClaimScrollLock();
         actionBtn.focus();
     } catch (err) {
         // A failed open must not leave an invisible dialog holding the lock.
@@ -1207,6 +1356,7 @@ function openClaimConfirmModal(form, title, message, type) {
         releaseClaimModalScrollLock();
         claimConfirmTargetForm = null;
         claimConfirmActionType = null;
+        claimConfirmLastTrigger = null;
         console.error('Unable to open claim confirmation:', err);
     }
 }
@@ -1223,17 +1373,28 @@ function closeClaimConfirmModal() {
     if (btn) btn.disabled = false;
     claimConfirmTargetForm = null;
     claimConfirmActionType = null;
+    claimConfirmSubmitting = false;
+
+    // Return focus to the button that opened the dialog, keeping the parent
+    // claim details popup open underneath it.
+    var trigger = claimConfirmLastTrigger;
+    claimConfirmLastTrigger = null;
+    if (trigger && document.contains(trigger) && typeof trigger.focus === 'function') {
+        trigger.focus();
+    }
 }
 
 function submitClaimConfirm() {
     var form = claimConfirmTargetForm;
-    if (!form) return;
+    if (!form || claimConfirmSubmitting) return;
     var btn = document.getElementById('claimConfirmAction');
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     closeClaimConfirmModal();
     // closeClaimConfirmModal() clears the stored form, so submit the local
     // reference captured above. form.submit() bypasses the inline onsubmit
     // handler, so the confirmation dialog cannot reopen.
+    claimConfirmSubmitting = true;
+    if (btn) btn.disabled = true;
     form.submit();
 }
 
@@ -1247,13 +1408,7 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeClaimConfirmModal();
 });
 
-// Show session flash (approve/reject success or error) as a top-center toast.
-@if(session('success'))
-    showClaimToast({!! \Illuminate\Support\Js::from(session('success')) !!}, false);
-@endif
-@if(session('error'))
-    showClaimToast({!! \Illuminate\Support\Js::from(session('error')) !!}, true);
-@endif
+// Session flashes are rendered once by the shared layout toast component.
 </script>
 <style>
 /* Compact action buttons for pending item claims */

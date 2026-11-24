@@ -53,6 +53,7 @@
             @page { size: A4 landscape; margin: 15mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 20px; padding-bottom: 15px; }
+            .report-branding .school-name { font-size: 22px; }
             tr:hover { background: transparent; }
             .summary-table, .summary-total { break-inside: avoid; page-break-inside: avoid; }
         }
@@ -60,10 +61,10 @@
 </head>
 <body>
     <div class="report-header">
-        <h1>🎁 Summary Item Report</h1>
-        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Teacher: {{ $teacherName }}</div>
-        <div class="generated">Generated: {{ $generatedAt }}</div>
+        @include('partials.reports.print-header', [
+            'reportTitle' => '🎁 Summary Item Report',
+            'reportMeta' => ['Teacher: ' . $teacherName, 'Generated: ' . $generatedAt],
+        ])
     </div>
 
     <table class="summary-table">

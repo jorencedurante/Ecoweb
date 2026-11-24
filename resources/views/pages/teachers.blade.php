@@ -19,7 +19,8 @@
                         <option value="">All Roles</option>
                         <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
                         <option value="teacher" {{ request('role') === 'teacher' ? 'selected' : '' }}>Teacher</option>
-                        <option value="super_admin" {{ request('role') === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
+                        <option value="sub_teacher" {{ request('role') === 'sub_teacher' ? 'selected' : '' }}>Sub Teacher</option>
+                        <option value="super_admin" {{ request('role') === 'super_admin' ? 'selected' : '' }}>Principal</option>
                     </select>
                 </div>
                 <div class="filter-item">
@@ -42,13 +43,16 @@
     <div class="table-card teachers-table-card">
         <div class="table-header">
             <h2 class="accounts-section-title"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Admin &amp; Teacher Accounts</h2>
-            @if(auth()->user()->isSuperAdmin())
             <div class="table-header-actions">
+                @if(auth()->user()->isAdminLevel())
+                <button type="button" class="btn btn-success create-teacher-btn" id="createTeacherAccountBtn" aria-label="Create account">+ Create Account</button>
+                @endif
+                @if(auth()->user()->isSuperAdmin())
                 <button type="button" class="btn btn-primary archived-accounts-btn" onclick="openArchivedAccountsModal()" aria-label="View archived accounts">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="3" width="20" height="5" rx="1"></rect><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg> Archived Accounts
                 </button>
+                @endif
             </div>
-            @endif
         </div>
         <div class="table-responsive">
         <table id="teacherAccountsTable">
@@ -71,9 +75,9 @@
                     <td>{{ $account->email }}</td>
                     <td>
                         @if(auth()->user()->isSuperAdmin())
-                            <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--accent-light,#e8f1ff);color:var(--accent,#1a73e8);">{{ ucfirst($account->role) }}</span>
+                            <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--accent-light,#e8f1ff);color:var(--accent,#1a73e8);">{{ \App\Models\User::roleLabel($account->role) }}</span>
                         @else
-                            <span class="role-badge" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">{{ ucfirst($account->role) }}</span>
+                            <span class="role-badge" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">{{ \App\Models\User::roleLabel($account->role) }}</span>
                         @endif
                     </td>
                     <td>{{ $account->position ?? 'N/A' }}</td>
@@ -86,12 +90,18 @@
                                     name: '{{ $account->name }}',
                                     username: '{{ $account->username }}',
                                     email: '{{ $account->email }}',
-                                    role: '{{ ucfirst($account->role) }}',
+                                    role: '{{ \App\Models\User::roleLabel($account->role) }}',
                                     position: '{{ $account->position ?? 'N/A' }}',
                                     status: '{{ ucfirst($account->status) }}',
                                     created_at: '{{ $account->created_at ? $account->created_at->format('M d, Y') : '—' }}',
-                                    updated_at: '{{ $account->updated_at ? $account->updated_at->format('M d, Y') : '—' }}'
+                                    updated_at: '{{ $account->updated_at ? $account->updated_at->format('M d, Y') : '—' }}',
+                                    can_print_certificates: '{{ $account->can_print_certificates ? '1' : '0' }}'
                                 })"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                            @if($account->status === 'pending_setup')
+                            <button type="button" class="action-btn action-btn-resend" data-id="{{ $account->id }}" title="Resend Invitation" aria-label="Resend invitation">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-10 6L2 7"></path></svg>
+                            </button>
+                            @endif
                             @if(auth()->user()->isSuperAdmin())
                             <button type="button" class="action-btn action-btn-edit" title="Edit Account" aria-label="Edit account"
                                 data-modal-target="editTeacherModal"
@@ -101,7 +111,8 @@
                                 data-email="{{ $account->email }}"
                                 data-role="{{ $account->role }}"
                                 data-position="{{ $account->position ?? '' }}"
-                                data-status="{{ $account->status ?? 'active' }}"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                                data-status="{{ $account->status ?? 'active' }}"
+                                data-can-print-certificates="{{ $account->can_print_certificates ? '1' : '0' }}"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
 
                             @if($account->status === 'active')
                             <button type="button" class="action-btn action-btn-restrict restrict" title="Restrict Account" aria-label="Restrict account"
@@ -206,7 +217,8 @@
                                 <select name="role" id="editTeacherRole" required aria-label="Role">
                                     <option value="admin">Admin</option>
                                     <option value="teacher">Teacher</option>
-                                    <option value="super_admin">Super Admin</option>
+                                    <option value="sub_teacher">Sub Teacher</option>
+                                    <option value="super_admin">Principal</option>
                                 </select>
                                 @else
                                 <input type="text" id="editTeacherRoleText" disabled style="background:#f1f5f9;cursor:not-allowed;" aria-label="Role">
@@ -224,6 +236,20 @@
                                     <option value="inactive">Inactive</option>
                                     <option value="archived">Archived</option>
                                 </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="edit-account-section" id="editCertificatePermissionsSection" hidden>
+                        <h3 class="edit-account-section-title">Certificate Permissions</h3>
+                        <div class="edit-account-grid">
+                            <div class="form-group edit-account-grid-full">
+                                <label for="editCertificatePrinting">Certificate Printing Access</label>
+                                <select id="editCertificatePrinting" aria-label="Certificate Printing Access">
+                                    <option value="0">Not Granted</option>
+                                    <option value="1">Granted</option>
+                                </select>
+                                <p class="edit-account-help">Teachers and Sub Teachers need explicit permission before they can print certificates. Changes are saved after confirmation.</p>
                             </div>
                         </div>
                     </section>
@@ -356,6 +382,7 @@
                     <div class="detail-item"><span>Status</span><strong id="viewAccountStatus">—</strong></div>
                     <div class="detail-item"><span>Created At</span><strong id="viewAccountCreatedAt">—</strong></div>
                     <div class="detail-item"><span>Updated At</span><strong id="viewAccountUpdatedAt">—</strong></div>
+                    <div class="detail-item"><span>Certificate Printing Access</span><strong id="viewAccountCertificatePrinting">—</strong></div>
                 </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeViewAccountModal()">Close</button></div>
@@ -367,9 +394,122 @@
     <div id="archiveConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon danger"><span class="icon">🗑</span></div><div><h2>Archive Account?</h2><p id="archiveConfirmMessage">Are you sure you want to archive "<span id="archiveAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeArchiveConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will lose access to EcoCollect. Existing student records and activity history will remain unchanged.</p><input type="hidden" id="archiveAccountId"><input type="hidden" id="archiveAccountUrl"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeArchiveConfirmModal()">Cancel</button><button type="button" class="btn btn-danger" onclick="confirmArchiveAccount()" id="btnConfirmArchive">Archive Account</button></div></div></div>
     <div id="restrictConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon warn"><span class="icon">🔒</span></div><div><h2>Restrict Account?</h2><p id="restrictConfirmMessage">Are you sure you want to restrict "<span id="restrictAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeRestrictConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will be temporarily suspended and will lose access to EcoCollect. Existing student records and activity history will remain unchanged.</p><input type="hidden" id="restrictAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeRestrictConfirmModal()">Cancel</button><button type="button" class="btn btn-warning" onclick="confirmRestrictAccount()" id="btnConfirmRestrict">Restrict Account</button></div></div></div>
     <div id="unrestrictConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon info"><span class="icon">🔓</span></div><div><h2>Unrestrict Account?</h2><p id="unrestrictConfirmMessage">Are you sure you want to unrestrict "<span id="unrestrictAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeUnrestrictConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>This account will be restored to Active status and will regain access to EcoCollect.</p><input type="hidden" id="unrestrictAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeUnrestrictConfirmModal()">Cancel</button><button type="button" class="btn btn-success" onclick="confirmUnrestrictAccount()" id="btnConfirmUnrestrict">Unrestrict Account</button></div></div></div>
+    <div id="certificatePrintConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="certificatePrintConfirmTitle">
+        <div class="modal-content" style="max-width:460px;">
+            <div class="modal-header">
+                <div class="modal-icon warn"><span class="icon">🖨️</span></div>
+                <div>
+                    <h2 id="certificatePrintConfirmTitle">Grant Certificate Printing Access?</h2>
+                    <p id="certificatePrintConfirmMessage">Allow this teacher to print certificates in EcoCollect?</p>
+                </div>
+                <button type="button" class="modal-close" onclick="closeCertificatePrintConfirmModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="certificatePrintConfirmAccount" style="font-size:13px;color:var(--text-medium);"></p>
+                <input type="hidden" id="certificatePrintConfirmId">
+                <input type="hidden" id="certificatePrintConfirmValue">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCertificatePrintConfirmModal()">Cancel</button>
+                <button type="button" class="btn btn-success" id="btnConfirmCertificatePrint" onclick="confirmCertificatePrintPermission()">Grant Access</button>
+            </div>
+        </div>
+    </div>
+    <div id="createTeacherModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="createTeacherModalTitle" style="display:none;">
+        <div class="modal-content create-teacher-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="createTeacherModalTitle">Create Account</h2>
+                    <p class="subtitle" style="margin-top:4px;">Add a new staff account and send an invitation to their email.</p>
+                </div>
+                <button type="button" class="modal-close" id="createTeacherModalClose" aria-label="Close">&times;</button>
+            </div>
+            <form id="createTeacherForm" novalidate>
+                <div class="modal-body">
+                    <div class="create-teacher-grid">
+                        <div class="create-teacher-field">
+                            <label for="ctName">Full Name <span aria-hidden="true">*</span></label>
+                            <input type="text" id="ctName" name="name" required autocomplete="name" placeholder="e.g. Juan Dela Cruz" aria-describedby="ctNameError">
+                            <small class="ct-field-error" id="ctNameError" hidden></small>
+                        </div>
+                        <div class="create-teacher-field">
+                            <label for="ctUsername">Username <span aria-hidden="true">*</span></label>
+                            <input type="text" id="ctUsername" name="username" required autocomplete="username" placeholder="e.g. juan.delacruz" aria-describedby="ctUsernameError">
+                            <small class="ct-field-error" id="ctUsernameError" hidden></small>
+                        </div>
+                        <div class="create-teacher-field">
+                            <label for="ctEmail">Email Address <span aria-hidden="true">*</span></label>
+                            <input type="email" id="ctEmail" name="email" required autocomplete="email" placeholder="teacher@example.com" aria-describedby="ctEmailError">
+                            <small class="ct-field-error" id="ctEmailError" hidden></small>
+                        </div>
+                        <div class="create-teacher-field">
+                            <label for="ctPosition">Position <span aria-hidden="true">*</span></label>
+                            <input type="text" id="ctPosition" name="position" required placeholder="e.g. Teacher" aria-describedby="ctPositionError">
+                            <small class="ct-field-error" id="ctPositionError" hidden></small>
+                        </div>
+                        <div class="create-teacher-field">
+                            <label for="ctRole">Role <span aria-hidden="true">*</span></label>
+                            <select id="ctRole" name="role" required aria-label="Role" aria-describedby="ctRoleError">
+                                <option value="teacher" selected>Teacher</option>
+                                <option value="sub_teacher">Sub Teacher</option>
+                                <option value="admin">Admin</option>
+                                <option value="super_admin">Principal</option>
+                            </select>
+                            <small class="ct-field-error" id="ctRoleError" hidden></small>
+                        </div>
+                    </div>
+                    <div id="ctSubTeacherFields" class="ct-sub-fields" hidden>
+                        <div class="ct-sub-title">Sub Teacher Assignment</div>
+                        <div class="create-teacher-grid">
+                            <div class="create-teacher-field">
+                                <label for="ctTeacherId">Assign to Teacher</label>
+                                <select id="ctTeacherId" name="teacher_id" aria-label="Assign to Teacher" aria-describedby="ctTeacherIdError">
+                                    <option value="">Loading teachers…</option>
+                                </select>
+                                <small class="ct-field-error" id="ctTeacherIdError" hidden></small>
+                            </div>
+                            <div class="create-teacher-field">
+                                <label for="ctAccessLevel">Access Level</label>
+                                <select id="ctAccessLevel" name="access_level" aria-label="Access Level" aria-describedby="ctAccessLevelError">
+                                    <option value="collaborator" selected>Collaborator</option>
+                                    <option value="view_only">View Only</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                                <small class="ct-field-error" id="ctAccessLevelError" hidden></small>
+                            </div>
+                        </div>
+                        <div id="ctCustomPermissions" class="ct-custom-permissions" hidden>
+                            <div class="ct-sub-title">Custom Permissions</div>
+                            <div class="ct-permission-grid">
+                                @foreach(\App\Services\CollaborationService::configurablePermissions() as $permissionKey => $permissionLabel)
+                                    <label class="ct-permission-item">
+                                        <input type="checkbox" name="custom_permissions[]" value="{{ $permissionKey }}"> {{ $permissionLabel }}
+                                    </label>
+                                @endforeach
+                            </div>
+                            <small class="ct-field-error" id="ctCustomPermissionsError" hidden></small>
+                        </div>
+                    </div>
+                    <div class="create-teacher-info">
+                        <strong>What happens next?</strong>
+                        <p>An invitation link will be sent to the new account's email. The invited user will use the link to verify their email and create their own password to activate the account.</p>
+                    </div>
+                    <p id="createTeacherError" class="create-teacher-error" role="alert" hidden></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="createTeacherCancel">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="createTeacherSubmit">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="archivedAccountsModal" class="modal-overlay"><div class="modal-content archived-accounts-content"><div class="modal-header"><div class="modal-icon archived"><span class="icon">📦</span></div><div><h2>Archived Accounts</h2><p>View and manage archived teacher and admin accounts.</p></div><button type="button" class="modal-close" onclick="closeArchivedAccountsModal()" aria-label="Close">×</button></div><div class="modal-body"><div class="search-box"><input type="text" id="archivedSearch" placeholder="Search archived accounts..." aria-label="Search archived accounts"></div><div class="archived-table-container"><table class="archived-table" width="100%"><thead><tr><th>Account ID</th><th>Name</th><th>Email</th><th>Role</th><th>Position</th><th>Date Archived</th><th class="archived-actions-col">Actions</th></tr></thead><tbody id="archivedAccountsTableBody"></tbody></table><div id="archivedNoResults" style="display:none;padding:30px;text-align:center;color:var(--text-light);">No archived accounts found.</div></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeArchivedAccountsModal()">Close</button></div></div></div>
     <div id="unarchiveConfirmModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="modal-icon info"><span class="icon">🔄</span></div><div><h2>Unarchive Account?</h2><p id="unarchiveConfirmMessage">Restore access for "<span id="unarchiveAccountName"></span>"?</p></div><button type="button" class="modal-close" onclick="closeUnarchiveConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p>The account will be restored to Active status and will regain access to EcoCollect. Previous student records and activity history will remain unchanged.</p><input type="hidden" id="unarchiveAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeUnarchiveConfirmModal()">Cancel</button><button type="button" class="btn btn-success" onclick="confirmUnarchiveAccount()" id="btnConfirmUnarchive">Unarchive Account</button></div></div></div>
+    <div id="deleteArchivedConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteArchivedConfirmTitle"><div class="modal-content"><div class="modal-header"><div class="modal-icon danger"><span class="icon">🗑</span></div><div><h2 id="deleteArchivedConfirmTitle">Permanently Delete Account?</h2><p id="deleteArchivedConfirmMessage">Are you sure you want to permanently delete this archived account? This action cannot be undone.</p></div><button type="button" class="modal-close" onclick="closeDeleteArchivedConfirmModal()" aria-label="Close">×</button></div><div class="modal-body"><p id="deleteArchivedAccountLabel"></p><p>Student records, bottle collections, and historical activity will not be deleted. Deletion is blocked if related records still reference this account.</p><input type="hidden" id="deleteArchivedAccountId"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeDeleteArchivedConfirmModal()">Cancel</button><button type="button" class="btn btn-danger" onclick="confirmDeleteArchivedAccount()" id="btnConfirmDeleteArchived">Delete Account</button></div></div></div>
     <style>
+    #certificatePrintConfirmModal{z-index:10000;}
+    .edit-account-section[hidden]{display:none!important;}
     .edit-account-modal-content{max-width:760px;width:min(760px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
     .edit-account-submodal-content{max-width:560px;width:min(560px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
     .edit-account-modal-header{flex:0 0 auto;}
@@ -423,20 +563,48 @@
     #archivedAccountsModal .archived-table{width:100%;border-collapse:collapse;}
     #archivedAccountsModal .archived-table th,#archivedAccountsModal .archived-table td{padding:10px 14px;font-size:13px;vertical-align:middle;box-sizing:border-box;}
     #archivedAccountsModal .archived-table th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
-    #archivedAccountsModal .archived-table th.archived-actions-col,#archivedAccountsModal .archived-table td.archived-actions-cell{width:88px;min-width:88px;text-align:center;white-space:nowrap;}
-    #archivedAccountsModal .archived-action-buttons{display:flex;justify-content:center;align-items:center;width:100%;margin:0 auto;}
-    #archivedAccountsModal .action-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;min-width:40px;padding:0;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease,box-shadow .15s ease;line-height:1;appearance:none;-webkit-appearance:none;background:none;}
-    #archivedAccountsModal .action-btn svg{width:18px;height:18px;pointer-events:none;display:block;}
+    #archivedAccountsModal .archived-table th.archived-actions-col,#archivedAccountsModal .archived-table td.archived-actions-cell{width:132px;min-width:132px;padding-left:8px;padding-right:8px;text-align:center;white-space:nowrap;}
+    #archivedAccountsModal .archived-action-buttons{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;width:100%;margin:0 auto;min-height:40px;}
+    #archivedAccountsModal .action-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;min-width:40px;flex:0 0 40px;padding:0;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease,box-shadow .15s ease;line-height:1;appearance:none;-webkit-appearance:none;background:none;vertical-align:middle;}
+    #archivedAccountsModal .action-btn svg{width:18px;height:18px;flex:0 0 18px;pointer-events:none;display:block;}
     #archivedAccountsModal .action-btn:hover{opacity:.92;}
     #archivedAccountsModal .action-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(34,197,94,.22);}
     #archivedAccountsModal .action-btn-restore{background:#22c55e;color:#fff;border-color:#22c55e;}
     #archivedAccountsModal .action-btn-restore:hover{background:#16a34a;border-color:#16a34a;}
+    #archivedAccountsModal .action-btn-delete{background:#dc2626;color:#fff;border-color:#dc2626;}
+    #archivedAccountsModal .action-btn-delete:hover{background:#b91c1c;border-color:#b91c1c;}
     .teachers-table-card .table-header.teachers-table-header{padding:14px 20px;gap:12px;align-items:flex-start;}
     .teachers-table-card .teachers-table-title{display:flex;flex-direction:column;gap:4px;min-width:0;}
     .teachers-table-card .teachers-table-title h2{margin:0;font-size:18px;line-height:1.25;}
     .teachers-table-card .teachers-table-subtitle{margin:0;font-size:12.5px;color:#6b7280;line-height:1.45;}
-    .teachers-table-card .table-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+    .teachers-table-card .table-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;max-width:100%;}
     .teachers-table-card .archived-accounts-btn{white-space:nowrap;}
+    .teachers-table-card .create-teacher-btn{white-space:nowrap;background:#16a34a;border-color:#16a34a;color:#fff;}
+    .teachers-table-card .create-teacher-btn:hover{background:#15803d;}
+    .create-teacher-modal{max-width:640px;width:min(640px,92vw);max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;}
+    .create-teacher-modal .modal-header{flex:0 0 auto;}
+    #createTeacherForm{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;}
+    .create-teacher-modal .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;}
+    .create-teacher-modal .modal-footer{flex:0 0 auto;position:sticky;bottom:0;background:#fff;border-top:1px solid rgba(0,0,0,.08);}
+    .create-teacher-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;}
+    .create-teacher-field label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+    .create-teacher-field label span{color:#dc2626;}
+    .create-teacher-field input,.create-teacher-field select{width:100%;height:42px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;background:#fff;color:#111827;}
+    .create-teacher-field input:focus,.create-teacher-field select:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.14);}
+    .create-teacher-info{margin-top:18px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:13px;color:#166534;}
+    .create-teacher-info p{margin:6px 0 0;line-height:1.5;}
+    .create-teacher-error{margin-top:12px;padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#991b1b;}
+    .ct-field-error{display:block;margin-top:5px;font-size:12px;line-height:1.35;color:#b91c1c;}
+    .ct-field-error[hidden]{display:none!important;}
+    .create-teacher-field.has-error input,.create-teacher-field.has-error select{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.12);}
+    .ct-sub-fields{margin-top:16px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;}
+    .ct-sub-fields[hidden],.ct-custom-permissions[hidden]{display:none!important;}
+    .ct-sub-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#475569;margin-bottom:10px;}
+    .ct-custom-permissions{margin-top:14px;padding-top:12px;border-top:1px dashed #cbd5e1;}
+    .ct-permission-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;}
+    .ct-permission-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;}
+    .ct-permission-item input{width:16px;height:16px;accent-color:#16a34a;}
+    @media (max-width:640px){.create-teacher-grid,.ct-permission-grid{grid-template-columns:1fr;}}
     .teachers-table-card table{width:100%;border-collapse:collapse;}
     .teachers-table-card th,.teachers-table-card td{padding:10px 14px;font-size:13px;vertical-align:middle;box-sizing:border-box;}
     .teachers-table-card th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
@@ -454,11 +622,12 @@
     .teachers-table-card .action-btn-restrict{background:#f97316;color:#fff;border-color:#f97316;}
     .teachers-table-card .action-btn-unrestrict,.teachers-table-card .action-btn-reactivate{background:#22c55e;color:#fff;border-color:#22c55e;}
     .teachers-table-card .action-btn-archive{background:#64748b;color:#fff;border-color:#64748b;}
+    .teachers-table-card .action-btn-resend{background:#0ea5e9;color:#fff;border-color:#0ea5e9;}
     .teachers-table-card .pagination-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280;flex-wrap:wrap;}
     .teachers-table-card .pagination{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
     .teachers-table-card .pagination .page-btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 10px;}
     @media (max-width: 1100px){.teachers-filter-card .filter-form{grid-template-columns:1fr 1fr;}.teachers-filter-card .filter-helper-note{grid-column:1 / -1;}}
-    @media (max-width: 640px){.teachers-filter-card .filter-form{grid-template-columns:1fr;}.teachers-table-card .table-header.teachers-table-header{flex-direction:column;align-items:stretch;}.teachers-table-card .table-header-actions{width:100%;}.teachers-table-card .archived-accounts-btn{width:100%;justify-content:center;}.teachers-table-card .pagination-bar{flex-direction:column;align-items:flex-start;}}
+    @media (max-width: 640px){.teachers-filter-card .filter-form{grid-template-columns:1fr;}.teachers-table-card .table-header.teachers-table-header{flex-direction:column;align-items:stretch;}.teachers-table-card .table-header-actions{width:100%;flex-wrap:wrap;}.teachers-table-card .archived-accounts-btn{flex:1 1 140px;justify-content:center;}.teachers-table-card .create-teacher-btn{flex:1 1 140px;justify-content:center;}.teachers-table-card .pagination-bar{flex-direction:column;align-items:flex-start;}}
     </style>
 @endsection
 
@@ -467,8 +636,8 @@
 var CURRENT_AUTH_USER_ID = {{ (int) auth()->id() }};
 var TEACHERS_BASE_URL = "{{ url('/' . portal_prefix() . '/teachers') }}";
 function openEditTeacherModal(){ document.getElementById('editTeacherModal').classList.add('show'); document.body.classList.add('modal-open'); }
-function closeEditTeacherModal(){ document.getElementById('editTeacherModal').classList.remove('show'); document.body.classList.remove('modal-open'); }
-function openViewAccountModal(account){ const modal=document.getElementById('viewAccountModal'); document.getElementById('viewAccountId').textContent=account.id||'—'; document.getElementById('viewAccountName').textContent=account.name||'—'; document.getElementById('viewAccountUsername').textContent=account.username||'—'; document.getElementById('viewAccountEmail').textContent=account.email||'—'; document.getElementById('viewAccountRole').textContent=account.role||'—'; document.getElementById('viewAccountRoleText').textContent=account.role||'—'; document.getElementById('viewAccountPosition').textContent=account.position||'—'; document.getElementById('viewAccountStatus').textContent=account.status||'—'; document.getElementById('viewAccountCreatedAt').textContent=account.created_at||'—'; document.getElementById('viewAccountUpdatedAt').textContent=account.updated_at||'—'; const initials=account.name?account.name.split(' ').map(function(w){return w.charAt(0);}).join('').substring(0,2).toUpperCase():'A'; document.getElementById('viewAccountInitials').textContent=initials; modal.style.display='flex'; document.body.classList.add('modal-open'); }
+function closeEditTeacherModal(){ document.getElementById('editTeacherModal').classList.remove('show'); var certConfirm=document.getElementById('certificatePrintConfirmModal'); if(certConfirm && certConfirm.classList.contains('show')) closeCertificatePrintConfirmModal(); document.body.classList.remove('modal-open'); }
+function openViewAccountModal(account){ const modal=document.getElementById('viewAccountModal'); document.getElementById('viewAccountId').textContent=account.id||'—'; document.getElementById('viewAccountName').textContent=account.name||'—'; document.getElementById('viewAccountUsername').textContent=account.username||'—'; document.getElementById('viewAccountEmail').textContent=account.email||'—'; document.getElementById('viewAccountRole').textContent=account.role||'—'; document.getElementById('viewAccountRoleText').textContent=account.role||'—'; document.getElementById('viewAccountPosition').textContent=account.position||'—'; document.getElementById('viewAccountStatus').textContent=account.status||'—'; document.getElementById('viewAccountCreatedAt').textContent=account.created_at||'—'; document.getElementById('viewAccountUpdatedAt').textContent=account.updated_at||'—'; document.getElementById('viewAccountCertificatePrinting').textContent=(account.role==='Teacher'||account.role==='Sub Teacher')?(account.can_print_certificates?'Granted':'Not Granted'):'—'; const initials=account.name?account.name.split(' ').map(function(w){return w.charAt(0);}).join('').substring(0,2).toUpperCase():'A'; document.getElementById('viewAccountInitials').textContent=initials; modal.style.display='flex'; document.body.classList.add('modal-open'); }
 function closeViewAccountModal(){ document.getElementById('viewAccountModal').style.display='none'; document.body.classList.remove('modal-open'); }
 function openReactivateConfirmModal(id){ document.getElementById('reactivateAccountId').value=id; document.getElementById('reactivateConfirmModal').classList.add('show'); document.body.classList.add('modal-open'); }
 function closeReactivateConfirmModal(){ document.getElementById('reactivateConfirmModal').classList.remove('show'); document.body.classList.remove('modal-open'); }
@@ -482,48 +651,27 @@ function escapeHtml(text){ if(text===null||text===undefined) return ''; var div=
 function escapeJs(text){ if(text===null||text===undefined) return ''; return String(text).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r'); }
 function ucfirst(str){ if(!str) return ''; return str.charAt(0).toUpperCase()+str.slice(1); }
 function showTeacherToast(message,isError){
-  var existing=document.getElementById('teacherToast');
-  if(existing){
-    if(existing._teacherToastHideTimer) clearTimeout(existing._teacherToastHideTimer);
-    if(existing._teacherToastRemoveTimer) clearTimeout(existing._teacherToastRemoveTimer);
-    existing.remove();
-  }
-  var toast=document.createElement('div');
-  toast.id='teacherToast';
-  toast.setAttribute('role', isError ? 'alert' : 'status');
-  toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
-  toast.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10050;display:inline-flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));width:max-content;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;box-shadow:0 10px 30px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);pointer-events:auto;opacity:0;transition:opacity .25s ease;box-sizing:border-box;'+(isError?'background:#fef2f2;border:1px solid #ef5350;color:#991b1b;':'background:#ecfdf3;border:1px solid #22c55e;color:#166534;');
-  var icon=document.createElement('span');
-  icon.setAttribute('aria-hidden','true');
-  icon.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px;font-size:14px;font-weight:700;line-height:1;';
-  icon.textContent=isError?'!':'✓';
-  var text=document.createElement('span');
-  text.textContent=message||'';
-  text.style.cssText='min-width:0;word-break:break-word;';
-  toast.appendChild(icon);
-  toast.appendChild(text);
-  document.body.appendChild(toast);
-  requestAnimationFrame(function(){ toast.style.opacity='1'; });
-  toast._teacherToastHideTimer=setTimeout(function(){
-    toast.style.opacity='0';
-    toast._teacherToastRemoveTimer=setTimeout(function(){ if(toast.parentNode) toast.remove(); },260);
-  },5000);
+  if(window.EcoToast) window.EcoToast.show(isError?'error':'success',message,{key:'teacher-account-action'});
+}
+function roleLabel(role){
+  return {super_admin:'Principal',sub_teacher:'Sub Teacher',teacher:'Teacher',admin:'Admin'}[role] || ucfirst(role || '');
 }
 
 var teacherRequestId=0, teacherDebounceTimer=null, archivedDebounceTimer=null;
 function renderAccountRow(account){
   var idDisplay='ADM'+String(account.id).padStart(3,'0');
-  var roleHtml='{{ auth()->user()->isSuperAdmin() ? '' : '' }}'; roleHtml='<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:'+( {{ auth()->user()->isSuperAdmin() ? 'true' : 'false' }} ? 'var(--accent-light,#e8f1ff)' : '#eef2f7')+';color:'+( {{ auth()->user()->isSuperAdmin() ? 'true' : 'false' }} ? 'var(--accent,#1a73e8)' : '#475569')+';">'+ucfirst(account.role)+'</span>';
+  var roleHtml='{{ auth()->user()->isSuperAdmin() ? '' : '' }}'; roleHtml='<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:'+( {{ auth()->user()->isSuperAdmin() ? 'true' : 'false' }} ? 'var(--accent-light,#e8f1ff)' : '#eef2f7')+';color:'+( {{ auth()->user()->isSuperAdmin() ? 'true' : 'false' }} ? 'var(--accent,#1a73e8)' : '#475569')+';">'+roleLabel(account.role)+'</span>';
   var statusColor=account.status==='active'?'var(--green)':(account.status==='restricted'?'var(--orange)':'var(--gray)');
   var position=account.position||'N/A'; var createdAt=account.created_at?new Date(account.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—'; var updatedAt=account.updated_at?new Date(account.updated_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
   var editBtn='',restrictBtn='',unrestrictBtn='',archiveBtn='',reactivateBtn='';
+  var resendBtn = account.status==='pending_setup' ? '<button type="button" class="action-btn action-btn-resend" data-id="'+account.id+'" title="Resend Invitation" aria-label="Resend invitation"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-10 6L2 7"></path></svg></button>' : '';
   if({{ auth()->user()->isSuperAdmin() ? 'true' : 'false' }}){
-    editBtn='<button type="button" class="action-btn action-btn-edit" title="Edit Account" aria-label="Edit account" data-modal-target="editTeacherModal" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'" data-username="'+escapeHtml(account.username)+'" data-email="'+escapeHtml(account.email)+'" data-role="'+account.role+'" data-position="'+escapeHtml(account.position ?? '')+'" data-status="'+(account.status ?? 'active')+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>';
+    editBtn='<button type="button" class="action-btn action-btn-edit" title="Edit Account" aria-label="Edit account" data-modal-target="editTeacherModal" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'" data-username="'+escapeHtml(account.username)+'" data-email="'+escapeHtml(account.email)+'" data-role="'+account.role+'" data-position="'+escapeHtml(account.position ?? '')+'" data-status="'+(account.status ?? 'active')+'" data-can-print-certificates="'+(account.can_print_certificates?'1':'0')+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>';
     if(account.status==='active'){ restrictBtn='<button type="button" class="action-btn action-btn-restrict restrict" title="Restrict Account" aria-label="Restrict account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></button>'; archiveBtn='<form method="POST" action="'+TEACHERS_BASE_URL+'/'+account.id+'/archive" class="inline-action-form archive-form" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'">'+'{{ csrf_field() }}'+'<input name="_method" value="PATCH" type="hidden"><button type="submit" class="action-btn action-btn-archive" title="Archive Account" aria-label="Archive account"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="3" width="20" height="5" rx="1"></rect><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg></button></form>'; }
     else if(account.status==='restricted'){ unrestrictBtn='<button type="button" class="action-btn action-btn-unrestrict unrestrict" title="Unrestrict Account" aria-label="Unrestrict account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg></button>'; archiveBtn='<form method="POST" action="'+TEACHERS_BASE_URL+'/'+account.id+'/archive" class="inline-action-form archive-form" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'">'+'{{ csrf_field() }}'+'<input name="_method" value="PATCH" type="hidden"><button type="submit" class="action-btn action-btn-archive" title="Archive Account" aria-label="Archive account"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="3" width="20" height="5" rx="1"></rect><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg></button></form>'; }
     else if(account.status==='archived'){ reactivateBtn='<button type="button" class="action-btn action-btn-reactivate reactivate" title="Reactivate Account" aria-label="Reactivate account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg></button>'; }
   }
-  return '<tr><td>'+idDisplay+'</td><td><strong>'+escapeHtml(account.name)+'</strong></td><td>'+escapeHtml(account.email)+'</td><td>'+roleHtml+'</td><td>'+escapeHtml(position)+'</td><td><span style="color:'+statusColor+';font-weight:600;">'+ucfirst(account.status)+'</span></td><td class="teachers-actions-cell"><div class="account-actions-buttons"><button type="button" class="action-btn action-btn-view" title="View Account Details" aria-label="View account details" onclick="openViewAccountModal({\'id\':\''+idDisplay+'\',\'name\':\''+escapeJs(account.name)+'\',\'username\':\''+escapeJs(account.username)+'\',\'email\':\''+escapeJs(account.email)+'\',\'role\':\''+escapeJs(ucfirst(account.role))+'\',\'position\':\''+escapeJs(position)+'\',\'status\':\''+escapeJs(ucfirst(account.status))+'\',\'created_at\':\''+escapeJs(createdAt)+'\',\'updated_at\':\''+escapeJs(updatedAt)+'\'})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>'+editBtn+restrictBtn+unrestrictBtn+archiveBtn+reactivateBtn+'</div></td></tr>';
+  return '<tr><td>'+idDisplay+'</td><td><strong>'+escapeHtml(account.name)+'</strong></td><td>'+escapeHtml(account.email)+'</td><td>'+roleHtml+'</td><td>'+escapeHtml(position)+'</td><td><span style="color:'+statusColor+';font-weight:600;">'+ucfirst(account.status)+'</span></td><td class="teachers-actions-cell"><div class="account-actions-buttons"><button type="button" class="action-btn action-btn-view" title="View Account Details" aria-label="View account details" onclick="openViewAccountModal({\'id\':\''+idDisplay+'\',\'name\':\''+escapeJs(account.name)+'\',\'username\':\''+escapeJs(account.username)+'\',\'email\':\''+escapeJs(account.email)+'\',\'role\':\''+escapeJs(roleLabel(account.role))+'\',\'position\':\''+escapeJs(position)+'\',\'status\':\''+escapeJs(ucfirst(account.status))+'\',\'created_at\':\''+escapeJs(createdAt)+'\',\'updated_at\':\''+escapeJs(updatedAt)+'\',\'can_print_certificates\':\''+(account.can_print_certificates?'1':'0')+'\'})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>'+editBtn+restrictBtn+unrestrictBtn+archiveBtn+reactivateBtn+resendBtn+'</div></td></tr>';
 }
 function showTeacherLoading(show){ var el=document.getElementById('teacherLoading'); if(el) el.style.display=show?'inline-block':'none'; }
 function updateTeacherUrl(params){ var url=new URL(window.location); Object.keys(params).forEach(function(k){ if(params[k]===''||params[k]===null){url.searchParams.delete(k);} else {url.searchParams.set(k,params[k]);} }); url.searchParams.delete('page'); window.history.pushState({params:params},'',url); }
@@ -571,15 +719,256 @@ function confirmUnrestrictAccount(){
   .catch(function(err){ console.error('Unrestrict failed:',err); showTeacherToast(err.message||'Failed to unrestrict account.',true); })
   .finally(function(){ btn.disabled=false; btn.textContent='Unrestrict Account'; });
 }
+var CREATE_TEACHER_URL = @json(route('admin.teachers.create-account'));
+var ELIGIBLE_TEACHERS_URL = @json(route('admin.teachers.eligible-for-assignment'));
+var createTeacherSubmitting = false;
+
+function loadEligibleTeachers(){
+  var select = document.getElementById('ctTeacherId');
+  if (!select) return;
+  select.innerHTML = '<option value="">Loading teachers…</option>';
+  fetch(ELIGIBLE_TEACHERS_URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var html = '<option value="">Unassigned</option>';
+      (data.teachers || []).forEach(function(t){
+        html += '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>';
+      });
+      select.innerHTML = html;
+    })
+    .catch(function(){ select.innerHTML = '<option value="">Unassigned</option>'; });
+}
+
+function syncSubTeacherFields(){
+  var form = document.getElementById('createTeacherForm');
+  if (!form) return;
+  var isSub = form.elements.role.value === 'sub_teacher';
+  var block = document.getElementById('ctSubTeacherFields');
+  if (block) block.hidden = !isSub;
+  if (!isSub) {
+    var teacherSelect = document.getElementById('ctTeacherId');
+    if (teacherSelect) teacherSelect.value = '';
+    var accessSelect = document.getElementById('ctAccessLevel');
+    if (accessSelect) accessSelect.value = 'collaborator';
+    form.querySelectorAll('input[name="custom_permissions[]"]').forEach(function(cb){ cb.checked = false; });
+  }
+  var customBlock = document.getElementById('ctCustomPermissions');
+  if (customBlock) customBlock.hidden = !(isSub && form.elements.access_level.value === 'custom');
+}
+function openCreateTeacherModal(){
+  var modal = document.getElementById('createTeacherModal');
+  if (!modal) return;
+  document.getElementById('createTeacherForm').reset();
+  syncSubTeacherFields();
+  loadEligibleTeachers();
+  document.querySelectorAll('#createTeacherForm .ct-field-error').forEach(function(el){ el.textContent = ''; el.hidden = true; });
+  document.querySelectorAll('#createTeacherForm .create-teacher-field.has-error').forEach(function(el){ el.classList.remove('has-error'); });
+  document.querySelectorAll('#createTeacherForm [aria-invalid="true"]').forEach(function(el){ el.removeAttribute('aria-invalid'); });
+  document.getElementById('createTeacherError').hidden = true;
+  document.getElementById('createTeacherError').textContent = '';
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+  document.body.classList.add('modal-open');
+  document.getElementById('ctName').focus();
+}
+function closeCreateTeacherModal(){
+  var modal = document.getElementById('createTeacherModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  modal.classList.remove('show');
+  document.body.classList.remove('modal-open');
+}
+(function initCreateTeacher(){
+  var btn = document.getElementById('createTeacherAccountBtn');
+  if (!btn) return;
+  var form = document.getElementById('createTeacherForm');
+  var submit = document.getElementById('createTeacherSubmit');
+  var errorEl = document.getElementById('createTeacherError');
+  var FIELD_IDS = {
+    name: 'ctName', username: 'ctUsername', email: 'ctEmail',
+    position: 'ctPosition', role: 'ctRole', teacher_id: 'ctTeacherId',
+    access_level: 'ctAccessLevel', custom_permissions: 'ctCustomPermissions'
+  };
+
+  function clearFieldError(key){
+    var input = document.getElementById(FIELD_IDS[key]);
+    var errorId = input ? input.id + 'Error' : null;
+    var message = errorId ? document.getElementById(errorId) : null;
+    if (message) { message.textContent = ''; message.hidden = true; }
+    if (input && (input.tagName === 'INPUT' || input.tagName === 'SELECT')) {
+      input.removeAttribute('aria-invalid');
+      var wrapper = input.closest('.create-teacher-field');
+      if (wrapper) wrapper.classList.remove('has-error');
+    }
+  }
+  function clearAllFieldErrors(){
+    Object.keys(FIELD_IDS).forEach(clearFieldError);
+    errorEl.textContent = '';
+    errorEl.hidden = true;
+  }
+  function setFieldError(key, message){
+    var input = document.getElementById(FIELD_IDS[key]);
+    var errorId = input ? input.id + 'Error' : null;
+    var target = errorId ? document.getElementById(errorId) : null;
+    if (!target || !message) return false;
+    // Server errors on delegated fields belong to a hidden block until revealed.
+    if (key === 'teacher_id' || key === 'access_level' || key === 'custom_permissions') {
+      var subBlock = document.getElementById('ctSubTeacherFields');
+      if (subBlock) subBlock.hidden = false;
+    }
+    if (key === 'custom_permissions') {
+      var customBlock = document.getElementById('ctCustomPermissions');
+      if (customBlock) customBlock.hidden = false;
+    }
+    target.textContent = message;
+    target.hidden = false;
+    if (input && (input.tagName === 'INPUT' || input.tagName === 'SELECT')) {
+      input.setAttribute('aria-invalid', 'true');
+      var wrapper = input.closest('.create-teacher-field');
+      if (wrapper) wrapper.classList.add('has-error');
+    }
+    return true;
+  }
+  function applyServerErrors(errors){
+    var firstField = null;
+    Object.keys(errors).forEach(function(key){
+      var fieldKey = key.split('.')[0]; // custom_permissions.0 -> custom_permissions
+      var message = Array.isArray(errors[key]) ? errors[key].join(' ') : String(errors[key]);
+      if (setFieldError(fieldKey, message) && !firstField) firstField = fieldKey;
+    });
+    return firstField;
+  }
+
+  btn.addEventListener('click', openCreateTeacherModal);
+  document.getElementById('createTeacherModalClose').addEventListener('click', closeCreateTeacherModal);
+  document.getElementById('createTeacherCancel').addEventListener('click', closeCreateTeacherModal);
+  document.getElementById('createTeacherModal').addEventListener('click', function(e){ if(e.target===this) closeCreateTeacherModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && document.getElementById('createTeacherModal').style.display==='flex') closeCreateTeacherModal(); });
+
+  var roleSelect = document.getElementById('ctRole');
+  var accessSelect = document.getElementById('ctAccessLevel');
+  if (roleSelect) roleSelect.addEventListener('change', syncSubTeacherFields);
+  if (accessSelect) accessSelect.addEventListener('change', syncSubTeacherFields);
+  syncSubTeacherFields();
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    // One guard prevents duplicate requests from fast/repeated submissions.
+    if (createTeacherSubmitting) return;
+    clearAllFieldErrors();
+
+    var required = ['name','username','email','position','role'];
+    var firstMissing = null;
+    for (var i=0;i<required.length;i++){
+      var field = form.elements[required[i]];
+      if (!field || !String(field.value).trim()) {
+        setFieldError(required[i], 'This field is required.');
+        if (!firstMissing) firstMissing = required[i];
+      }
+    }
+    if (firstMissing) {
+      errorEl.textContent = 'Please complete all required fields.';
+      errorEl.hidden = false;
+      var missingInput = document.getElementById(FIELD_IDS[firstMissing]);
+      if (missingInput) missingInput.focus();
+      return;
+    }
+
+    createTeacherSubmitting = true;
+    submit.disabled = true;
+    submit.textContent = 'Creating Account...';
+
+    var payload = new FormData(form);
+    // Never send irrelevant permission data for other roles.
+    if (form.elements.role.value !== 'sub_teacher') {
+      payload.delete('teacher_id');
+      payload.delete('access_level');
+      payload.delete('custom_permissions[]');
+    } else {
+      // Empty selects add nothing to server-side validation.
+      if (!String(form.elements.teacher_id.value).trim()) payload.delete('teacher_id');
+      if (form.elements.access_level.value !== 'custom') payload.delete('custom_permissions[]');
+    }
+    payload.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+
+    fetch(CREATE_TEACHER_URL, {
+      method: 'POST',
+      body: payload,
+      credentials: 'same-origin',
+      headers: {'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}
+    })
+    .then(function(r){ return r.json().catch(function(){ return null; }).then(function(data){ return {ok:r.ok,status:r.status,data:data||{}}; }); })
+    .then(function(result){
+      var data = result.data;
+      if (result.ok && data.success) {
+        clearAllFieldErrors();
+        closeCreateTeacherModal();
+        if (window.EcoToast) window.EcoToast.show(data.invitation_sent ? 'success' : 'warning', data.message, {key:'create-teacher'});
+        form.reset();
+        syncSubTeacherFields();
+        fetchTeacherAccounts(1);
+        return;
+      }
+      // HTTP 422: Laravel returns { message, errors: {field: [messages]} }.
+      // Keep the modal open, leave every entered value untouched and show the
+      // exact server message next to the field that failed validation.
+      var firstField = data.errors ? applyServerErrors(data.errors) : null;
+      errorEl.textContent = data.message || 'Unable to create the teacher account. Please try again.';
+      errorEl.hidden = false;
+      if (firstField) {
+        var invalidInput = document.getElementById(FIELD_IDS[firstField]);
+        if (invalidInput && (invalidInput.tagName === 'INPUT' || invalidInput.tagName === 'SELECT')) {
+          invalidInput.focus();
+        }
+      }
+    })
+    .catch(function(){
+      errorEl.textContent = 'Unable to create the teacher account. Please try again.';
+      errorEl.hidden = false;
+    })
+    .finally(function(){
+      createTeacherSubmitting = false;
+      submit.disabled = false;
+      submit.textContent = 'Create Account';
+    });
+  });
+})();
+
+document.addEventListener('click', function(e){
+  var button = e.target.closest('.action-btn-resend');
+  if (!button) return;
+  e.preventDefault();
+  var id = button.getAttribute('data-id');
+  if (!id || button.disabled) return;
+  button.disabled = true;
+  var originalTitle = button.getAttribute('title');
+  button.setAttribute('title','Sending invitation...');
+  var payload = new FormData();
+  payload.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+  fetch('{{ url('/' . portal_prefix() . '/teachers') }}/' + id + '/resend-invitation', {
+    method:'POST', body:payload, credentials:'same-origin',
+    headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}
+  })
+  .then(function(r){ return r.json().catch(function(){ return null; }).then(function(data){ return {ok:r.ok,data:data}; }); })
+  .then(function(result){
+    var data = result.data || {};
+    if (window.EcoToast) window.EcoToast.show(result.ok && data.success ? 'success' : 'error', data.message || 'Unable to resend the invitation.', {key:'resend-invitation-'+id});
+  })
+  .catch(function(){ if (window.EcoToast) window.EcoToast.show('error','Unable to resend the invitation. Please try again.',{key:'resend-invitation-'+id}); })
+  .finally(function(){ button.disabled=false; button.setAttribute('title',originalTitle); });
+});
+
 function openArchivedAccountsModal(){ document.getElementById('archivedAccountsModal').classList.add('show'); document.body.classList.add('modal-open'); document.getElementById('archivedSearch').value=''; fetchArchivedAccounts(1); }
 function closeArchivedAccountsModal(){ document.getElementById('archivedAccountsModal').classList.remove('show'); document.body.classList.remove('modal-open'); clearTimeout(archivedDebounceTimer); }
 function openUnarchiveConfirmModal(id,name){ var btn=document.getElementById('btnConfirmUnarchive'); if(btn && btn.disabled) return; document.getElementById('unarchiveAccountId').value=id; document.getElementById('unarchiveAccountName').textContent=escapeHtml(name); document.getElementById('unarchiveConfirmModal').classList.add('show'); document.body.classList.add('modal-open'); }
 function closeUnarchiveConfirmModal(){ document.getElementById('unarchiveConfirmModal').classList.remove('show'); document.body.classList.remove('modal-open'); }
+function openDeleteArchivedConfirmModal(id,name){ var btn=document.getElementById('btnConfirmDeleteArchived'); if(btn && btn.disabled) return; document.getElementById('deleteArchivedAccountId').value=id; var label=document.getElementById('deleteArchivedAccountLabel'); if(label) label.textContent='Account: '+(name||'—'); document.getElementById('deleteArchivedConfirmModal').classList.add('show'); document.body.classList.add('modal-open'); }
+function closeDeleteArchivedConfirmModal(){ document.getElementById('deleteArchivedConfirmModal').classList.remove('show'); document.body.classList.remove('modal-open'); }
 function renderArchivedAccountRow(account){
   var idDisplay='ADM'+String(account.id).padStart(3,'0');
   var archivedAt=account.updated_at?new Date(account.updated_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
-  var roleHtml='<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">'+ucfirst(account.role)+'</span>';
-  return '<tr><td>'+idDisplay+'</td><td><strong>'+escapeHtml(account.name)+'</strong></td><td>'+escapeHtml(account.email)+'</td><td>'+roleHtml+'</td><td>'+escapeHtml(account.position ?? 'N/A')+'</td><td><span style="font-size:12px;color:var(--text-light);">'+archivedAt+'</span></td><td class="teachers-actions-cell archived-actions-cell"><div class="account-actions-buttons archived-action-buttons"><button type="button" class="action-btn action-btn-restore unarchive" title="Restore Account" aria-label="Restore Account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline><path d="M21 12a9 9 0 0 0-15-6.7L3 8"></path></svg></button></div></td></tr>';
+  var roleHtml='<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#eef2f7;color:#475569;">'+roleLabel(account.role)+'</span>';
+  return '<tr><td>'+idDisplay+'</td><td><strong>'+escapeHtml(account.name)+'</strong></td><td>'+escapeHtml(account.email)+'</td><td>'+roleHtml+'</td><td>'+escapeHtml(account.position ?? 'N/A')+'</td><td><span style="font-size:12px;color:var(--text-light);">'+archivedAt+'</span></td><td class="teachers-actions-cell archived-actions-cell"><div class="account-actions-buttons archived-action-buttons"><button type="button" class="action-btn action-btn-restore unarchive" title="Restore Account" aria-label="Restore Account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline><path d="M21 12a9 9 0 0 0-15-6.7L3 8"></path></svg></button><button type="button" class="action-btn action-btn-delete delete-archived" title="Delete Account" aria-label="Delete Account" data-id="'+account.id+'" data-name="'+escapeHtml(account.name)+'"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button></div></td></tr>';
 }
 function fetchArchivedAccounts(page){
   if(page===undefined) page=1; var search=document.getElementById('archivedSearch').value; var params={page:page}; if(search) params.search=search;
@@ -597,6 +986,16 @@ function confirmUnarchiveAccount(){
   .then(function(data){ fetchArchivedAccounts(1); var page=(new URL(window.location)).searchParams.get('page')||1; fetchTeacherAccounts(parseInt(page,10)); showTeacherToast('Account restored successfully.'); })
   .catch(function(err){ console.error('Restore failed:',err); showTeacherToast(err.message||'Failed to restore account.',true); })
   .finally(function(){ btn.disabled=false; btn.textContent='Unarchive Account'; });
+}
+function confirmDeleteArchivedAccount(){
+  var id=document.getElementById('deleteArchivedAccountId').value; var btn=document.getElementById('btnConfirmDeleteArchived');
+  if(!id || btn.disabled) return;
+  closeDeleteArchivedConfirmModal(); btn.disabled=true; btn.textContent='Deleting…';
+  fetch(TEACHERS_BASE_URL+'/'+id+'/delete',{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}})
+  .then(function(r){ if(r.status===403) throw new Error('You are not authorized to delete accounts.'); if(r.status===422) return r.json().then(function(e){throw new Error(e.error||'This account cannot be deleted safely.');}); if(!r.ok) throw new Error('Delete failed (HTTP '+r.status+')'); return r.json(); })
+  .then(function(data){ fetchArchivedAccounts(1); var page=(new URL(window.location)).searchParams.get('page')||1; fetchTeacherAccounts(parseInt(page,10)); showTeacherToast(data.message||'Account permanently deleted.'); })
+  .catch(function(err){ console.error('Delete failed:',err); showTeacherToast(err.message||'Failed to delete account.',true); })
+  .finally(function(){ btn.disabled=false; btn.textContent='Delete Account'; });
 }
 function confirmReactivateAccount(){
   var id=document.getElementById('reactivateAccountId').value; var btn=document.getElementById('btnConfirmReactivate');
@@ -636,10 +1035,95 @@ function bindEditButtons(){
       else { var roleSel=document.getElementById('editTeacherRole'); if(roleSel) roleSel.value=btn.dataset.role||''; }
       document.getElementById('editTeacherPosition').value=btn.dataset.position||'';
       document.getElementById('editTeacherStatus').value=btn.dataset.status||'active';
+      var certSection=document.getElementById('editCertificatePermissionsSection');
+      if(certSection) certSection.hidden=!(btn.dataset.role==='teacher'||btn.dataset.role==='sub_teacher');
+      var certSelect=document.getElementById('editCertificatePrinting');
+      if(certSelect){
+        certSelect.value=btn.dataset.canPrintCertificates==='1'?'1':'0';
+        certSelect.dataset.previous=certSelect.value;
+        certSelect.dataset.accountId=btn.dataset.id||'';
+        certSelect.dataset.accountName=btn.dataset.name||'';
+      }
       openEditTeacherModal();
     });
   });
 }
+/* --- Certificate printing permission management (Admin / Principal only) --- */
+var certificatePrintSubmitting=false;
+function openCertificatePrintConfirmModal(id,name,granted){
+  if(certificatePrintSubmitting) return;
+  document.getElementById('certificatePrintConfirmId').value=id;
+  document.getElementById('certificatePrintConfirmValue').value=granted?'1':'0';
+  document.getElementById('certificatePrintConfirmTitle').textContent=granted?'Grant Certificate Printing Access?':'Revoke Certificate Printing Access?';
+  document.getElementById('certificatePrintConfirmMessage').textContent=granted?'Allow this teacher to print certificates in EcoCollect?':'This teacher will no longer be authorized to print certificates.';
+  document.getElementById('certificatePrintConfirmAccount').textContent=name||'';
+  var btn=document.getElementById('btnConfirmCertificatePrint');
+  btn.textContent=granted?'Grant Access':'Revoke Access';
+  btn.className='btn '+(granted?'btn-success':'btn-danger');
+  btn.disabled=false;
+  var modal=document.getElementById('certificatePrintConfirmModal');
+  modal.classList.add('show');
+  document.body.classList.add('modal-open');
+  btn.focus();
+}
+function closeCertificatePrintConfirmModal(revert){
+  if(revert!==false){
+    var select=document.getElementById('editCertificatePrinting');
+    if(select && select.dataset.previous!==undefined) select.value=select.dataset.previous;
+  }
+  var modal=document.getElementById('certificatePrintConfirmModal');
+  if(modal) modal.classList.remove('show');
+  var editModal=document.getElementById('editTeacherModal');
+  if(!editModal || !editModal.classList.contains('show')) document.body.classList.remove('modal-open');
+  var btn=document.getElementById('btnConfirmCertificatePrint');
+  if(btn) btn.disabled=false;
+}
+function confirmCertificatePrintPermission(){
+  if(certificatePrintSubmitting) return;
+  var id=document.getElementById('certificatePrintConfirmId').value;
+  var value=document.getElementById('certificatePrintConfirmValue').value;
+  if(!id) return;
+  certificatePrintSubmitting=true;
+  var btn=document.getElementById('btnConfirmCertificatePrint');
+  btn.disabled=true; btn.textContent='Saving…';
+  closeCertificatePrintConfirmModal(false);
+  fetch(TEACHERS_BASE_URL+'/'+id+'/certificate-permissions',{
+    method:'PATCH',
+    headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},
+    body:new URLSearchParams({can_print_certificates:value})
+  })
+  .then(function(r){ return r.json().catch(function(){ return null; }).then(function(data){ return {ok:r.ok,data:data||{}}; }); })
+  .then(function(result){
+    if(!result.ok || !result.data.success) throw new Error(result.data.error||result.data.message||'Unable to update certificate printing access.');
+    var select=document.getElementById('editCertificatePrinting');
+    if(select){ select.value=value; select.dataset.previous=value; }
+    var viewLabel=document.getElementById('viewAccountCertificatePrinting');
+    if(viewLabel && viewLabel.textContent!=='—') viewLabel.textContent=value==='1'?'Granted':'Not Granted';
+    showTeacherToast(result.data.message);
+  })
+  .catch(function(err){
+    var select=document.getElementById('editCertificatePrinting');
+    if(select && select.dataset.previous!==undefined) select.value=select.dataset.previous;
+    showTeacherToast(err.message||'Unable to update certificate printing access.',true);
+  })
+  .finally(function(){
+    certificatePrintSubmitting=false;
+    if(btn){ btn.disabled=false; btn.textContent=value==='1'?'Grant Access':'Revoke Access'; }
+  });
+}
+(function initCertificatePrintPermission(){
+  var select=document.getElementById('editCertificatePrinting');
+  if(!select) return;
+  select.addEventListener('change',function(){
+    if(!select.dataset.accountId) return;
+    openCertificatePrintConfirmModal(select.dataset.accountId,select.dataset.accountName||'',select.value==='1');
+  });
+  var modal=document.getElementById('certificatePrintConfirmModal');
+  if(modal) modal.addEventListener('click',function(e){ if(e.target===this) closeCertificatePrintConfirmModal(); });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && document.getElementById('certificatePrintConfirmModal').classList.contains('show')) closeCertificatePrintConfirmModal();
+  });
+})();
 function openTeacherChangeEmailModal(){
   var email=document.getElementById('editTeacherEmailDisplay').value||'';
   document.getElementById('teacherCurrentEmailField').value=email;
@@ -840,12 +1324,12 @@ document.addEventListener('DOMContentLoaded',function(){
       else { var msg=res.data.message||(res.data.errors&&(res.data.errors.current_password?.[0]||res.data.errors.password?.[0]||Object.values(res.data.errors)[0]?.[0]))||'Password update failed.'; showTeacherPasswordError(msg); }
     }).catch(function(){ showTeacherPasswordError('An error occurred. Please try again.'); }).finally(function(){ btn.disabled=false; btn.textContent='Save Password'; });
   });
-  ['viewAccountModal','reactivateConfirmModal','archiveConfirmModal','restrictConfirmModal','unrestrictConfirmModal','archivedAccountsModal','unarchiveConfirmModal','editTeacherModal','teacherChangeEmailModal','teacherChangePasswordModal'].forEach(function(id){
-    var el=document.getElementById(id); if(!el) return; el.addEventListener('click',function(ev){ if(ev.target!==this) return; if(id==='viewAccountModal') closeViewAccountModal(); else if(id==='reactivateConfirmModal') closeReactivateConfirmModal(); else if(id==='archiveConfirmModal') closeArchiveConfirmModal(); else if(id==='restrictConfirmModal') closeRestrictConfirmModal(); else if(id==='unrestrictConfirmModal') closeUnrestrictConfirmModal(); else if(id==='archivedAccountsModal') closeArchivedAccountsModal(); else if(id==='unarchiveConfirmModal') closeUnarchiveConfirmModal(); else if(id==='editTeacherModal') closeEditTeacherModal(); else if(id==='teacherChangeEmailModal') closeTeacherChangeEmailModal(); else if(id==='teacherChangePasswordModal') closeTeacherChangePasswordModal(); });
+  ['viewAccountModal','reactivateConfirmModal','archiveConfirmModal','restrictConfirmModal','unrestrictConfirmModal','archivedAccountsModal','unarchiveConfirmModal','deleteArchivedConfirmModal','editTeacherModal','teacherChangeEmailModal','teacherChangePasswordModal'].forEach(function(id){
+    var el=document.getElementById(id); if(!el) return; el.addEventListener('click',function(ev){ if(ev.target!==this) return; if(id==='viewAccountModal') closeViewAccountModal(); else if(id==='reactivateConfirmModal') closeReactivateConfirmModal(); else if(id==='archiveConfirmModal') closeArchiveConfirmModal(); else if(id==='restrictConfirmModal') closeRestrictConfirmModal(); else if(id==='unrestrictConfirmModal') closeUnrestrictConfirmModal(); else if(id==='archivedAccountsModal') closeArchivedAccountsModal(); else if(id==='unarchiveConfirmModal') closeUnarchiveConfirmModal(); else if(id==='deleteArchivedConfirmModal') closeDeleteArchivedConfirmModal(); else if(id==='editTeacherModal') closeEditTeacherModal(); else if(id==='teacherChangeEmailModal') closeTeacherChangeEmailModal(); else if(id==='teacherChangePasswordModal') closeTeacherChangePasswordModal(); });
   });
   var archivedSearchInput=document.getElementById('archivedSearch'); if(archivedSearchInput){ archivedSearchInput.addEventListener('input',function(){ clearTimeout(archivedDebounceTimer); archivedDebounceTimer=setTimeout(function(){ fetchArchivedAccounts(1); },300); }); }
-  document.addEventListener('keydown',function(event){ if(event.key!=='Escape') return; if(document.getElementById('teacherChangePasswordModal')?.classList.contains('show')){closeTeacherChangePasswordModal(); return;} if(document.getElementById('teacherChangeEmailModal')?.classList.contains('show')){closeTeacherChangeEmailModal(); return;} if(document.getElementById('archiveConfirmModal')?.classList.contains('show')) closeArchiveConfirmModal(); if(document.getElementById('reactivateConfirmModal')?.classList.contains('show')) closeReactivateConfirmModal(); if(document.getElementById('restrictConfirmModal')?.classList.contains('show')) closeRestrictConfirmModal(); if(document.getElementById('unrestrictConfirmModal')?.classList.contains('show')) closeUnrestrictConfirmModal(); if(document.getElementById('archivedAccountsModal')?.classList.contains('show')) closeArchivedAccountsModal(); if(document.getElementById('unarchiveConfirmModal')?.classList.contains('show')) closeUnarchiveConfirmModal(); if(document.getElementById('editTeacherModal')?.classList.contains('show')) closeEditTeacherModal(); });
-  var archivedTbody=document.getElementById('archivedAccountsTableBody'); if(archivedTbody){ archivedTbody.addEventListener('click',function(e){ var b=e.target.closest('button.unarchive'); if(b){ e.preventDefault(); openUnarchiveConfirmModal(b.getAttribute('data-id'), b.getAttribute('data-name')); } }); }
+  document.addEventListener('keydown',function(event){ if(event.key!=='Escape') return; if(document.getElementById('teacherChangePasswordModal')?.classList.contains('show')){closeTeacherChangePasswordModal(); return;} if(document.getElementById('teacherChangeEmailModal')?.classList.contains('show')){closeTeacherChangeEmailModal(); return;} if(document.getElementById('archiveConfirmModal')?.classList.contains('show')) closeArchiveConfirmModal(); if(document.getElementById('reactivateConfirmModal')?.classList.contains('show')) closeReactivateConfirmModal(); if(document.getElementById('restrictConfirmModal')?.classList.contains('show')) closeRestrictConfirmModal(); if(document.getElementById('unrestrictConfirmModal')?.classList.contains('show')) closeUnrestrictConfirmModal(); if(document.getElementById('archivedAccountsModal')?.classList.contains('show')) closeArchivedAccountsModal(); if(document.getElementById('unarchiveConfirmModal')?.classList.contains('show')) closeUnarchiveConfirmModal(); if(document.getElementById('deleteArchivedConfirmModal')?.classList.contains('show')) closeDeleteArchivedConfirmModal(); if(document.getElementById('editTeacherModal')?.classList.contains('show')) closeEditTeacherModal(); });
+  var archivedTbody=document.getElementById('archivedAccountsTableBody'); if(archivedTbody){ archivedTbody.addEventListener('click',function(e){ var b=e.target.closest('button.unarchive'); if(b){ e.preventDefault(); openUnarchiveConfirmModal(b.getAttribute('data-id'), b.getAttribute('data-name')); return; } var d=e.target.closest('button.delete-archived'); if(d){ e.preventDefault(); openDeleteArchivedConfirmModal(d.getAttribute('data-id'), d.getAttribute('data-name')); } }); }
 });
 </script>
 @endpush

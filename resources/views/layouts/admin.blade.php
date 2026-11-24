@@ -87,12 +87,21 @@
                     <span class="nav-icon" aria-hidden="true"><x-icon name="user-round-cog" :size="19" /></span>
                     <span class="nav-label">Accounts</span>
                 </a>
-                <a href="{{ route(portal_prefix() . '.system-settings') }}" class="nav-item {{ request()->routeIs(portal_prefix() . '.system-settings') ? 'active' : '' }}" data-label="System Settings" @if(request()->routeIs(portal_prefix() . '.system-settings')) aria-current="page" @endif>
+                <a href="{{ route('admin.sub-teacher-assignments') }}" class="nav-item {{ request()->routeIs('admin.sub-teacher-assignments*') ? 'active' : '' }}" data-label="Sub Teacher Assignments" @if(request()->routeIs('admin.sub-teacher-assignments*')) aria-current="page" @endif>
+                    <span class="nav-icon" aria-hidden="true"><x-icon name="users" :size="19" /></span>
+                    <span class="nav-label">Sub Teacher Assignments</span>
+                </a>
+            </div>
+            @endif
+
+            {{-- SYSTEM — visible to every role; the page itself is view-only except for Principal. --}}
+            <div class="nav-group" role="group" aria-labelledby="nav-group-system">
+                <p class="nav-group-label" id="nav-group-system">System</p>
+                <a href="{{ route('admin.system-settings') }}" class="nav-item {{ request()->routeIs('admin.system-settings') ? 'active' : '' }}" data-label="System Settings" @if(request()->routeIs('admin.system-settings')) aria-current="page" @endif>
                     <span class="nav-icon" aria-hidden="true"><x-icon name="settings" :size="19" /></span>
                     <span class="nav-label">System Settings</span>
                 </a>
             </div>
-            @endif
 
             {{-- ACCOUNT --}}
             <div class="nav-group" role="group" aria-labelledby="nav-group-account">
@@ -152,6 +161,7 @@
         transform: translateY(-8px);
     }
     </style>
+    <script src="{{ asset('js/toast.js') }}?v={{ filemtime(public_path('js/toast.js')) }}"></script>
     <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
     <script>
     var SIDEBAR_COLLAPSED_KEY = 'ecocollect.sidebar.collapsed';

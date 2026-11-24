@@ -15,6 +15,7 @@ use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\SubTeacherAssignmentController;
 
 // First-time setup (only works when no Super Admin exists)
 Route::get('/setup', [SetupController::class, 'show'])->name('setup.show');
@@ -30,6 +31,7 @@ Route::get('/certificates/{award}/view', [CertificateController::class, 'publicV
 Route::get('/certificates/{award}/file', [CertificateController::class, 'publicFile'])->middleware('signed')->name('public.certificate.file');
 Route::get('/certificates/{award}/download', [CertificateController::class, 'publicDownload'])->middleware('signed')->name('public.certificate.download');
 Route::post('/items/request-claim', [PublicController::class, 'requestItemClaim'])->name('public.items.request');
+Route::post('/items/request-claim-qr', [PublicController::class, 'requestItemClaimByQr'])->name('public.items.request-qr');
 Route::get('/items/points', [PublicController::class, 'points'])->name('public.items.points');
 
 // Guest routes (redirect authenticated users to dashboard)
@@ -37,14 +39,19 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
+    // Public self-registration is disabled; teacher accounts are created by admins.
+    Route::get('/register', function () { abort(404); })->name('register');
+    Route::post('/register', function () { abort(404); })->name('register.submit');
 
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
 
     Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+
+    // Teacher account setup via secure invitation link.
+    Route::get('/teacher-setup/{user}', [TeacherController::class, 'showTeacherSetupForm'])->middleware('signed')->name('teacher.setup.show');
+    Route::post('/teacher-setup/{user}', [TeacherController::class, 'completeTeacherSetup'])->middleware('signed')->name('teacher.setup.complete');
 });
 
 // Email verification routes (guest and authenticated users)
@@ -101,9 +108,9 @@ $registerPortalRoutes = function (string $asPrefix): void {
     Route::get('/certificate/{award}/edit', [CertificateController::class, 'edit'])->name($asPrefix . 'certificate.edit');
     Route::put('/certificate/{award}/update-canvas', [CertificateController::class, 'updateCanvas'])->name($asPrefix . 'certificate.update-canvas');
     Route::get('/certificate/templates/list', [CertificateController::class, 'templatesList'])->name($asPrefix . 'certificate.templates.list');
-    Route::get('/certificate/{award}/print', [CertificateController::class, 'print'])->name($asPrefix . 'certificate.print');
-    Route::get('/certificate/{award}/download', [CertificateController::class, 'download'])->name($asPrefix . 'certificate.download');
-    Route::get('/certificate/{award}/file', [CertificateController::class, 'file'])->name($asPrefix . 'certificate.file');
+    Route::get('/certificate/{award}/print', [CertificateController::class, 'print'])->middleware('certificate.print')->name($asPrefix . 'certificate.print');
+    Route::get('/certificate/{award}/download', [CertificateController::class, 'download'])->middleware('certificate.print')->name($asPrefix . 'certificate.download');
+    Route::get('/certificate/{award}/file', [CertificateController::class, 'file'])->middleware('certificate.print')->name($asPrefix . 'certificate.file');
     Route::patch('/certificate/{award}/archive', [CertificateController::class, 'archive'])->name($asPrefix . 'certificate.archive');
     Route::delete('/certificate/{award}', [CertificateController::class, 'destroy'])->name($asPrefix . 'certificate.destroy');
 
@@ -131,6 +138,7 @@ $registerPortalRoutes = function (string $asPrefix): void {
 
     // QR Code
     Route::get('/qrcode', [QrCodeController::class, 'index'])->name($asPrefix . 'qrcode');
+    Route::get('/qrcode/data', [QrCodeController::class, 'data'])->name($asPrefix . 'qrcode.data');
     Route::get('/qrcode/search-students', [QrCodeController::class, 'searchStudents'])->name($asPrefix . 'qrcode.searchStudents');
     Route::post('/qrcode/generate', [QrCodeController::class, 'generate'])->name($asPrefix . 'qrcode.generate');
     Route::get('/qrcode/{qrCode}/download', [QrCodeController::class, 'download'])->name($asPrefix . 'qrcode.download');
@@ -140,6 +148,11 @@ $registerPortalRoutes = function (string $asPrefix): void {
 // Protected routes
 Route::middleware(['auth', 'account.active'])->group(function () use ($registerPortalRoutes) {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    // System Settings is visible to every active, verified account (view only
+    // for everyone except Principal). It is registered outside the admin-only
+    // group so Teachers and Sub Teachers can reach the same /admin URL.
+    Route::middleware('verified')->get('/admin/system-settings', [SettingsController::class, 'index'])->name('admin.system-settings');
 
     // Email change routes (outside 'verified' middleware — user's email may not be verified yet)
     Route::get('/account/email-change/verify', [AccountSettingsController::class, 'showEmailChangeVerify'])->name('account.email-change.verify');
@@ -179,26 +192,40 @@ Route::middleware(['auth', 'account.active'])->group(function () use ($registerP
         Route::middleware('admin.only')->group(function () {
             Route::get('/teachers', [TeacherController::class, 'index'])->name('admin.teachers');
             Route::get('/teachers/fetch', [TeacherController::class, 'fetch'])->name('admin.teachers.fetch');
-            Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
+            Route::get('/teachers/eligible-for-assignment', [TeacherController::class, 'eligibleForAssignment'])->name('admin.teachers.eligible-for-assignment');
+            Route::post('/teachers/create-account', [TeacherController::class, 'createTeacherAccount'])->name('admin.teachers.create-account');
+    Route::post('/teachers/{teacher}/resend-invitation', [TeacherController::class, 'resendInvitation'])->name('admin.teachers.resend-invitation');
+    Route::post('/teachers', [TeacherController::class, 'store'])->name('admin.teachers.store');
             Route::put('/teachers/{teacher}', [TeacherController::class, 'update'])->name('admin.teachers.update');
             Route::post('/teachers/{teacher}/email-change/initiate', [TeacherController::class, 'initiateEmailChange'])->name('admin.teachers.email-change.initiate')->middleware('throttle:5,1');
             Route::post('/teachers/{teacher}/email-change/confirm', [TeacherController::class, 'confirmEmailChange'])->name('admin.teachers.email-change.confirm')->middleware('throttle:10,1');
             Route::post('/teachers/{teacher}/change-password', [TeacherController::class, 'changePassword'])->name('admin.teachers.change-password');
-            Route::patch('/teachers/{teacher}/restrict', [TeacherController::class, 'restrict'])->name('admin.teachers.restrict');
+            Route::patch('/teachers/{teacher}/certificate-permissions', [TeacherController::class, 'updateCertificatePermissions'])->name('admin.teachers.certificate-permissions');
+    Route::patch('/teachers/{teacher}/restrict', [TeacherController::class, 'restrict'])->name('admin.teachers.restrict');
             Route::patch('/teachers/{teacher}/unrestrict', [TeacherController::class, 'unrestrict'])->name('admin.teachers.unrestrict');
             Route::patch('/teachers/{teacher}/archive', [TeacherController::class, 'archive'])->name('admin.teachers.archive');
             Route::patch('/teachers/{teacher}/reactivate', [TeacherController::class, 'reactivate'])->name('admin.teachers.reactivate');
             Route::get('/teachers/archived', [TeacherController::class, 'archived'])->name('admin.teachers.archived');
+            Route::delete('/teachers/{teacher}/delete', [TeacherController::class, 'deleteArchived'])->name('admin.teachers.delete');
 
-            // System Settings
-            Route::get('/system-settings', [SettingsController::class, 'index'])->name('admin.system-settings');
-            Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
-            Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
+            // Sub Teacher assignments (admin / principal only)
+            Route::get('/sub-teacher-assignments', [SubTeacherAssignmentController::class, 'index'])->name('admin.sub-teacher-assignments');
+            Route::get('/sub-teacher-assignments/data', [SubTeacherAssignmentController::class, 'data'])->name('admin.sub-teacher-assignments.data');
+            Route::get('/sub-teacher-assignments/{subTeacher}', [SubTeacherAssignmentController::class, 'show'])->name('admin.sub-teacher-assignments.show');
+            Route::post('/sub-teacher-assignments', [SubTeacherAssignmentController::class, 'store'])->name('admin.sub-teacher-assignments.store');
+            Route::put('/sub-teacher-assignments/{subTeacher}', [SubTeacherAssignmentController::class, 'update'])->name('admin.sub-teacher-assignments.update');
+            Route::delete('/sub-teacher-assignments/{subTeacher}', [SubTeacherAssignmentController::class, 'destroy'])->name('admin.sub-teacher-assignments.destroy');
+
+            // System Settings writes remain Principal / Super Admin only.
+            Route::middleware('principal.only')->group(function () {
+                Route::post('/settings/general', [SettingsController::class, 'updateGeneral'])->name('admin.settings.general');
+                Route::post('/settings/security', [SettingsController::class, 'updateSecurity'])->name('admin.settings.security');
+            });
         });
     });
 
     // Teacher portal (/teacher/*)
-    Route::middleware(['verified', 'teacher.only'])->prefix('teacher')->group(function () use ($registerPortalRoutes) {
+    Route::middleware(['verified', 'teacher.only', 'subteacher.access'])->prefix('teacher')->group(function () use ($registerPortalRoutes) {
         $registerPortalRoutes('teacher.');
 
         // Achievement quests (teachers manage their own)

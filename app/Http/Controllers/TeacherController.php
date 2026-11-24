@@ -4,22 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\AdminActivity;
+use App\Services\CollaborationService;
 use App\Mail\SendOtpMail;
 use App\Mail\EmailChangeOtpMail;
+use App\Mail\TeacherSetupInvitation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class TeacherController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::whereIn('role', ['admin', 'teacher', 'super_admin'])
+        $query = User::whereIn('role', ['admin', 'teacher', 'sub_teacher', 'super_admin'])
             ->where('status', '!=', 'archived');
 
         if ($search = $request->get('search')) {
@@ -45,9 +50,23 @@ class TeacherController extends Controller
         return view('pages.teachers', compact('accounts'));
     }
 
+    /**
+     * Active Teacher accounts eligible for Sub Teacher assignment.
+     * Loaded on demand so account lists never leak unrelated names into HTML.
+     */
+    public function eligibleForAssignment()
+    {
+        $teachers = User::where('role', 'teacher')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json(['teachers' => $teachers]);
+    }
+
     public function fetch(Request $request)
     {
-        $query = User::whereIn('role', ['admin', 'teacher', 'super_admin'])
+        $query = User::whereIn('role', ['admin', 'teacher', 'sub_teacher', 'super_admin'])
             ->where('status', '!=', 'archived');
 
         if ($search = $request->get('search')) {
@@ -94,7 +113,7 @@ class TeacherController extends Controller
             'username' => 'required|string|max:50|unique:users,username',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:admin,teacher,super_admin',
+            'role' => 'required|in:admin,teacher,sub_teacher,super_admin',
             'position' => 'nullable|string|max:100',
             'status' => 'required|in:active,inactive,restricted,archived',
         ]);
@@ -124,7 +143,222 @@ class TeacherController extends Controller
             'module' => 'Accounts',
         ]);
 
-        return redirect()->route(portal_prefix() . '.teachers')->with('success', ucfirst($user->role) . ' account added successfully! A verification code has been sent to their email.');
+        return redirect()->route(portal_prefix() . '.teachers')->with('success', User::roleLabel($user->role) . ' account added successfully! A verification code has been sent to their email.');
+    }
+
+    /**
+     * Create a teacher in Pending Setup and email a secure, single-use setup link.
+     */
+    public function createTeacherAccount(Request $request)
+    {
+        $actor = auth()->user();
+        if (!$actor->isAdminLevel()) {
+            abort(403, 'Only Admin and Principal can create staff accounts.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:50|unique:users,username',
+            'email' => 'required|email|max:255|unique:users,email',
+            'position' => 'required|string|max:100',
+            // Optional for backward compatibility with existing invitation callers;
+            // the Create Account form always sends an explicit role.
+            'role' => 'sometimes|in:teacher,sub_teacher,admin,super_admin',
+            // Delegated access is only meaningful for Sub Teachers.
+            'teacher_id' => ['nullable', 'integer', Rule::exists('users', 'id')
+                ->where('role', 'teacher')->where('status', 'active')],
+            'access_level' => 'nullable|in:collaborator,view_only,custom',
+            'custom_permissions' => 'nullable|array',
+            'custom_permissions.*' => 'string|in:' . implode(',', array_keys(CollaborationService::configurablePermissions())),
+        ]);
+
+        $role = $validated['role'] ?? 'teacher';
+        // Admin may onboard teachers and sub teachers; only the existing
+        // Super Admin (displayed as Principal) may create higher-privilege roles.
+        if (in_array($role, ['admin', 'super_admin'], true) && !$actor->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Principal can create Admin or Principal accounts.',
+            ], 403);
+        }
+
+        $token = Str::random(64);
+        $expiresAt = now()->addHours(72);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'position' => $validated['position'],
+            'role' => $role,
+            'status' => 'pending_setup',
+            'password' => Hash::make(Str::random(48)),
+            'email_verified_at' => null,
+            'email_verification_code' => Hash::make($token),
+            'email_verification_expires_at' => $expiresAt,
+        ]);
+
+        // A Sub Teacher may be assigned at creation time. The assignment is
+        // stored on this user's own row; student ownership is unchanged.
+        if ($role === 'sub_teacher' && !empty($validated['teacher_id'])) {
+            $accessLevel = $validated['access_level'] ?? CollaborationService::ACCESS_COLLABORATOR;
+
+            $user->forceFill([
+                'assigned_teacher_id' => $validated['teacher_id'],
+                'sub_teacher_access_level' => $accessLevel,
+                'sub_teacher_permissions' => $accessLevel === CollaborationService::ACCESS_CUSTOM
+                    ? ($validated['custom_permissions'] ?? [])
+                    : null,
+            ])->save();
+        }
+
+        $setupUrl = URL::temporarySignedRoute('teacher.setup.show', $expiresAt, [
+            'user' => $user->id,
+            'token' => $token,
+        ]);
+
+        $invitationSent = true;
+        try {
+            Mail::to($user->email)->send(new TeacherSetupInvitation($user->name, $setupUrl, 72));
+        } catch (\Throwable $e) {
+            Log::error('Teacher setup invitation failed: ' . $e->getMessage());
+            $invitationSent = false;
+        }
+
+        $roleLabel = User::roleLabel($role);
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => 'Created ' . $roleLabel . ' Account',
+            'description' => "Created {$roleLabel} account: {$user->name} ({$user->username}).",
+            'module' => 'Accounts',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'invitation_sent' => $invitationSent,
+            'message' => $invitationSent
+                ? "{$roleLabel} account created successfully. An account setup invitation has been sent to the new account's email."
+                : "{$roleLabel} account created, but the invitation could not be sent. Please resend it from the accounts table.",
+            'account' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $role,
+                'status' => $user->status,
+            ],
+        ]);
+    }
+
+    private function setupInvitationError(Request $request, User $user): ?string
+    {
+        $token = (string) $request->query('token', '');
+
+        if (!in_array($user->role, ['teacher', 'sub_teacher', 'admin', 'super_admin'], true)
+            || $user->status !== 'pending_setup') {
+            return 'This account setup invitation is no longer valid.';
+        }
+        if ($token === '' || !$user->email_verification_code || !Hash::check($token, $user->email_verification_code)) {
+            return 'This account setup link is invalid or has already been used.';
+        }
+        if (!$user->email_verification_expires_at || now()->gt($user->email_verification_expires_at)) {
+            return 'This account setup link has expired. Please ask an administrator to resend the invitation.';
+        }
+
+        return null;
+    }
+
+    public function showTeacherSetupForm(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $error = $this->setupInvitationError($request, $user);
+
+        if ($error) {
+            $status = str_contains(strtolower($error), 'expired') ? 410 : 404;
+            return response()->view('auth.teacher-setup-invalid', ['error' => $error], $status);
+        }
+
+        return view('auth.teacher-setup', [
+            'user' => $user,
+            'token' => (string) $request->query('token', ''),
+        ]);
+    }
+
+    public function completeTeacherSetup(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $error = $this->setupInvitationError($request, $user);
+
+        if ($error) {
+            return back()->withErrors(['setup' => $error]);
+        }
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+            'status' => 'active',
+            'email_verified_at' => now(),
+            'email_verification_code' => null,
+            'email_verification_expires_at' => null,
+            'remember_token' => null,
+        ])->save();
+
+        $roleLabel = User::roleLabel($user->role);
+
+        AdminActivity::create([
+            'user_id' => $user->id,
+            'action' => 'Activated ' . $roleLabel . ' Account',
+            'description' => "{$roleLabel} account activated: {$user->name} ({$user->username}).",
+            'module' => 'Accounts',
+        ]);
+
+        return redirect()->route('login')->with('success', 'Your account has been activated. Please log in to continue.');
+    }
+
+    public function resendInvitation($id)
+    {
+        if (!auth()->user()->isAdminLevel()) {
+            abort(403, 'Only Admin and Super Admin can resend invitations.');
+        }
+
+        $user = User::findOrFail($id);
+        if (!in_array($user->role, ['teacher', 'sub_teacher', 'admin', 'super_admin'], true)
+            || $user->status !== 'pending_setup') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending staff accounts can receive an invitation.',
+            ], 422);
+        }
+
+        $token = Str::random(64);
+        $expiresAt = now()->addHours(72);
+        $user->forceFill([
+            'email_verification_code' => Hash::make($token),
+            'email_verification_expires_at' => $expiresAt,
+        ])->save();
+
+        $setupUrl = URL::temporarySignedRoute('teacher.setup.show', $expiresAt, [
+            'user' => $user->id,
+            'token' => $token,
+        ]);
+
+        try {
+            Mail::to($user->email)->send(new TeacherSetupInvitation($user->name, $setupUrl, 72));
+        } catch (\Throwable $e) {
+            Log::error('Teacher setup invitation resend failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to resend the invitation. Please try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A new account setup invitation has been sent.',
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -138,7 +372,7 @@ class TeacherController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
-            'role' => 'required|in:admin,teacher,super_admin',
+            'role' => 'required|in:admin,teacher,sub_teacher,super_admin',
             'position' => 'nullable|string|max:100',
             'status' => 'required|in:active,inactive,restricted,archived',
         ]);
@@ -162,7 +396,49 @@ class TeacherController extends Controller
             'module' => 'Accounts',
         ]);
 
-        return redirect()->route(portal_prefix() . '.teachers')->with('success', ucfirst($user->role) . ' account updated successfully!');
+        return redirect()->route(portal_prefix() . '.teachers')->with('success', User::roleLabel($user->role) . ' account updated successfully!');
+    }
+
+    /**
+     * Grant or revoke the explicit certificate printing permission.
+     * Admin and Principal (Super Admin) are the only authorized managers.
+     * Sub Teachers never inherit this permission from their Teacher.
+     */
+    public function updateCertificatePermissions(Request $request, $id)
+    {
+        if (!auth()->user()->isAdminLevel()) {
+            return response()->json(['error' => 'Only Admin and Principal can manage certificate printing access.'], 403);
+        }
+
+        $user = User::findOrFail($id);
+
+        if (!$user->isTeacher() && !$user->isSubTeacher()) {
+            return response()->json([
+                'error' => 'Certificate printing access can only be managed for Teacher and Sub Teacher accounts.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'can_print_certificates' => 'required|boolean',
+        ]);
+
+        $granted = (bool) $validated['can_print_certificates'];
+        $user->forceFill(['can_print_certificates' => $granted])->save();
+
+        AdminActivity::create([
+            'user_id' => Auth::id(),
+            'action' => $granted ? 'Granted Certificate Printing Access' : 'Revoked Certificate Printing Access',
+            'description' => ($granted ? 'Granted' : 'Revoked') . " certificate printing access for {$user->name} ({$user->username}).",
+            'module' => 'Accounts',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'can_print_certificates' => $granted,
+            'message' => $granted
+                ? 'Certificate printing access granted successfully.'
+                : 'Certificate printing access revoked successfully.',
+        ]);
     }
 
     public function restrict(Request $request, $id)
@@ -195,7 +471,7 @@ class TeacherController extends Controller
         ]);
 
         return response()->json([
-            'success' => ucfirst($user->role) . ' account restricted successfully!',
+            'success' => User::roleLabel($user->role) . ' account restricted successfully!',
             'account' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -232,7 +508,7 @@ class TeacherController extends Controller
         ]);
 
         return response()->json([
-            'success' => ucfirst($user->role) . ' account unrestricted successfully!',
+            'success' => User::roleLabel($user->role) . ' account unrestricted successfully!',
             'account' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -269,7 +545,7 @@ class TeacherController extends Controller
         ]);
 
         return response()->json([
-            'success' => ucfirst($user->role) . ' account archived successfully!',
+            'success' => User::roleLabel($user->role) . ' account archived successfully!',
             'account' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -310,7 +586,7 @@ class TeacherController extends Controller
         ]);
 
         return response()->json([
-            'success' => ucfirst($user->role) . ' account reactivated successfully!',
+            'success' => User::roleLabel($user->role) . ' account reactivated successfully!',
             'account' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -327,7 +603,7 @@ class TeacherController extends Controller
             return response()->json(['error' => 'Only Super Admin can view archived accounts.'], 403);
         }
 
-        $query = User::where('status', 'archived')->whereIn('role', ['admin', 'teacher', 'super_admin']);
+        $query = User::where('status', 'archived')->whereIn('role', ['admin', 'teacher', 'sub_teacher', 'super_admin']);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -341,6 +617,91 @@ class TeacherController extends Controller
 
         return response()->json([
             'accounts' => $accounts,
+        ]);
+    }
+
+    /**
+     * Permanently delete an archived account, but only when no related
+     * records would be destroyed or orphaned by the deletion.
+     */
+    public function deleteArchived(Request $request, $id)
+    {
+        $actor = auth()->user();
+        if (!$actor || !$actor->isSuperAdmin()) {
+            return response()->json(['error' => 'Only Principal can permanently delete accounts.'], 403);
+        }
+
+        if ((int) $id === (int) $actor->id) {
+            return response()->json(['error' => 'You cannot delete your own account.'], 422);
+        }
+
+        $user = User::findOrFail($id);
+
+        if ($user->status !== 'archived') {
+            return response()->json(['error' => 'Only archived accounts can be permanently deleted.'], 422);
+        }
+
+        // Protect the last remaining Principal (super_admin) account.
+        if ($user->isSuperAdmin()) {
+            $remaining = User::where('role', 'super_admin')
+                ->where('id', '!=', $user->id)
+                ->count();
+
+            if ($remaining === 0) {
+                return response()->json(['error' => 'The last Principal account cannot be deleted.'], 422);
+            }
+        }
+
+        // Block destructive or orphaning deletes before touching the record.
+        $blockers = [];
+
+        if (Schema::hasTable('students') && Schema::hasColumn('students', 'teacher_id')) {
+            $count = DB::table('students')->where('teacher_id', $user->id)->count();
+            if ($count > 0) {
+                $blockers[] = "{$count} student record(s) are still assigned to this account";
+            }
+        }
+
+        if (Schema::hasTable('student_enrollments') && Schema::hasColumn('student_enrollments', 'teacher_id')) {
+            $count = DB::table('student_enrollments')->where('teacher_id', $user->id)->count();
+            if ($count > 0) {
+                $blockers[] = "{$count} enrollment record(s) reference this account";
+            }
+        }
+
+        if (Schema::hasTable('teachers') && Schema::hasColumn('teachers', 'user_id')) {
+            $count = DB::table('teachers')->where('user_id', $user->id)->count();
+            if ($count > 0) {
+                $blockers[] = 'a linked legacy teacher record exists for this account';
+            }
+        }
+
+        if (!empty($blockers)) {
+            return response()->json([
+                'error' => 'This account cannot be deleted safely: ' . implode('; ', $blockers) . '. Reassign or remove those records first.',
+                'blockers' => $blockers,
+            ], 422);
+        }
+
+        $name = $user->name;
+        $username = $user->username;
+        $roleLabel = User::roleLabel($user->role);
+        $actorId = $actor->id;
+
+        // admin_activities.user_id uses nullOnDelete, so the history rows
+        // survive with their description intact after this delete.
+        $user->delete();
+
+        AdminActivity::create([
+            'user_id' => $actorId,
+            'action' => 'Deleted Archived Account',
+            'description' => "Permanently deleted archived {$roleLabel} account: {$name} ({$username}).",
+            'module' => 'Accounts',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$roleLabel} account permanently deleted.",
         ]);
     }
 

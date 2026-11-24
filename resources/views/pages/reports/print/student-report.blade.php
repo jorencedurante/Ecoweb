@@ -31,15 +31,17 @@
             @page { size: landscape; margin: 15mm; }
             body { padding: 0; }
             .report-header { margin-bottom: 20px; padding-bottom: 15px; }
+            .report-branding .school-name { font-size: 22px; }
             tr:hover { background: transparent; }
         }
     </style>
 </head>
 <body>
     <div class="report-header">
-        <h1>📊 {{ $title }}</h1>
-        <div class="subtitle">EcoCollect Environmental Achievement Tracking System</div>
-        <div class="generated">Generated: {{ now()->format('F j, Y \a\t g:i A') }} | {{ $students->count() }} student(s)</div>
+        @include('partials.reports.print-header', [
+            'reportTitle' => '📊 ' . $title,
+            'reportMeta' => ['Generated: ' . now()->format('F j, Y \a\t g:i A') . ' | ' . $students->count() . ' student(s)'],
+        ])
     </div>
 
     @if($students->isEmpty())
