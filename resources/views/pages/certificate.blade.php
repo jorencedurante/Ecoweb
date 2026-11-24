@@ -626,7 +626,10 @@
     var imageReady = false;           // true once the new template's img.onload ran
     var detectedLines = [];           // candidate blank lines from the last scan
     var alignmentVerified = false;    // all three fields positioned for this template
-    var PRINT_ALLOWED = {{ auth()->user()->canPrintCertificates() ? 'true' : 'false' }};         // overlay currently being dragged
+    // Bump when coordinate conventions change. Saved entries from an older
+    // layout are ignored (and re-detected) instead of being blindly restored.
+    var ALIGNMENT_VERSION = 2;
+    var PRINT_ALLOWED = {{ auth()->user()->canPrintCertificates() ? 'true' : 'false' }};
 
     var selectedStudentId = null;
     var selectedStudentName = '';
@@ -1017,6 +1020,47 @@
         refreshAll();
     }
 
+    // A saved entry is only trustworthy when its coordinates still describe
+    // the blank lines actually present in this image. This catches stale
+    // browser localStorage left behind by an older deployment.
+    function savedAlignmentMatchesImage(alignment) {
+        var img = $('certificateBg');
+        if (!img || !img.naturalWidth) return false;
+        var lines = detectBlankLines(img);
+        var closeTo = function(saved, filter, tolerance) {
+            if (!saved || !isFinite(saved.centerX) || !isFinite(saved.baseline)) return false;
+            return lines.some(function (line) {
+                return filter(line)
+                    && Math.abs(line.baseline - saved.baseline) <= tolerance
+                    && Math.abs(line.centerX - saved.centerX) <= 4;
+            });
+        };
+        // For signature lines the saved baseline must be at or ABOVE the real
+        // line. A value even slightly below it puts the name on the label or
+        // the bottom border, so a narrow asymmetric check is required.
+        var closeSignature = function(saved, filter) {
+            if (!saved || !isFinite(saved.centerX) || !isFinite(saved.baseline)) return false;
+            return lines.some(function (line) {
+                return filter(line)
+                    && saved.baseline <= line.baseline + 0.3
+                    && saved.baseline >= line.baseline - 2
+                    && Math.abs(line.centerX - saved.centerX) <= 2;
+            });
+        };
+        // Signature lines are in the band just above the printed labels.
+        // A saved coordinate near the bottom border (or a decorative rule)
+        // must never be treated as a valid signature anchor.
+        return closeTo(alignment.student, function (line) {
+                return line.baseline >= 45 && line.baseline <= 82 && line.width >= 15;
+            }, 1.5)
+            && closeSignature(alignment.adviser, function (line) {
+                return line.baseline >= 85 && line.baseline <= 94.5 && line.centerX < 50 && line.width >= 6;
+            })
+            && closeSignature(alignment.principal, function (line) {
+                return line.baseline >= 85 && line.baseline <= 94.5 && line.centerX > 50 && line.width >= 6;
+            });
+    }
+
     function restoreSavedAlignment() {
         var key = alignmentKey();
         if (!key) return false;
@@ -1025,10 +1069,13 @@
             if (!raw) return false;
             var saved = JSON.parse(raw);
             if (!saved || !saved.alignment) return false;
+            // Old saves (no version, or a previous coordinate convention) must
+            // not silently place the Principal/OIC name below the signature.
+            if (saved.version !== ALIGNMENT_VERSION) return false;
+            if (!savedAlignmentMatchesImage(saved.alignment)) return false;
             applyAlignment(saved.alignment);
             alignmentVerified = true;
             setOutputControlsEnabled(true);
-            showAlignmentMessage('Name positions restored for this certificate template.', 'info');
             return true;
         } catch (e) {
             return false;
@@ -1042,6 +1089,7 @@
         try {
             window.localStorage.setItem(alignmentKey(), JSON.stringify({
                 template: templateHash,
+                version: ALIGNMENT_VERSION,
                 saved_at: new Date().toISOString(),
                 alignment: {
                     student: { centerX: effectiveCfg(studentCfg, studentPosOverride).centerX, baseline: effectiveCfg(studentCfg, studentPosOverride).baseline },
@@ -1241,6 +1289,31 @@
         return matches[0];
     }
 
+    // Signature lines sit ABOVE the printed "Class Adviser" / "School OIC"
+    // label. Sorting by proximity to the OCR band centre can select a
+    // decorative rule or border BELOW the label, which drops the name to the
+    // bottom of the certificate. Prefer the lowest qualifying line that is
+    // still above the label band centre.
+    function pickSignatureLine(lines, filter, preferredBand, bandCount) {
+        var matches = lines.filter(filter);
+        if (!matches.length) return null;
+        if (preferredBand >= 0) {
+            var labelTop = preferredBand / bandCount * 100;
+            var labelCentre = (preferredBand + 0.5) / bandCount * 100;
+            var aboveLabel = matches.filter(function (line) {
+                return line.baseline >= labelTop - 6 && line.baseline < labelCentre;
+            });
+            if (aboveLabel.length) {
+                aboveLabel.sort(function (a, b) {
+                    return b.baseline - a.baseline || b.width - a.width;
+                });
+                return aboveLabel[0];
+            }
+        }
+        matches.sort(function (a, b) { return b.width - a.width; });
+        return matches[0];
+    }
+
     function runAutomaticAlignment() {
         var img = $('certificateBg');
         if (!img || !img.naturalWidth || !templateHash) return;
@@ -1261,12 +1334,12 @@
             return line.baseline >= 45 && line.baseline <= 82 && line.width >= 15;
         }, studentAnchor, bandCount);
 
-        var adviserLine = pickLine(detectedLines, function (line) {
-            return line.baseline >= 70 && line.baseline <= 99 && line.centerX < 50 && line.width >= 6;
+        var adviserLine = pickSignatureLine(detectedLines, function (line) {
+            return line.baseline >= 85 && line.baseline <= 94.5 && line.centerX < 50 && line.width >= 6;
         }, adviserAnchor, bandCount);
 
-        var principalLine = pickLine(detectedLines, function (line) {
-            return line.baseline >= 70 && line.baseline <= 99 && line.centerX > 50 && line.width >= 6;
+        var principalLine = pickSignatureLine(detectedLines, function (line) {
+            return line.baseline >= 85 && line.baseline <= 94.5 && line.centerX > 50 && line.width >= 6;
         }, principalAnchor, bandCount);
 
         var anchorCount = (studentAnchor >= 0 ? 1 : 0)

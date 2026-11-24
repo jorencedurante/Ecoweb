@@ -164,67 +164,17 @@ class BottleCollectionController extends Controller
         return $this->getQuarterDateRange($quarter);
     }
 
+    /**
+     * Manual bottle entry was a test-only workflow and is now disabled.
+     * Collections and their points come exclusively from the EcoCollect
+     * machine through POST /api/bottle-scan (Api\BottleScanController).
+     *
+     * The named route is kept so older bookmarks resolve to a clear denial
+     * instead of a missing-route error; no record or points are created here.
+     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'collection_date' => 'required|date',
-            'collection_time' => 'required',
-            'bottle_count' => 'required|integer|min:1',
-        ]);
-
-        $student = Student::findOrFail($validated['student_id']);
-
-        $teacherId = Auth::user()->scopeTeacherId();
-
-        if ($teacherId !== null) {
-            $hasAccess = $student->enrollments()
-                    ->where('teacher_id', $teacherId)
-                    ->where('status', 'active')
-                    ->exists()
-                || (int) $student->teacher_id === $teacherId;
-
-            if (!$hasAccess) {
-                abort(403, 'You cannot add bottle collections for students assigned to another teacher.');
-            }
-        }
-
-    $validated['lrn'] = $student->lrn;
-    $validated['points_earned'] = $validated['bottle_count'];
-    $validated['created_by'] = Auth::id();
-
-    // Link the collection to the student's current active enrollment so
-    // school-year activity stays isolated from historical records.
-    $currentEnrollment = $student->enrollments()
-        ->when($teacherId !== null, fn ($q) => $q->where('teacher_id', $teacherId))
-        ->where('status', 'active')
-        ->latest('id')
-        ->first();
-
-    if (!$currentEnrollment) {
-        return back()->withErrors([
-            'student_id' => 'This student has no active enrollment. A bottle collection requires an active school-year enrollment.',
-        ])->withInput();
-    }
-
-    $validated['enrollment_id'] = $currentEnrollment->id;
-
-    BottleCollection::create($validated);
-
-        // Update student total points: 1 bottle = 1 point
-        $student->increment('total_points', $validated['bottle_count']);
-
-        // Auto-award achievement quests from the student's assigned teacher only.
-        $student->syncEarnedAchievements(Auth::id());
-
-        AdminActivity::create([
-            'user_id' => Auth::id(),
-            'action' => 'Added Bottle Collection',
-            'description' => "Recorded {$validated['bottle_count']} bottles for {$student->full_name}.",
-            'module' => 'Bottle Collection',
-        ]);
-
-        return redirect()->route(portal_prefix() . '.bottle-collection')->with('success', 'Bottle collection recorded successfully!');
+        abort(403, 'Manual bottle collection entry is disabled. Collections are recorded by the EcoCollect machine.');
     }
 
     public function studentPoints(Request $request)

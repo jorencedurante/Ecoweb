@@ -104,9 +104,13 @@
                 @php
                     $stockAvailable = (int) $item->quantity > 0;
                     $pointsPerPiece = (int) $item->points_required;
-                    $initialQuantity = (int) old('quantity', 1);
-                    if ($initialQuantity < 1) {
-                        $initialQuantity = 1;
+                    // Cards start at zero: the user chooses how many pieces
+                    // to request. A submitted value is kept for validation feedback.
+                    $initialQuantity = request('submitted_card_id') == $item->id
+                        ? (int) old('quantity', 0)
+                        : 0;
+                    if ($initialQuantity < 0) {
+                        $initialQuantity = 0;
                     }
                 @endphp
                 <article class="reward-card">
@@ -157,7 +161,7 @@
                         <p class="points-status js-points-status" role="status" aria-live="polite" hidden></p>
                         <label for="claim-qty-{{ $item->id }}">Quantity</label>
                         <div class="reward-input-group">
-                            <input type="number" id="claim-qty-{{ $item->id }}" name="quantity" min="1" max="{{ $stockAvailable ? $item->quantity : 1 }}" value="{{ request('submitted_card_id') == $item->id ? old('quantity', 1) : 1 }}" required aria-label="Quantity" data-points="{{ $pointsPerPiece }}" data-available="{{ (int) $item->quantity }}">
+                            <input type="number" id="claim-qty-{{ $item->id }}" name="quantity" min="0" step="1" max="{{ $stockAvailable ? $item->quantity : 1 }}" value="{{ $initialQuantity }}" required aria-label="Quantity" data-points="{{ $pointsPerPiece }}" data-available="{{ (int) $item->quantity }}">
                         </div>
                         <div class="reward-total-box" aria-live="polite">
                             <span>Total Required:</span>
@@ -650,6 +654,11 @@
         var itemName = form.getAttribute('data-item-name') || 'this item';
         var qtyField = form.querySelector('input[name="quantity"]');
         var quantity = qtyField ? qtyField.value : '';
+        var parsedQuantity = /^[0-9]+$/.test(String(quantity).trim()) ? parseInt(quantity, 10) : 0;
+        if (!parsedQuantity || parsedQuantity < 1) {
+            setError('Enter a quantity of at least 1 before scanning a QR code.');
+            return;
+        }
         var totalEl = form.querySelector('.js-total-points');
         var total = totalEl ? totalEl.textContent.trim() : '';
         if (metaEl) {

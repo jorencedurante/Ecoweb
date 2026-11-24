@@ -92,7 +92,7 @@ class Phase2CollaborationTest extends TestCase
             ->assertOk()->assertSee('No Teacher Assignment Yet');
     }
 
-    public function test_collaborator_can_view_and_record_on_shared_records(): void
+    public function test_collaborator_can_view_but_manual_recording_is_disabled(): void
     {
         $teacher = $this->createTeacher(['name' => 'Kathleen Tabadero']);
         $subTeacher = $this->subTeacher();
@@ -108,12 +108,10 @@ class Phase2CollaborationTest extends TestCase
             'collection_date' => now()->toDateString(),
             'collection_time' => '10:00:00',
             'bottle_count' => 3,
-        ])->assertRedirect();
+        ])->assertForbidden();
 
-        $collection = BottleCollection::where('student_id', $student->id)->firstOrFail();
-        $this->assertSame($subTeacher->id, (int) $collection->created_by);
-        $this->assertSame($teacher->id, (int) $collection->enrollment->teacher_id);
-        $this->assertSame(3, (int) $student->refresh()->total_points);
+        $this->assertSame(0, BottleCollection::count());
+        $this->assertSame(0, (int) $student->refresh()->total_points);
         $this->assertSame($studentCount, Student::count(), 'No student rows may be duplicated.');
     }
 
@@ -267,12 +265,17 @@ class Phase2CollaborationTest extends TestCase
         $this->assign($subTeacher, $teacher);
         $student = $this->createStudent($teacher);
 
-        $this->actingAs($subTeacher)->post(route('teacher.bottle-collection.store'), [
+        $enrollment = $student->enrollments()->where('status', 'active')->latest('id')->firstOrFail();
+        BottleCollection::create([
             'student_id' => $student->id,
+            'lrn' => $student->lrn,
             'collection_date' => now()->toDateString(),
             'collection_time' => '11:00:00',
             'bottle_count' => 5,
-        ])->assertRedirect();
+            'points_earned' => 5,
+            'created_by' => $subTeacher->id,
+            'enrollment_id' => $enrollment->id,
+        ]);
 
         $this->actingAs($teacher)->getJson(route('teacher.bottle-collection.fetch'))
             ->assertOk()
@@ -322,9 +325,9 @@ class Phase2CollaborationTest extends TestCase
             'collection_date' => now()->toDateString(),
             'collection_time' => '09:00:00',
             'bottle_count' => 2,
-        ])->assertRedirect();
+        ])->assertForbidden();
 
-        $this->assertSame(1, BottleCollection::count());
+        $this->assertSame(0, BottleCollection::count());
     }
 
     public function test_assignment_management_page_and_permissions_metadata(): void

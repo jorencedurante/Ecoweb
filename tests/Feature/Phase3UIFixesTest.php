@@ -71,7 +71,8 @@ class Phase3UIFixesTest extends TestCase
         foreach ([$admin, $teacher, $subTeacher] as $viewer) {
             $this->actingAs($viewer)->get(route('admin.system-settings'))
                 ->assertOk()
-                ->assertSee('View only. Only Principal can edit these settings.')
+                ->assertDontSee('View only. Only Principal can edit these settings.')
+                ->assertDontSee('settings-view-note')
                 ->assertDontSee('id="settingsSaveBtn"', false)
                 ->assertSee('readonly');
         }

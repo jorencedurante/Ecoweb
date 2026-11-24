@@ -75,7 +75,7 @@ class SettingsNotificationTest extends TestCase
         foreach ($roles as $user) {
             $this->actingAs($user)->get(route('admin.system-settings'))
                 ->assertOk()
-                ->assertSee('View only. Only Principal can edit these settings.')
+                ->assertDontSee('View only. Only Principal can edit these settings.')
                 ->assertSee('readonly')
                 ->assertDontSee('id="settingsSaveBtn"', false);
 

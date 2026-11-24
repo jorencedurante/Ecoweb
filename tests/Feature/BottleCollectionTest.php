@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class BottleCollectionTest extends TestCase
 {
-    public function test_teacher_records_bottles_for_own_student(): void
+    public function test_manual_collection_creation_is_blocked(): void
     {
         $teacher = $this->createTeacher();
         $student = $this->createStudent($teacher, ['total_points' => 0]);
@@ -19,16 +19,24 @@ class BottleCollectionTest extends TestCase
             'bottle_count' => 5,
         ]);
 
-        $response->assertRedirect(route(portal_prefix() . '.bottle-collection'));
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('bottle_collections', ['student_id' => $student->id]);
+        $this->assertSame(0, (int) $student->refresh()->total_points);
+    }
 
-        $this->assertDatabaseHas('bottle_collections', [
-            'student_id' => $student->id,
-            'bottle_count' => 5,
-            'points_earned' => 5,
-            'created_by' => $teacher->id,
-        ]);
+    public function test_add_collection_ui_is_removed_for_teacher_admin_and_super_admin(): void
+    {
+        $teacher = $this->createTeacher();
+        $admin = $this->createAdmin();
+        $principal = $this->createSuperAdmin();
 
-        $this->assertSame(5, (int) $student->refresh()->total_points);
+        foreach ([$teacher, $admin, $principal] as $user) {
+            $prefix = $user->isTeacher() ? 'teacher' : 'admin';
+            $html = (string) $this->actingAs($user)->get(route($prefix . '.bottle-collection'))->assertOk()->getContent();
+            $this->assertStringNotContainsString('Add Collection', $html);
+            $this->assertStringNotContainsString('addCollectionModal', $html);
+            $this->assertStringNotContainsString('Save Collection', $html);
+        }
     }
 
     public function test_teacher_cannot_record_bottles_for_another_teachers_student(): void
